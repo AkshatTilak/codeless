@@ -1,0 +1,428 @@
+# Implementation & Architecture Plan: Codeless (Open Harness for Agent Buildable Base)
+
+> **Name: `Codeless`** — *"Code less: you steer the base, the harness builds."*  
+> **CLI Entrypoints**: `codeless` / `clh` (D3: `cl` dropped — MSVC conflict) | **Config Home**: `~/.codeless/`  
+> **Upstream Foundation**: **Hard-forked** from `HKUDS/OpenHarness` (v0.1.9, Python) with isolated `src/codeless/abb/` runtime bridge. No upstream sync (D2).  
+> **Plan Status**: v3 — verified against all three repos on 2026-08-19; decisions D1–D5 resolved (§15).
+
+---
+
+## 0. Verified Ground Truth (Repo Facts)
+
+Everything in this plan is grounded in the actual upstream repos. Do not let future edits drift from this table.
+
+### 0.1. HKUDS/OpenHarness (upstream, v0.1.9)
+| Fact | Reality |
+|---|---|
+| Language / build | **Python ≥3.10**, hatchling, `pyproject.toml`, package at `src/openharness/` + top-level `ohmo/` package |
+| Distribution | PyPI `openharness-ai`; `[project.scripts]`: `openharness`, `oh`, `openh` → `openharness.cli:app` (Typer); `ohmo` → `ohmo.cli:app` |
+| TUI | `frontend/terminal/` = **React/Ink (TypeScript)**, force-included into the wheel as `openharness/_frontend`; talks to the Python backend over an internal UI protocol (`websockets` dep). `textual` also present. |
+| Subsystems | `engine/` (agent loop), `tools/` (**43 tools**: Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, NotebookEdit, Agent, SendMessage, TeamCreate/Delete, **TaskCreate/Get/List/Update/Stop/Output**, MCPTool, EnterPlanMode/ExitPlanMode, Worktree, Cron*, Skill, Config, AskUser, …), `skills/`, `plugins/`, `permissions/`, `hooks/`, `commands/` (**54 slash commands**), `mcp/`, `memory/`, `tasks/` (**background task management**), `coordinator/` (subagents, teams, **headless worker mode**), `prompts/` (system prompt assembly + CLAUDE.md discovery/injection), `config/` (multi-layer `settings.json`), `ui/` |
+| Hooks | **PreToolUse / PostToolUse** lifecycle hooks with **priority ordering** (changelog #279). Plugin hooks via `hooks/hooks.json`. |
+| Permissions | Modes: `default` / `auto` / `plan` (blocks writes); `path_rules` + `denied_commands` in `settings.json`; sensitive-path protection built in. |
+| Skills | `SKILL.md` convention (anthropics/skills-compatible). Discovery: `~/.openharness/skills/`, `~/.claude/skills/`, `~/.agents/skills/` + project-level equivalents. Flat `<skill>/SKILL.md` layout. |
+| Providers | Profile-based (`oh provider add/list/use`): Anthropic-compatible, Claude subscription, OpenAI-compatible, Codex subscription, GitHub Copilot. Env prefix `OPENHARNESS_*`. |
+| Extras | `--dry-run` (ready/warning/blocked verdicts), auto-compact, session resume (`/resume`), `MEMORY.md`, cron scheduling, Worktree tool. |
+| Bloat for us | `ohmo/` personal-agent app + chat channel deps (`slack-sdk`, `python-telegram-bot`, `discord.py`, `lark-oapi`); `autopilot-dashboard/` + `docs/autopilot/`. |
+| Tests | **114** unit/integration (`uv run pytest -q`) + E2E scripts (`scripts/test_harness_features.py`, `scripts/test_real_skills_plugins.py`). |
+| Windows | Native support. Lesson: `oh` collided with PowerShell `Out-Host` → they ship `openh`. |
+
+### 0.2. AkshatTilak/agent_buildable_base (ABB, v1.0.0)
+| Fact | Reality |
+|---|---|
+| Nature | **A scaffold, not a runtime** (its own README says so). Codeless is the runtime. |
+| Always-loaded | `agent.md` (Base Architect persona) + `workflows/router.md` (checked FIRST on every prompt). |
+| Frontmatter | Every `.md` carries YAML frontmatter: `version`, `updated`, `id`, `links` (relative paths like `../../tasks/tasks.md`). **No machine-readable `status` field** — completion state lives in body checkboxes `[ ]`/`[/]`/`[x]`. |
+| Tasks | `tasks/tasks.md` defines hierarchy + §5 complexity rubric. Templates in `tasks/_templates/`: `goal.md`, `base.md`, `sub.md`, `temp.md`. Tasks carry `id`, `version`, `depends_on`, `links`. |
+| Verification | `workflows/execution/work_verification.md`: audit triggers when a subtask is marked `[x]`; two-track (unit + real system interaction) mandatory; roll-up to base task only when 100% sisters `[x]`; DRY audit; feedback loop into `references/issues/` + `work_principle.md`. |
+| Workflows | `router.md`; `execution/{work_principle, work_verification}.md`; `planning/{planning, init_project, extend_goal, extend_task}.md`; `quality/{recheck_codebase, fallback_policy}.md`; `user/{user_input, find_skills}.md`; `ci/setup_ci.md`. |
+| References | **11 domains**: `code/`, `deployment/`, `issues/`, `logic/`, `resource/`, `structure/`, `user/`, `tests/`, `logs/`, `db/`, `tooling/` + `references/references.md` index. |
+| Skills | `skills/skills.md` prose index + `manage_skills.md` (pull-adapt-delete via `skills/_staging/`). **Nested category layout** (`skills/qa/backend`, `skills/debug/traceback`, `skills/practice/tdd`, …) — NOT the flat layout upstream's skill loader expects. |
+| Path assumption | ABB assumes the codebase is **co-located with the ABB root** ("bootstrap a project inside it"). No concept of an external codebase root — this is the core semantic gap the shadow workspace creates (see A3). |
+
+### 0.3. AkshatTilak/codeless (this repo)
+Fresh repo: `LICENSE`, `README.md`, this plan. Nothing forked yet.
+
+---
+
+## 1. Executive Summary & Core Strategy
+
+**Codeless** is an autonomous agent execution harness engineered specifically to orchestrate, execute, and verify software projects governed by the **Agent Buildable Base (ABB)** paradigm.
+
+### Key Architectural Principles:
+1. **Workflow-First, Not Custom-Tool Bloat**:
+   - In `agent_buildable_base`, all intelligence, task management, verification rules, skill discovery, and architectural patterns are defined in **declarative Markdown workflows (`workflows/`) and skills (`skills/`)**.
+   - The model interacts using **upstream's standard 43 tools** (Read, Write, Edit, Grep, Glob, Bash, AskUser, …). ABB workflows already reference tools by *generic capability name* ("Workspace Text Grep", "Environment Test Execution"), so no renaming is needed (see C1).
+2. **Harness as the Deterministic Guardrail & Runtime**:
+   - **Auto-Initialization**: silently bootstraps the AppData shadow workspace on session start (no model tool call needed).
+   - **Shadow Path Virtualization**: transparently routes ABB paths (`tasks/`, `references/`, `design/`, `features/`, `skills/`, …) to AppData while source code stays in the user's repo root.
+   - **Lifecycle Hooks on the Upstream Hook Engine**: DAG dependency gating, two-track verification before `[x]`, roll-up integrity — implemented as registered PreToolUse/PostToolUse hooks, not a new hook runner (see C2).
+   - **Universal LLM & MCP Gateway**: inherited profile-based provider system (100% model agnostic).
+   - **Ink TUI & Subagent Workers**: inherited React/Ink frontend + `coordinator/` headless workers, capped at 3 concurrent.
+3. **Hard-Fork & Extend HKUDS/OpenHarness** (D2):
+   - **Hard fork**: maintenance is fully ours from the import commit onward. No upstream remote, no sync cadence, no compatibility constraints with future OpenHarness releases — we change whatever we need.
+   - Inherits generic harness plumbing (agent loop, provider gateway, Ink TUI, MCP client, permission engine, hook engine, background job runner).
+   - Renames upstream `tasks/` (background tasks) → `jobs/` to reserve "tasks" vocabulary for ABB markdown DAGs (scope & trade-off in C3).
+   - Isolates all ABB bridge logic in `src/codeless/abb/`.
+   - Drops `ohmo/` + chat-channel dependencies and `autopilot-dashboard/` (see C7).
+
+---
+
+## 2. Corrections & Incompatibility Log (plan v1 → v2)
+
+| # | Issue | Severity | Resolution |
+|---|---|---|---|
+| C1 | v1 invented tool names (`view_file`, `write_to_file`, `replace_file_content`, `run_command`, `ask_question`). Upstream ships 43 tools with different names (Read, Write, Edit, Bash, AskUser). | Medium | **Keep upstream tool names.** Renaming 43 tools breaks plugins, skills, tests, and upstream sync. ABB workflows use generic capability names, so they map cleanly (§5). |
+| C2 | v1 implied building a new "Hook Runner". Upstream already has PreToolUse/PostToolUse hooks **with priority ordering**. | High | ABB guardrails are implemented as **Python-registered hooks on the upstream hook engine**, matched to Write/Edit calls against shadow ABB paths (§7). No parallel hook system. |
+| C3 | Upstream `tasks/` = background task module + 6 `Task*` tools. Renaming to `jobs/` touches the module, tool schemas, commands, TUI strings, and the 114-test suite. | Medium | Proceed with rename (`jobs/`, `Job*` tools) as its own staged commit with full test pass. Under the D2 hard fork this is a clean one-time divergence with **no upstream-sync cost**. Alternative (rejected): keep upstream names and disambiguate in prompts — too confusing for models when ABB `tasks/` markdown is also in play. |
+| C4 | **Slash command collisions.** Upstream ships 54 commands including `/plan` (plan-mode toggle), `/skills`, `/resume`, `/permissions`. v1's `/plan` and `/skill` collide. | High | Unify instead of duplicate: ABB `/plan` **is** upstream plan mode + ABB planning workflows; `/skill` merges into upstream `/skills` extended to query the ABB index. Full mapping in §8. |
+| C5 | `cl` CLI alias collides with MSVC `cl.exe` on Windows dev machines (same class of bug as upstream's `oh` → `Out-Host`). | Low | **Resolved (D3)**: drop `cl` entirely. Ship `codeless` (primary) + `clh` (short alias) — no known conflicts on Windows cmd/PowerShell or Unix shells; mirrors upstream's `oh`→`openh` pattern. |
+| C6 | v1 proposed new `config.json` / `mcp_config.json` formats. Upstream already has multi-layer `settings.json` config with migrations. | Medium | Adopt upstream config system, renamed: `~/.codeless/settings.json`, project `.codeless/settings.json`. Rename env prefix `OPENHARNESS_*` → `CODELESS_*`. |
+| C7 | `ohmo/` (personal agent, 4 chat-platform SDK deps) and `autopilot-dashboard/` are dead weight for Codeless. | Medium | **Phase 0: remove** `ohmo` package, chat deps, autopilot dashboard. Cuts dependency bloat and test surface. |
+| C8 | v1's AppData tree listed only 7 `references/` domains; ABB has **11** (missing: `code/`, `deployment/`, `resource/`, `user/`). | Low | Fixed in §3. |
+| C9 | v1 said "Pydantic schemas" validate frontmatter. True, but ABB frontmatter has **no machine-readable `status`** — completion is body checkboxes. Hooks can't gate what they can't parse deterministically. | High | Requires **ABB change A1** (frontmatter `status` field). |
+| C10 | v1 assumed shadow virtualization "just works". ABB's relative links (`../../tasks/tasks.md`) survive **only if the whole ABB tree is copied intact**, and ABB assumes code is co-located with the ABB root — which the shadow workspace deliberately violates. | High | Copy tree intact (links hold inside shadow) + **ABB change A3** (`CODEBASE_ROOT` convention) so workflows know where real source lives. |
+| C11 | v1's `PostTaskTransition` hook "executes the test suite recorded in STACK.md / references/tests/". Those are **prose** — a deterministic hook cannot parse them. | High | Requires **ABB change A2**: machine-readable verification manifest (YAML command lists). Until A2 lands, the hook must ask the model to run verification (soft gate) — flag this interim behavior. |
+| C12 | v1's IPC layer ("JSON-RPC 2.0 / WebSockets / Typed Event Bus") may duplicate upstream's existing TUI backend protocol (`ui/`, `websockets`). | Medium | Phase 0 spike: inventory upstream's UI protocol; extend it for ABB panels/DAG viewer rather than building a parallel IPC. VS Code/Tauri clients then ride the same protocol in Phase 3. |
+
+---
+
+## 3. Storage Architecture & Auto-Initialization
+
+### Zero Codebase Pollution (AppData Shadow Workspace)
+When `codeless` starts in any workspace, it calculates the project's SHA-256 hash of the canonical root path and **automatically bootstraps** `~/.codeless/projects/<project_hash>/abb_workspace/` from the vendored template (`templates/agent_buildable_base/`) if it does not already exist. The template version (`VERSION`) and a min-compatible version are recorded in `metadata.json` (see A7).
+
+**Dev-mode override (for dogfooding, §12):** if `<repo>/.codeless/abb_workspace/` exists, it takes precedence over AppData. Directory is gitignored by default.
+
+```
+[User Machine Home]
+├── ~/.codeless/
+│   ├── settings.json                   # Global config (upstream multi-layer system, renamed)
+│   ├── mcp.json                        # Global MCP servers (upstream mcp config, renamed)
+│   ├── skills/                         # User's cross-project skills (upstream discovery path)
+│   └── projects/                       # Per-project storage
+│       └── <project_hash>/             # SHA-256 of canonical project root path
+│           ├── metadata.json           # Project name, root URI, ABB template VERSION, last active
+│           ├── user_context.json       # User profile & conversational memory (upstream memory/)
+│           ├── abb_workspace/          # Auto-initialized agent_buildable_base instance
+│           │   ├── agent.md            # Base Architect persona (always injected)
+│           │   ├── VERSION             # ABB template version pin
+│           │   ├── STACK.md            # Detected/asked stack + verification manifest (A2)
+│           │   ├── USER_PREFERENCES.md # User preferences for this codebase
+│           │   ├── CONVENTIONS.md      # Enforced conventions
+│           │   ├── CODING_PHILOSOPHY.md# Code structure guidelines
+│           │   ├── workflows/          # router.md + planning/execution/quality/user/ci
+│           │   ├── design/             # System, workflow, UX architecture specs
+│           │   ├── features/           # Feature specs & mermaid diagrams
+│           │   ├── tasks/              # Active task DAG
+│           │   │   ├── tasks.md        # Hierarchy & complexity rubric
+│           │   │   ├── goal/goal.md    # System North Star
+│           │   │   ├── base/*.md       # Architectural milestones
+│           │   │   ├── sub/*.md        # Granular execution units
+│           │   │   ├── temp/*.md       # Ad-hoc scope holding zone
+│           │   │   └── _templates/     # goal/base/sub/temp templates
+│           │   ├── references/         # 11-domain contextual memory bank
+│           │   │   ├── code/  deployment/  issues/  logic/  resource/
+│           │   │   ├── structure/  user/  tests/  logs/  db/  tooling/
+│           │   │   └── references.md   # Memory-bank index
+│           │   └── skills/             # Project skills (+ _staging/ for imports)
+│           ├── logs/                   # Structured execution & debug logs
+│           │   ├── dev/  docker/  failure/  test/
+│           ├── sessions/               # Resumable transcripts (upstream session resume)
+│           ├── checkpoints/            # Git-backed rollback snapshots (Phase 2)
+│           └── cache/                  # AST symbol index & token usage caches
+```
+
+---
+
+## 4. High-Level Architecture
+
+```mermaid
+graph TD
+    subgraph ClientLayer["User Interfaces (Thin Clients)"]
+        CLI["Ink/React TUI (inherited frontend/terminal)"]
+        VSC["VS Code Extension (Phase 3)"]
+        GUI["Tauri Dashboard (Phase 3)"]
+    end
+
+    subgraph IPCLayer["Communication Protocol"]
+        IPC["Upstream UI backend protocol (websockets) — extended with ABB events (C12)"]
+    end
+
+    subgraph UpstreamCore["Codeless Core (forked upstream plumbing)"]
+        Engine["Agent Loop Engine (engine/)"]
+        LLMGateway["Profile-Based Provider Gateway (config/)"]
+        ToolRegistry["43 Standard Tools (tools/) — Task* renamed to Job*"]
+        MCPClient["MCP Client (mcp/)"]
+        PermissionEngine["Permission Engine: default/auto/plan + path rules"]
+        HookEngine["Hook Engine: PreToolUse/PostToolUse + priority ordering"]
+        JobManager["Background Job Manager (jobs/, formerly tasks/)"]
+        SubagentCoordinator["Coordinator: subagents + headless workers"]
+        PromptAssembly["Prompt Assembly + CLAUDE.md-style injection (prompts/)"]
+    end
+
+    subgraph ABBBridge["Codeless ABB Bridge (src/codeless/abb/)"]
+        ShadowInit["Shadow Workspace Auto-Init + Template Vendor Sync"]
+        ShadowPathResolver["Shadow Path Resolver (AppData ABB <-> Codebase Root)"]
+        ABBHooks["ABB Hook Pack (DAG gate, frontmatter schema, two-track verify, roll-up)"]
+        PromptInjector["ABB Prompt Injector (agent.md + router.md + STACK.md)"]
+        SkillBridge["Skill Bridge (nested ABB skills -> upstream skill registry)"]
+        CommandPack["ABB Slash Command Pack (collision-resolved)"]
+        ModeEngine["Tri-Mode Controller (Plan / Agent / Ask)"]
+    end
+
+    subgraph StorageLayer["Data & Workspaces"]
+        UserProject["User Codebase Root (clean source & tests)"]
+        AppDataStore["AppData Shadow Store (~/.codeless/projects/HASH/)"]
+    end
+
+    CLI --> IPC
+    VSC --> IPC
+    GUI --> IPC
+    IPC --> UpstreamCore
+    UpstreamCore <--> ABBBridge
+    ABBBridge --> UserProject
+    ABBBridge --> AppDataStore
+```
+
+---
+
+## 5. Tool Model: ABB Workflows ↔ Upstream Tools
+
+No tool renames (C1). The bridge only adds **path virtualization** to existing file tools and **hooks** to existing write tools.
+
+| ABB workflow capability (as written in ABB docs) | Upstream tool used | Bridge behavior |
+|---|---|---|
+| "File Content Review" / reading workflows, tasks, references | `Read`, `Glob` | ABB paths resolve to shadow workspace; code paths resolve to repo root (A3). |
+| Creating tasks, designs, features, source files | `Write` | `PreToolUse` hook: frontmatter schema validation for ABB files (A1). |
+| "Locate Checklist Progress" / updating `[ ]`→`[/]`→`[x]` | `Edit` | `PreToolUse`/`PostToolUse` hooks: DAG gate, status sync, two-track verify, roll-up (§7). |
+| Non-contiguous edits | `MultiEdit` (or repeated `Edit`) | Same hooks as `Edit`. |
+| "Workspace Text Grep" / "Global Symbol Search" | `Grep`, `Glob`, `LSP` tool | Search roots = repo root + shadow workspace. |
+| "Environment Test Execution", lint, git diff | `Bash` | Permission-checked; `PostToolUse` on verify commands feeds the `[x]` gate. |
+| "Ask user" (user_input.md) | `AskUser` | ABB change A6 aligns question schema. |
+| Background/long-running work | `Job*` tools (renamed from `Task*`, C3) | Unchanged semantics. |
+| Subagent dispatch | `Agent`, `SendMessage`, `TeamCreate/Delete` | Worker sandboxing per §10. |
+| External systems | `MCPTool`, `ListMcpResources`, `ReadMcpResource` | Unchanged. |
+| Mode switching | `EnterPlanMode`, `ExitPlanMode` | Backing primitives for Tri-Mode (§9). |
+
+---
+
+## 6. How ABB Workflows Are Executed
+
+| Workflow File | How Codeless Executes It |
+|---|---|
+| `agent.md` + `workflows/router.md` | Auto-injected at session start by the **ABB Prompt Injector** via upstream's prompt-assembly/CLAUDE.md-style injection mechanism (not a new system). Model classifies intent, then `Read`s the target workflow. A5 adds an optional `ROUTE: <id>` audit line. |
+| `planning/init_project.md` | Model detects/asks stack via `AskUser`, fills `STACK.md` (including verification manifest, A2), creates `goal.md` + initial base tasks from `_templates/`. |
+| `planning/planning.md` | Research (`Read`, `Grep`), options via `AskUser`, writes to `design/`. |
+| `tasks/tasks.md` | Model copies `_templates/sub.md` via `Write`; hooks validate frontmatter + `depends_on`. |
+| `execution/work_principle.md` | Model implements active `tasks/sub/NN_task.md` in the **codebase root** (A3), minimal diffs. |
+| `execution/work_verification.md` | Model runs Track 1 + Track 2 via `Bash`; the `PostToolUse` verify hook hard-gates the `[x]` transition (§7). |
+| `skills/manage_skills.md` | Pull-adapt-delete: clone into `skills/_staging/`, adapt, register in `skills.md` (+ machine-readable index, A4), purge `_staging/` (enforced by `PreSkillImport` hook). |
+| `references/references.md` | On-demand `Read`/`Grep` against the 11-domain memory bank. |
+| `quality/fallback_policy.md` | No blanket `try/except` unless user requests; surfaced in prompt injection. |
+| `skills/debug/traceback` | On test failure: inspect `logs/failure/`, find root frame, write regression test. |
+| `ci/setup_ci.md` | Model scaffolds GitHub Actions per `STACK.md`. |
+
+---
+
+## 7. Lifecycle Hooks on the Upstream Hook Engine
+
+All ABB guardrails are **registered hooks on the existing PreToolUse/PostToolUse engine** (C2), matched by tool name + shadow-path pattern. Priorities use upstream's priority ordering.
+
+```mermaid
+graph TD
+    UserAction["Model calls Edit on tasks/sub/NN_task.md (status -> done)"] --> H1{"PreToolUse: FrontmatterSchemaHook<br/>(matcher: abb_workspace/**/*.md)"}
+    H1 -->|"YAML valid, status enum ok (A1)"| H2{"PreToolUse: DAGGateHook<br/>(matcher: tasks/sub|base/*.md)"}
+    H1 -->|"Schema violation"| Error1["Reject tool call with remediation message"]
+    
+    H2 -->|"All depends_on have status=done"| Exec["Edit executes"]
+    H2 -->|"Unresolved depends_on"| Error2["Block: list incomplete parent task ids"]
+    
+    Exec --> H3{"PostToolUse: TwoTrackVerifyHook<br/>(status -> done on sub/*)"}
+    H3 -->|"Read verify manifest from STACK.md (A2)"| Verifier["Run Track 1 (unit) + Track 2 (system) via Bash"]
+    Verifier -->|"Both tracks green"| H4{"PostToolUse: RollupHook"}
+    Verifier -->|"Any failure"| Error3["Revert status, write logs/failure/, demand traceback skill"]
+    
+    H4 -->|"100% sister subs done"| ClearBase["Auto-set parent base task status=done"]
+    H4 -->|"Sisters incomplete"| KeepBase["Base stays in_progress"]
+```
+
+### Hook Inventory (all upstream-engine hooks unless noted):
+| Hook | Event / Matcher | Action |
+|---|---|---|
+| `ShadowBootstrapHook` | **SessionStart** (new lifecycle point — verify upstream has one; else run at CLI bootstrap before engine start) | Auto-init shadow workspace; verify template `VERSION` compat (A7). |
+| `ABBPromptInjectionHook` | SessionStart / prompt assembly | Inject `agent.md` + `router.md` + `STACK.md` digest via upstream prompt assembly. |
+| `FrontmatterSchemaHook` | PreToolUse: Write/Edit on `abb_workspace/**/*.md` | Pydantic-validate YAML frontmatter (incl. `status` enum, A1). |
+| `DAGGateHook` | PreToolUse: Edit on `tasks/{sub,base}/*.md` | Block `in_progress`/`done` transitions with unsatisfied `depends_on`. |
+| `TwoTrackVerifyHook` | PostToolUse: Edit setting subtask `status: done` | Execute verification manifest (A2); revert + log on failure. Interim soft-gate until A2 (C11). |
+| `RollupHook` | PostToolUse: after subtask `done` | Auto-complete parent base task at 100%. |
+| `DriftDetectionHook` | PostToolUse: Write/Edit on codebase files | Heuristic structural delta vs `references/structure/`, `STACK.md`; full audit via `/drift`. |
+| `SkillStagingHook` | PreToolUse: Write on `skills/skills.md` | Enforce `_staging/` purge + index registration (A4). |
+| `PreCompactSnapshotHook` | PreCompact (upstream auto-compact event) | Dump topological DAG snapshot into session state so compaction preserves task context. |
+
+---
+
+## 8. Slash Commands (Collision-Resolved)
+
+Upstream ships 54 commands; ABB needs ~14. Strategy: **unify where semantics overlap, namespace where they don't** (C4).
+
+| Codeless Command | Alias | Collision? | Resolution / Maps To |
+|---|---|---|---|
+| `/plan` | `/p` | **Yes** — upstream `/plan` toggles plan mode | **Unify**: one command enters Plan Mode AND loads `planning/planning.md` context. |
+| `/skills` | `/s` | **Yes** — upstream `/skills` lists loaded skills | **Extend**: upstream command gains ABB index search + `manage_skills.md` import flow. |
+| `/init` | `/i` | No | Runs `init_project.md` wizard (or re-run for STACK refresh). |
+| `/route` | `/r` | No | Manually run `router.md` classification on current objective. |
+| `/goal` | `/g` | No | Inspect/edit `tasks/goal/goal.md`. |
+| `/task` | `/t` | No (upstream `Task*` are tools, not commands) | DAG status view (base/sub tree, blocked/ready). |
+| `/verify` | `/v` | No | Manually trigger `work_verification.md` for active subtask. |
+| `/drift` | `/d` | No | Run `recheck_codebase.md` audit + report. |
+| `/feature` | `/f` | No | Inspect/create `features/` specs. |
+| `/references` | `/ref` | No | Query 11-domain memory bank. |
+| `/checkpoint` | `/cp` | No (upstream `/resume` = sessions, different) | Git snapshot save/restore (Phase 2). |
+| `/mode` | `/m` | Partial — upstream `/permissions` | `/mode` switches plan/agent/ask; internally drives upstream permission modes. |
+| `/stack` | `/st` | No | View/update `STACK.md` + verification manifest. |
+| `/prefs` | `/pr` | No | View/update `USER_PREFERENCES.md`. |
+
+---
+
+## 9. Tri-Mode Permissions (Mapped to Upstream Modes)
+
+| Mode | Persona Injected | Upstream Permission Mode | Path Rules Applied | Verification Gate |
+|---|---|---|---|---|
+| 📐 **Plan** | `agent.md` + `planning/planning.md` | `plan` (blocks writes) + bridge exception | Write allowed **only** to shadow `design/`, `features/`, `tasks/`, `references/` | N/A |
+| ⚡ **Agent** | `work_principle.md` | `default` (ask before execute) | Repo root read/write; shadow write limited to task status + `tasks/temp/` | **Mandatory** (`done` gated by TwoTrackVerifyHook) |
+| 💬 **Ask** | `references.md` index | `plan` (blocks all writes) | Read-only everywhere | N/A |
+
+Implementation: thin `ModeEngine` that composes upstream permission modes + dynamic `path_rules`, instead of a parallel sandbox (C2 philosophy).
+
+---
+
+## 10. Subagent Workers (Max 3 Concurrent)
+
+Per `workflows/execution/work_principle.md`, using upstream `coordinator/` (Agent tool + headless worker mode) — no new swarm engine:
+- Supervisor detects subtasks with all `depends_on` satisfied → dispatches up to **3 concurrent headless workers** (cap enforced in coordinator config).
+- **Context sandboxing**: each worker receives exactly (1) target subtask file, (2) its frontmatter `links`, (3) referenced `references/` snippets, (4) assigned skill bodies (A1 `skills:` field).
+- Workers execute edits + two-track verification and report structured diffs/test output to the supervisor.
+- Phase 2 concurrency test: dispatch 5 ready subtasks, assert ≤3 run concurrently.
+
+---
+
+## 11. Required ABB Changes (work items in `AkshatTilak/agent_buildable_base`)
+
+These are changes to the ABB repo itself so the harness can be deterministic. Each is independently shippable and backward-compatible with standalone ABB use.
+
+### 11.1. ABB Branch Model (D4 — branch-dependent tracking)
+| Branch | Purpose | Consumed by |
+|---|---|---|
+| `main` | **The branch Codeless itself uses.** Generic ABB scaffold and the vendored template the harness ships (`templates/agent_buildable_base/` submodule → `main`). Also what any standalone ABB user consumes. | Codeless repo (submodule pin), standalone ABB users |
+| `codeless` | **Tracking branch for our project.** All harness-driven ABB work is developed and tracked here first: A1–A8 (machine-readable status, verification manifest, `CODEBASE_ROOT`, YAML skill index, …), plus any future schema changes our project needs. | Development/staging only — nothing ships directly from it |
+
+Rules:
+- `codeless` branch is created from `main`; it stays rebased/merged forward from `main` as the scaffold evolves.
+- **Promotion flow**: changes are developed and dogfood-validated on `codeless`, then promoted (merged) into `main` — because Codeless itself must use `main` (D4). Promotion is a deliberate merge per change (or batch), so `main` only ever receives validated improvements. Since we own ABB (D5), generic changes like A1–A3 are expected to be promoted quickly.
+- The submodule in the Codeless repo points at **`main`**; during early development (before A1–A3 are promoted) the dogfood workspace (§12) may temporarily seed from the `codeless` branch via the dev-mode override, switching to `main` once promoted.
+- `metadata.json` records which ABB branch + commit the shadow workspace was bootstrapped from (A7).
+
+### 11.2. Change List
+| # | Change | Why the harness needs it | Files touched |
+|---|---|---|---|
+| **A1** ✅ | Add machine-readable task state to frontmatter: `status: pending \| in_progress \| done \| blocked`, plus `complexity:` (from `tasks.md` §5 rubric) and `skills:` list. Rule: **frontmatter is source of truth**; harness syncs body checkboxes from it. *(Confirmed by D5 — we own ABB and will change it.)* | Hooks cannot reliably regex body checkboxes (C9). Subagent packaging needs `complexity`/`skills` without prose parsing. | `tasks/_templates/*.md`, `tasks/tasks.md`, `agent.md` §4 |
+| **A2** | Add a **verification manifest**: YAML block in `STACK.md` frontmatter (or `references/tests/verification.md`) with `track_1: [cmds]`, `track_2: [cmds]`, `lint:`, `typecheck:`. | TwoTrackVerifyHook must execute tests deterministically, not parse prose (C11). | `STACK.md`, `workflows/planning/init_project.md` (to populate it), `workflows/execution/work_verification.md` §3 |
+| **A3** | Introduce path variables: `ABB_ROOT` (where tasks/references live) and `CODEBASE_ROOT` (where source lives). Workflows reference code via `CODEBASE_ROOT`. Standalone ABB: both equal project root. Under Codeless: ABB_ROOT=shadow, CODEBASE_ROOT=repo. | ABB currently assumes code is co-located with the ABB tree — false under shadow virtualization (C10). | `agent.md`, `workflows/execution/work_principle.md`, `workflows/planning/init_project.md`, templates |
+| **A4** | Make `skills/skills.md` dual-format: keep the human table, add a machine-readable YAML index (`name`, `path`, `description`, `version`). | SkillBridge registers ABB skills into the upstream skill loader without prose parsing; also handles ABB's **nested category layout** vs upstream's flat expectation. | `skills/skills.md`, `skills/manage_skills.md` |
+| **A5** | Router audit contract: after classification, model emits `ROUTE: <workflow_id>` before reading the workflow. | Lets the harness log/audit routing decisions and power the TUI "active workflow" indicator. Optional but cheap. | `workflows/router.md` |
+| **A6** | Align `user_input.md` question format with the harness `AskUser` tool schema (options list, recommended flag, freeform toggle). | Guarantees structured interactive prompts instead of plain-text questions. | `workflows/user/user_input.md` |
+| **A7** | Version compatibility contract: harness records vendored `VERSION` + `min_harness_version` in `metadata.json`; ABB `CHANGELOG.md` must flag breaking frontmatter/schema changes. | Template upgrades of existing shadow workspaces need a migration trigger. | `VERSION`, `CHANGELOG.md`, `README.md` |
+| **A8** | Keep ABB pure: harness-only operations (checkpoints, shadow init, TUI panels) stay OUT of ABB workflows. Optionally reserve `workflows/harness/` namespace for future harness-aware workflows. | Prevents scaffold/runtime coupling creep. | (policy only) |
+
+**Sequencing**: A1 + A2 unblock Phase 1 hooks; A3 unblocks dogfooding correctness; A4 unblocks Phase 2 skill bridge; A5–A7 are cheap and can land anytime in Phase 1. All land on the ABB `codeless` branch first (D4) and are promoted to `main` after dogfood validation, since Codeless itself consumes `main`.
+
+---
+
+## 12. Dogfooding: Building Codeless with ABB in This Repo
+
+How we use ABB to build the harness itself, given the harness doesn't exist yet (bootstrap problem):
+
+1. **Phase 0a — Import upstream (hard fork, D2)**: import `HKUDS/OpenHarness` into this repo preserving git history (e.g. `git remote add openharness … && git merge --allow-unrelated-histories`, then **remove the remote** — no future sync). Rename per C3/C5/C6 in one staged commit. Drop `ohmo/`, chat deps, `autopilot-dashboard/` (C7). Green the 114-test suite.
+2. **Phase 0b — Vendor ABB (D1/D4)**: in `AkshatTilak/agent_buildable_base`, create the **`codeless` branch** off `main` (our project's tracking branch). Add ABB as a **git submodule** at `templates/agent_buildable_base/` pinned to **`main`** (`git submodule add -b main …`) — Codeless itself uses `main`. A1–A8 are developed on `codeless` and promoted to `main` after validation; the submodule pin then advances.
+3. **Phase 0c — Manual seed (bootstrap workaround)**: until auto-init exists, hand-create this repo's shadow: copy `templates/agent_buildable_base/` → `~/.codeless/projects/<sha256-of-repo-path>/abb_workspace/`, then run `init_project.md` against it with our current AI tooling to produce **Codeless's own** `STACK.md`, `goal/goal.md`, `base/`, `sub/` DAG — i.e., the Phase 1–3 tasks in this plan become real ABB tasks.
+4. **Phase 0d — Dev-mode override**: implement the `.codeless/abb_workspace/` in-repo override (§3) early, so dogfooding and template debugging don't require AppData spelunking.
+5. **Phase 1 onward — self-hosting**: once `codeless` runs, all Codeless development is driven through its own ABB DAG (status-gated, two-track verified). Self-hosting is the v0.1.0 exit criterion.
+
+---
+
+## 13. Phased Implementation Roadmap
+
+```mermaid
+gantt
+    title Codeless Implementation Roadmap
+    dateFormat  YYYY-MM-DD
+    
+    section Phase 0: Fork & Foundation
+    Hard-fork import OpenHarness w/ history; drop ohmo+chat+dashboard :p0_1, 2026-09-01, 3d
+    Rename pass: package/scripts/env prefix/tasks->jobs (C3 C5 C6)   :p0_3, after p0_1, 4d
+    Create ABB codeless branch; submodule main into templates/ (D1 D4) :p0_2, after p0_1, 2d
+    Auto-init AppData shadow workspace + dev-mode override           :p0_4, after p0_3, 3d
+    UI protocol inventory spike (C12)                                :p0_6, after p0_3, 2d
+    Manual ABB seed + dogfood Codeless bootstrap (0c)                :p0_5, after p0_4, 3d
+    Phase 0 Verification (114 upstream tests green)                  :milestone, after p0_5, 0d
+
+    section Phase 1: ABB Runtime Bridge (v0.1.0)
+    Land ABB A1-A3 on codeless branch, promote to main (prereq)      :p1_0, after p0_5, 3d
+    Shadow Path Virtualization Engine                                :p1_1, after p1_0, 4d
+    ABB Hook Pack on upstream hook engine (C2)                       :p1_2, after p1_1, 4d
+    Two-Track Verification Hook (manifest-driven, A2)                :p1_3, after p1_2, 4d
+    ABB Slash Command Pack (collision-resolved, C4)                  :p1_4, after p1_3, 3d
+    Tri-Mode Permission Controller (composed modes)                  :p1_5, after p1_4, 3d
+    Ink TUI ABB Panels (3-State UI, DAG Viewer) on UI protocol       :p1_6, after p1_5, 5d
+    Dry-run ABB Preview (extends upstream --dry-run)                 :p1_7, after p1_6, 3d
+    Release v0.1.0 (CLI + self-hosted dogfood)                       :milestone, after p1_7, 0d
+
+    section Phase 2: Ecosystem & Maintenance (v0.5.0)
+    Skill Bridge + Pull-Adapt-Delete validator (A4)                  :p2_1, after p1_7, 4d
+    Drift Auditor & Feedback Loop Engine                             :p2_2, after p2_1, 4d
+    Subagent Workers (max 3 concurrent, coordinator)                 :p2_3, after p2_2, 4d
+    Git Checkpoints & Rollback Engine                                :p2_4, after p2_3, 3d
+    Release v0.5.0 (Ecosystem Ready)                                 :milestone, after p2_4, 0d
+
+    section Phase 3: Expansion (v1.0.0)
+    VS Code Thin Client (rides UI protocol, C12)                     :p3_1, after p2_4, 10d
+    Tauri Desktop Visualizer Dashboard                               :p3_2, after p3_1, 12d
+    Release v1.0.0 (General Availability)                            :milestone, after p3_2, 0d
+```
+
+---
+
+## 14. Verification & Quality Assurance Strategy
+
+### 14.1. Phase 0 Verification
+- All **114** upstream unit/integration tests green after renames (`tasks`→`jobs`, namespace→`codeless`, env prefix) and after dropping `ohmo/` (remove its tests too).
+- Auto-init bootstraps `~/.codeless/projects/<hash>/` correctly on **Windows, Linux, macOS** (path hashing, `~` resolution).
+- `codeless --dry-run` reports shadow-workspace readiness.
+
+### 14.2. Phase 1 Verification (ABB E2E)
+1. Launch `codeless` on a sample repo → assert shadow auto-init + prompt injection of `agent.md`/`router.md`.
+2. `/init` → model follows `init_project.md`; generates `STACK.md` (with manifest, A2), `goal.md`, `base/`, `sub/`.
+3. DAG blocking: set subtask 02 `in_progress` before 01 done → `DAGGateHook` blocks with remediation message.
+4. Execute subtask 01 → `status: done` transition blocked on red tests, allowed on green (manifest-driven).
+5. Roll-up: all sisters done → parent base task auto-`done`.
+6. Self-hosting check: Codeless's own repo DAG drives a real change end-to-end.
+
+### 14.3. Phase 2 Verification
+1. Skill import: remote skill → `_staging/` → adapt → registered in `skills.md` YAML index (A4) → `_staging/` purged (hook-enforced).
+2. Drift: manual schema discrepancy → `/drift` report detects delta.
+3. Subagent concurrency: 5 ready subtasks → strictly ≤3 concurrent workers.
+
+---
+
+## 15. Decision Log (all resolved, 2026-08-19)
+
+| # | Decision | Resolution | Plan impact |
+|---|---|---|---|
+| **D1** | ABB vendoring | **Git submodule** — we own ABB, submodule gives clean pin/advance as changes land. | §12 step 2; submodule at `templates/agent_buildable_base/`. |
+| **D2** | Upstream sync policy | **Hard fork.** Maintenance is fully ours; no tracking of newer OpenHarness changes, change whatever we need. | §1 principle 3, C3, §12 step 0a (import then remove remote). |
+| **D3** | CLI alias | **`clh`** — non-conflicting short alias; `cl` dropped (MSVC `cl.exe` conflict). Entrypoints: `codeless` + `clh`. | Header, C5, Phase 0 rename pass. |
+| **D4** | Branch-dependent tracking | **ABB gets two branches**: `codeless` branch = tracking branch for our project (A1–A8 + future harness schema work developed here); `main` = what Codeless itself uses (submodule pins `main`). Changes flow `codeless` → validated → promoted to `main`. | New §11.1; §12 step 2; roadmap p0_2/p1_0. |
+| **D5** | Status source of truth | **A1 confirmed** — frontmatter `status` is authoritative; harness syncs body checkboxes. We own ABB, so the change is approved. | §11.2 A1 marked ✅; C9 resolved. |
+
+**Carried-over interim behavior (from old D4 question)**: until A2 (verification manifest) lands on the `codeless` branch, `TwoTrackVerifyHook` operates as a soft gate (asks the model to run tests per `work_verification.md`). A1+A2 are the first items on the `codeless` branch, so the soft-gate window is intentionally short.
