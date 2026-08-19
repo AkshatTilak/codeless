@@ -12,21 +12,21 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from openharness.commands.registry import CommandContext, create_default_command_registry
-from openharness.config.settings import Settings, load_settings
-from openharness.engine.messages import ConversationMessage, TextBlock
-from openharness.engine.query_engine import QueryEngine
-from openharness.mcp.client import McpClientManager
-from openharness.mcp.config import load_mcp_server_configs
-from openharness.mcp.types import McpStdioServerConfig
-from openharness.permissions import PermissionChecker
-from openharness.plugins import load_plugins
-from openharness.plugins.installer import install_plugin_from_path, uninstall_plugin
-from openharness.state import AppState, AppStateStore
-from openharness.bridge import build_sdk_url, decode_work_secret, encode_work_secret, spawn_session
-from openharness.bridge.types import WorkSecret
-from openharness.tools import create_default_tool_registry
-from openharness.tools.base import ToolExecutionContext
+from codeless.commands.registry import CommandContext, create_default_command_registry
+from codeless.config.settings import Settings, load_settings
+from codeless.engine.messages import ConversationMessage, TextBlock
+from codeless.engine.query_engine import QueryEngine
+from codeless.mcp.client import McpClientManager
+from codeless.mcp.config import load_mcp_server_configs
+from codeless.mcp.types import McpStdioServerConfig
+from codeless.permissions import PermissionChecker
+from codeless.plugins import load_plugins
+from codeless.plugins.installer import install_plugin_from_path, uninstall_plugin
+from codeless.state import AppState, AppStateStore
+from codeless.bridge import build_sdk_url, decode_work_secret, encode_work_secret, spawn_session
+from codeless.bridge.types import WorkSecret
+from codeless.tools import create_default_tool_registry
+from codeless.tools.base import ToolExecutionContext
 
 
 FIXTURE_SERVER = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "fake_mcp_server.py"
@@ -220,14 +220,14 @@ async def _run_command_flow(temp_root: Path) -> None:
 
 
 async def main() -> int:
-    with tempfile.TemporaryDirectory(prefix="openharness-local-system-") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="codeless-local-system-") as temp_dir:
         temp_root = Path(temp_dir)
         previous = {
-            "OPENHARNESS_CONFIG_DIR": os.environ.get("OPENHARNESS_CONFIG_DIR"),
-            "OPENHARNESS_DATA_DIR": os.environ.get("OPENHARNESS_DATA_DIR"),
+            "CODELESS_CONFIG_DIR": os.environ.get("CODELESS_CONFIG_DIR"),
+            "CODELESS_DATA_DIR": os.environ.get("CODELESS_DATA_DIR"),
         }
-        os.environ["OPENHARNESS_CONFIG_DIR"] = str(temp_root / "config")
-        os.environ["OPENHARNESS_DATA_DIR"] = str(temp_root / "data")
+        os.environ["CODELESS_CONFIG_DIR"] = str(temp_root / "config")
+        os.environ["CODELESS_DATA_DIR"] = str(temp_root / "data")
         try:
             await _run_mcp_flow(temp_root)
             await _run_plugin_flow(temp_root)

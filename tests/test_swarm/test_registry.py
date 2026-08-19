@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from openharness.swarm.registry import BackendRegistry
-from openharness.swarm.types import TeammateExecutor
+from codeless.platforms import PlatformCapabilities
+from codeless.swarm.registry import BackendRegistry
+from codeless.swarm.types import TeammateExecutor
 
 
 # ---------------------------------------------------------------------------
@@ -13,7 +14,18 @@ from openharness.swarm.types import TeammateExecutor
 # ---------------------------------------------------------------------------
 
 
-def test_registry_registers_subprocess_and_in_process():
+def test_registry_registers_subprocess_and_in_process(monkeypatch):
+    caps = PlatformCapabilities(
+        name="linux",
+        supports_posix_shell=True,
+        supports_native_windows_shell=False,
+        supports_tmux=True,
+        supports_swarm_mailbox=True,
+        supports_sandbox_runtime=True,
+        supports_docker_sandbox=True,
+    )
+    monkeypatch.setattr("codeless.swarm.registry.get_platform_capabilities", lambda: caps)
+    monkeypatch.setattr("codeless.platforms.get_platform_capabilities", lambda: caps)
     registry = BackendRegistry()
     available = registry.available_backends()
     assert "subprocess" in available
@@ -27,7 +39,18 @@ def test_get_executor_subprocess():
     assert executor.type == "subprocess"
 
 
-def test_get_executor_in_process():
+def test_get_executor_in_process(monkeypatch):
+    caps = PlatformCapabilities(
+        name="linux",
+        supports_posix_shell=True,
+        supports_native_windows_shell=False,
+        supports_tmux=True,
+        supports_swarm_mailbox=True,
+        supports_sandbox_runtime=True,
+        supports_docker_sandbox=True,
+    )
+    monkeypatch.setattr("codeless.swarm.registry.get_platform_capabilities", lambda: caps)
+    monkeypatch.setattr("codeless.platforms.get_platform_capabilities", lambda: caps)
     registry = BackendRegistry()
     executor = registry.get_executor("in_process")
     assert executor.type == "in_process"

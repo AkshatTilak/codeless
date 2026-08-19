@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from openharness.ui.runtime import build_runtime
+from codeless.ui.runtime import build_runtime
 
 
 @pytest.mark.asyncio
@@ -14,7 +14,7 @@ async def test_build_runtime_exits_cleanly_when_auth_resolution_fails(monkeypatc
     def fake_resolve_auth(self):
         raise ValueError("No credentials found")
 
-    monkeypatch.setattr("openharness.config.settings.Settings.resolve_auth", fake_resolve_auth)
+    monkeypatch.setattr("codeless.config.settings.Settings.resolve_auth", fake_resolve_auth)
 
     with pytest.raises(SystemExit, match="1"):
         await build_runtime(active_profile="claude-api")
@@ -27,7 +27,7 @@ async def test_build_runtime_exits_cleanly_for_openai_format(monkeypatch):
     def fake_resolve_auth(self):
         raise ValueError("No credentials found")
 
-    monkeypatch.setattr("openharness.config.settings.Settings.resolve_auth", fake_resolve_auth)
+    monkeypatch.setattr("codeless.config.settings.Settings.resolve_auth", fake_resolve_auth)
 
     with pytest.raises(SystemExit, match="1"):
         await build_runtime(active_profile="openai-compatible", api_format="openai")
@@ -36,7 +36,7 @@ async def test_build_runtime_exits_cleanly_for_openai_format(monkeypatch):
 @pytest.mark.asyncio
 async def test_build_runtime_reports_subscription_auth_setup(monkeypatch, tmp_path, capsys):
     """Subscription profiles should not be reported as missing API keys."""
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
 
     with pytest.raises(SystemExit, match="1"):

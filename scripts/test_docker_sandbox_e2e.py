@@ -28,14 +28,14 @@ import pytest
 # ---------------------------------------------------------------------------
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from openharness.config.settings import (
+from codeless.config.settings import (
     DockerSandboxSettings,
     SandboxNetworkSettings,
     SandboxSettings,
     Settings,
 )
-from openharness.sandbox.docker_backend import DockerSandboxSession, get_docker_availability
-from openharness.sandbox.docker_image import ensure_image_available
+from codeless.sandbox.docker_backend import DockerSandboxSession, get_docker_availability
+from codeless.sandbox.docker_image import ensure_image_available
 
 # ---------------------------------------------------------------------------
 # Skip condition: Docker daemon must be reachable
@@ -50,7 +50,7 @@ if _DOCKER:
         pass
 
 _SKIP_REASON = "Docker daemon is not available"
-_E2E_IMAGE = "openharness-sandbox-e2e:latest"
+_E2E_IMAGE = "codeless-sandbox-e2e:latest"
 
 pytestmark = pytest.mark.skipif(not _DOCKER_OK, reason=_SKIP_REASON)
 
@@ -517,7 +517,7 @@ class TestResourceLimits:
 class TestSessionIntegration:
     def test_session_lifecycle(self, e2e_image, project_dir):
         """start_docker_sandbox / stop_docker_sandbox should manage the global session."""
-        from openharness.sandbox.session import (
+        from codeless.sandbox.session import (
             get_docker_sandbox,
             is_docker_sandbox_active,
             start_docker_sandbox,
@@ -555,11 +555,11 @@ class TestSessionIntegration:
 class TestShellIntegration:
     def test_create_shell_subprocess_routes_through_docker(self, e2e_image, project_dir):
         """When Docker sandbox is active, create_shell_subprocess should exec inside container."""
-        from openharness.sandbox.session import (
+        from codeless.sandbox.session import (
             start_docker_sandbox,
             stop_docker_sandbox,
         )
-        from openharness.utils.shell import create_shell_subprocess
+        from codeless.utils.shell import create_shell_subprocess
 
         settings = _settings()
 

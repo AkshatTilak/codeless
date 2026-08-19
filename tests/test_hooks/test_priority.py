@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from openharness.api.client import ApiMessageCompleteEvent
-from openharness.api.usage import UsageSnapshot
-from openharness.engine.messages import ConversationMessage, TextBlock
-from openharness.hooks import HookEvent, HookExecutionContext, HookExecutor
-from openharness.hooks.loader import HookRegistry
-from openharness.hooks.schemas import CommandHookDefinition, HttpHookDefinition
+from codeless.api.client import ApiMessageCompleteEvent
+from codeless.api.usage import UsageSnapshot
+from codeless.engine.messages import ConversationMessage, TextBlock
+from codeless.hooks import HookEvent, HookExecutionContext, HookExecutor
+from codeless.hooks.loader import HookRegistry
+from codeless.hooks.schemas import CommandHookDefinition, HttpHookDefinition
 
 
 class FakeApiClient:

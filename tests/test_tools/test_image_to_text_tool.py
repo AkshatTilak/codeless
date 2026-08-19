@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from openharness.api.provider import is_model_multimodal
-from openharness.config.settings import VisionModelConfig
-from openharness.tools.base import ToolExecutionContext
-from openharness.tools.image_to_text_tool import ImageToTextTool, ImageToTextToolInput
+from codeless.api.provider import is_model_multimodal
+from codeless.config.settings import VisionModelConfig
+from codeless.tools.base import ToolExecutionContext
+from codeless.tools.image_to_text_tool import ImageToTextTool, ImageToTextToolInput
 
 
 # ---------------------------------------------------------------------------
@@ -243,9 +243,9 @@ class TestVisionModelConfig:
         assert not cfg.is_configured
 
     def test_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("OPENHARNESS_VISION_MODEL", "gpt-4o")
-        monkeypatch.setenv("OPENHARNESS_VISION_API_KEY", "sk-env-key")
-        monkeypatch.setenv("OPENHARNESS_VISION_BASE_URL", "https://api.example.com/v1")
+        monkeypatch.setenv("CODELESS_VISION_MODEL", "gpt-4o")
+        monkeypatch.setenv("CODELESS_VISION_API_KEY", "sk-env-key")
+        monkeypatch.setenv("CODELESS_VISION_BASE_URL", "https://api.example.com/v1")
 
         cfg = VisionModelConfig.from_env()
         assert cfg.model == "gpt-4o"
@@ -254,8 +254,8 @@ class TestVisionModelConfig:
         assert cfg.is_configured
 
     def test_from_env_partial(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("OPENHARNESS_VISION_MODEL", "gpt-4o")
-        monkeypatch.delenv("OPENHARNESS_VISION_API_KEY", raising=False)
+        monkeypatch.setenv("CODELESS_VISION_MODEL", "gpt-4o")
+        monkeypatch.delenv("CODELESS_VISION_API_KEY", raising=False)
 
         cfg = VisionModelConfig.from_env()
         assert not cfg.is_configured
@@ -267,7 +267,7 @@ class TestVisionModelConfig:
 
 def test_tool_registered() -> None:
     """image_to_text tool is registered in the default registry."""
-    from openharness.tools import create_default_tool_registry
+    from codeless.tools import create_default_tool_registry
 
     registry = create_default_tool_registry()
     tool = registry.get("image_to_text")
@@ -275,4 +275,4 @@ def test_tool_registered() -> None:
     assert tool.name == "image_to_text"
     assert "vision" in tool.description.lower()
     assert tool.input_model.__name__ == "ImageToTextToolInput"
-    assert tool.input_model.__module__ == "openharness.tools.image_to_text_tool"
+    assert tool.input_model.__module__ == "codeless.tools.image_to_text_tool"

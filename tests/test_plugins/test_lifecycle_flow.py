@@ -8,13 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from openharness.config.settings import Settings, load_settings
-from openharness.mcp.client import McpClientManager
-from openharness.mcp.config import load_mcp_server_configs
-from openharness.plugins import load_plugins
-from openharness.plugins.installer import install_plugin_from_path, uninstall_plugin
-from openharness.tools import create_default_tool_registry
-from openharness.tools.base import ToolExecutionContext
+from codeless.config.settings import Settings, load_settings
+from codeless.mcp.client import McpClientManager
+from codeless.mcp.config import load_mcp_server_configs
+from codeless.plugins import load_plugins
+from codeless.plugins.installer import install_plugin_from_path, uninstall_plugin
+from codeless.tools import create_default_tool_registry
+from codeless.tools.base import ToolExecutionContext
 
 
 def _write_plugin(source_root: Path, server_script: Path) -> Path:
@@ -54,7 +54,7 @@ def _write_plugin(source_root: Path, server_script: Path) -> Path:
 
 @pytest.mark.asyncio
 async def test_plugin_install_load_and_uninstall_flow(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     project = tmp_path / "project"
     project.mkdir()
     server_script = Path(__file__).resolve().parents[1] / "fixtures" / "fake_mcp_server.py"
@@ -97,7 +97,7 @@ async def test_plugin_install_load_and_uninstall_flow(tmp_path: Path, monkeypatc
 def test_uninstall_plugin_rejects_traversal_name_without_deleting_sibling(
     tmp_path: Path, monkeypatch
 ):
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     victim = tmp_path / "victim"
     victim.mkdir()
     (victim / "marker.txt").write_text("keep", encoding="utf-8")

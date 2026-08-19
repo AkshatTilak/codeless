@@ -47,7 +47,7 @@ async function readClipboardImageData(): Promise<ClipboardImageRead | null> {
 }
 
 async function readMacClipboardImage(): Promise<ClipboardImageRead | null> {
-	const tempDir = await mkdtemp(join(tmpdir(), 'openharness-clipboard-'));
+	const tempDir = await mkdtemp(join(tmpdir(), 'codeless-clipboard-'));
 	try {
 		const pngPath = join(tempDir, 'clipboard.png');
 		if (await runFileCommand('pngpaste', [pngPath])) {
@@ -88,7 +88,7 @@ async function writeMacClipboardClass(classCode: 'PNGf' | 'TIFF', outputPath: st
 }
 
 async function readWindowsClipboardImage(): Promise<ClipboardImageRead | null> {
-	const tempDir = await mkdtemp(join(tmpdir(), 'openharness-clipboard-'));
+	const tempDir = await mkdtemp(join(tmpdir(), 'codeless-clipboard-'));
 	try {
 		const pngPath = join(tempDir, 'clipboard.png');
 		const escapedPath = pngPath.replace(/'/g, "''");

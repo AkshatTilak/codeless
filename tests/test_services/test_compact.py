@@ -6,11 +6,11 @@ import asyncio
 
 import pytest
 
-from openharness.api.client import ApiMessageCompleteEvent
-from openharness.api.usage import UsageSnapshot
-from openharness.engine.messages import ConversationMessage, ImageBlock, TextBlock, ToolResultBlock, ToolUseBlock
-from openharness.hooks import HookEvent
-from openharness.services import (
+from codeless.api.client import ApiMessageCompleteEvent
+from codeless.api.usage import UsageSnapshot
+from codeless.engine.messages import ConversationMessage, ImageBlock, TextBlock, ToolResultBlock, ToolUseBlock
+from codeless.hooks import HookEvent
+from codeless.services import (
     build_post_compact_messages,
     compact_conversation,
     compact_messages,
@@ -19,7 +19,7 @@ from openharness.services import (
     estimate_tokens,
     summarize_messages,
 )
-from openharness.services.compact import (
+from codeless.services.compact import (
     AutoCompactState,
     _is_prompt_too_long_error,
     auto_compact_if_needed,
@@ -129,7 +129,7 @@ class _HookExecutorStub:
 
     async def execute(self, event: HookEvent, payload: dict[str, object]):
         self.events.append((event, payload))
-        from openharness.hooks.types import AggregatedHookResult
+        from codeless.hooks.types import AggregatedHookResult
 
         return AggregatedHookResult()
 
@@ -244,7 +244,7 @@ def test_microcompact_compacts_mcp_results_while_preserving_recent():
 
 
 def test_microcompact_compacts_large_non_allowlisted_results(monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_MICROCOMPACT_TOOL_RESULT_CHARS", "256")
+    monkeypatch.setenv("CODELESS_MICROCOMPACT_TOOL_RESULT_CHARS", "256")
     messages = [
         ConversationMessage(
             role="assistant",
@@ -284,7 +284,7 @@ def test_compact_prompt_too_long_detection_handles_llama_cpp_errors():
 
 
 def test_compact_token_estimate_counts_images(monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_IMAGE_TOKEN_ESTIMATE", "6000")
+    monkeypatch.setenv("CODELESS_IMAGE_TOKEN_ESTIMATE", "6000")
     messages = [
         ConversationMessage(
             role="user",
@@ -296,7 +296,7 @@ def test_compact_token_estimate_counts_images(monkeypatch):
 
 
 def test_should_autocompact_counts_image_tokens(monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_IMAGE_TOKEN_ESTIMATE", "6000")
+    monkeypatch.setenv("CODELESS_IMAGE_TOKEN_ESTIMATE", "6000")
     messages = [
         ConversationMessage(
             role="user",
@@ -403,7 +403,7 @@ async def test_compact_conversation_runs_hooks_and_preserves_carryover_state(tmp
                     "Look into issue #98",
                     "Confirm issue #98 and fix the logger formatting bug",
                 ],
-                "active_artifacts": [str(image_path), "src/openharness/channels/impl/matrix.py:398"],
+                "active_artifacts": [str(image_path), "src/codeless/channels/impl/matrix.py:398"],
                 "verified_state": ["Issue #98 is about logger placeholder formatting"],
                 "next_step": "Patch the logger formatting and rerun focused tests",
             },
@@ -554,8 +554,8 @@ async def test_compact_post_messages_keep_boundary_summary_recent_then_attachmen
 
 @pytest.mark.asyncio
 async def test_auto_compact_records_richer_checkpoint_metadata(monkeypatch):
-    monkeypatch.setattr("openharness.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
-    monkeypatch.setattr("openharness.services.compact.should_autocompact", lambda *args, **kwargs: True)
+    monkeypatch.setattr("codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
+    monkeypatch.setattr("codeless.services.compact.should_autocompact", lambda *args, **kwargs: True)
     long_text = "alpha " * 50000
     messages = [
         ConversationMessage(role="user", content=[TextBlock(text=long_text)]),
@@ -593,9 +593,9 @@ async def test_auto_compact_if_needed_returns_original_messages_after_timeout(mo
     async def _stall():
         await asyncio.sleep(0.05)
 
-    monkeypatch.setattr("openharness.services.compact.COMPACT_TIMEOUT_SECONDS", 0.01)
-    monkeypatch.setattr("openharness.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
-    monkeypatch.setattr("openharness.services.compact.should_autocompact", lambda *args, **kwargs: True)
+    monkeypatch.setattr("codeless.services.compact.COMPACT_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr("codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
+    monkeypatch.setattr("codeless.services.compact.should_autocompact", lambda *args, **kwargs: True)
     long_text = "alpha " * 50000
     messages = [
         ConversationMessage(role="user", content=[TextBlock(text=long_text)]),

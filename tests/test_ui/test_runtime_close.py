@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from openharness.ui.runtime import build_runtime, close_runtime
+from codeless.ui.runtime import build_runtime, close_runtime
 
 
 class _ClosableApiClient:
@@ -22,8 +22,8 @@ class _ClosableApiClient:
 
 @pytest.mark.asyncio
 async def test_close_runtime_closes_api_client(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     client = _ClosableApiClient()
 
     bundle = await build_runtime(cwd=str(tmp_path), api_client=client)

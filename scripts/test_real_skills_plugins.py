@@ -23,7 +23,7 @@ BOLD = "\033[1m"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SKILLS_REPO = Path("/tmp/anthropic-skills/skills")
-PLUGINS_REPO = Path("/tmp/openharness-test-plugins/plugins")
+PLUGINS_REPO = Path("/tmp/codeless-test-plugins/plugins")
 
 
 def _env() -> dict[str, str]:
@@ -35,7 +35,7 @@ def _env() -> dict[str, str]:
 
 
 def _run_oh(*args: str, timeout: int = 90, cwd: str | None = None) -> subprocess.CompletedProcess:
-    cmd = [sys.executable, "-m", "openharness", *args]
+    cmd = [sys.executable, "-m", "codeless", *args]
     return subprocess.run(
         cmd, capture_output=True, text=True, timeout=timeout,
         env=_env(), cwd=cwd or str(PROJECT_ROOT),
@@ -47,8 +47,8 @@ def _run_oh(*args: str, timeout: int = 90, cwd: str | None = None) -> subprocess
 # ============================================================
 
 async def test_install_real_skills() -> tuple[bool, str]:
-    """Copy real skills from anthropics/skills into openharness user skills dir."""
-    from openharness.config.paths import get_config_dir
+    """Copy real skills from anthropics/skills into codeless user skills dir."""
+    from codeless.config.paths import get_config_dir
 
     if not SKILLS_REPO.exists():
         return False, f"Skills repo not found at {SKILLS_REPO}. Run: git clone https://github.com/anthropics/skills /tmp/anthropic-skills"
@@ -71,7 +71,7 @@ async def test_install_real_skills() -> tuple[bool, str]:
 
 async def test_real_skills_loaded() -> tuple[bool, str]:
     """Verify that the installed real skills are loaded by the registry."""
-    from openharness.skills.loader import load_skill_registry
+    from codeless.skills.loader import load_skill_registry
 
     registry = load_skill_registry(cwd=".")
     skills = registry.list_skills()
@@ -87,7 +87,7 @@ async def test_real_skills_loaded() -> tuple[bool, str]:
 
 async def test_real_skill_content_quality() -> tuple[bool, str]:
     """Verify that real skills have substantial content (not stubs)."""
-    from openharness.skills.loader import load_skill_registry
+    from codeless.skills.loader import load_skill_registry
 
     registry = load_skill_registry(cwd=".")
     issues = []
@@ -110,8 +110,8 @@ async def test_real_skill_content_quality() -> tuple[bool, str]:
 
 async def test_skill_tool_with_real_skill() -> tuple[bool, str]:
     """Test SkillTool with a real anthropic skill (pdf)."""
-    from openharness.tools.skill_tool import SkillTool, SkillToolInput
-    from openharness.tools.base import ToolExecutionContext
+    from codeless.tools.skill_tool import SkillTool, SkillToolInput
+    from codeless.tools.base import ToolExecutionContext
 
     tool = SkillTool()
     result = await tool.execute(
@@ -133,8 +133,8 @@ async def test_skill_tool_with_real_skill() -> tuple[bool, str]:
 
 async def test_skills_in_prompt_with_real() -> tuple[bool, str]:
     """Test that real skills appear in the system prompt."""
-    from openharness.config.settings import load_settings
-    from openharness.prompts.context import build_runtime_system_prompt
+    from codeless.config.settings import load_settings
+    from codeless.prompts.context import build_runtime_system_prompt
 
     prompt = build_runtime_system_prompt(load_settings(), cwd=".")
     if "Available Skills" not in prompt:
@@ -170,11 +170,11 @@ async def test_model_uses_real_skill() -> tuple[bool, str]:
 # ============================================================
 
 async def test_install_real_plugins() -> tuple[bool, str]:
-    """Copy real plugins into openharness plugin directory."""
+    """Copy real plugins into codeless plugin directory."""
     if not PLUGINS_REPO.exists():
         return False, f"Plugins repo not found at {PLUGINS_REPO}"
 
-    dest_base = PROJECT_ROOT / ".openharness" / "plugins"
+    dest_base = PROJECT_ROOT / ".codeless" / "plugins"
     dest_base.mkdir(parents=True, exist_ok=True)
 
     installed = []
@@ -195,8 +195,8 @@ async def test_install_real_plugins() -> tuple[bool, str]:
 
 async def test_real_plugins_loaded() -> tuple[bool, str]:
     """Verify that real plugins are discovered by the loader."""
-    from openharness.config.settings import load_settings
-    from openharness.plugins.loader import load_plugins
+    from codeless.config.settings import load_settings
+    from codeless.plugins.loader import load_plugins
 
     settings = load_settings()
     plugins = load_plugins(settings, str(PROJECT_ROOT))
@@ -215,8 +215,8 @@ async def test_real_plugins_loaded() -> tuple[bool, str]:
 
 async def test_plugin_commands_discovered() -> tuple[bool, str]:
     """Check that plugin commands (.md files) are discovered."""
-    from openharness.config.settings import load_settings
-    from openharness.plugins.loader import load_plugins
+    from codeless.config.settings import load_settings
+    from codeless.plugins.loader import load_plugins
 
     settings = load_settings()
     plugins = load_plugins(settings, str(PROJECT_ROOT))
@@ -239,7 +239,7 @@ async def test_plugin_commands_discovered() -> tuple[bool, str]:
 
 async def test_plugin_hook_structure() -> tuple[bool, str]:
     """Verify that plugin hooks can be loaded (security-guidance has a PreToolUse hook)."""
-    dest = PROJECT_ROOT / ".openharness" / "plugins" / "security-guidance"
+    dest = PROJECT_ROOT / ".codeless" / "plugins" / "security-guidance"
     hooks_file = dest / "hooks" / "hooks.json"
 
     if not hooks_file.exists():
@@ -264,7 +264,7 @@ async def test_plugin_hook_structure() -> tuple[bool, str]:
 
 async def test_commit_command_content() -> tuple[bool, str]:
     """Verify commit-commands plugin has real command content."""
-    dest = PROJECT_ROOT / ".openharness" / "plugins" / "commit-commands"
+    dest = PROJECT_ROOT / ".codeless" / "plugins" / "commit-commands"
     cmd_dir = dest / "commands"
 
     if not cmd_dir.exists():

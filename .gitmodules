@@ -1,0 +1,4 @@
+[submodule "templates/agent_buildable_base"]
+	path = templates/agent_buildable_base
+	url = https://github.com/AkshatTilak/agent_buildable_base.git
+	branch = main

@@ -34,13 +34,13 @@ RESULTS: dict[str, tuple[bool, float]] = {}
 # ==================================================================
 
 def _make_registry(extra_tools=None):
-    from openharness.tools.base import ToolRegistry
-    from openharness.tools.bash_tool import BashTool
-    from openharness.tools.file_read_tool import FileReadTool
-    from openharness.tools.file_write_tool import FileWriteTool
-    from openharness.tools.file_edit_tool import FileEditTool
-    from openharness.tools.glob_tool import GlobTool
-    from openharness.tools.grep_tool import GrepTool
+    from codeless.tools.base import ToolRegistry
+    from codeless.tools.bash_tool import BashTool
+    from codeless.tools.file_read_tool import FileReadTool
+    from codeless.tools.file_write_tool import FileWriteTool
+    from codeless.tools.file_edit_tool import FileEditTool
+    from codeless.tools.glob_tool import GlobTool
+    from codeless.tools.grep_tool import GrepTool
 
     reg = ToolRegistry()
     for t in [BashTool(), FileReadTool(), FileWriteTool(), FileEditTool(), GlobTool(), GrepTool()]:
@@ -51,15 +51,15 @@ def _make_registry(extra_tools=None):
 
 
 def _make_checker():
-    from openharness.config.settings import PermissionSettings
-    from openharness.permissions.checker import PermissionChecker
-    from openharness.permissions.modes import PermissionMode
+    from codeless.config.settings import PermissionSettings
+    from codeless.permissions.checker import PermissionChecker
+    from codeless.permissions.modes import PermissionMode
     return PermissionChecker(PermissionSettings(mode=PermissionMode.FULL_AUTO))
 
 
 def make_anthropic_engine(system_prompt, extra_tools=None):
-    from openharness.api.client import AnthropicApiClient
-    from openharness.engine.query_engine import QueryEngine
+    from codeless.api.client import AnthropicApiClient
+    from codeless.engine.query_engine import QueryEngine
     api = AnthropicApiClient(api_key=API_KEY, base_url=ANTHROPIC_BASE)
     return QueryEngine(
         api_client=api, tool_registry=_make_registry(extra_tools),
@@ -69,8 +69,8 @@ def make_anthropic_engine(system_prompt, extra_tools=None):
 
 
 def make_openai_engine(system_prompt, extra_tools=None):
-    from openharness.api.openai_client import OpenAICompatibleClient
-    from openharness.engine.query_engine import QueryEngine
+    from codeless.api.openai_client import OpenAICompatibleClient
+    from codeless.engine.query_engine import QueryEngine
     api = OpenAICompatibleClient(api_key=API_KEY, base_url=OPENAI_BASE)
     return QueryEngine(
         api_client=api, tool_registry=_make_registry(extra_tools),
@@ -80,7 +80,7 @@ def make_openai_engine(system_prompt, extra_tools=None):
 
 
 def collect(events):
-    from openharness.engine.stream_events import (
+    from codeless.engine.stream_events import (
         AssistantTextDelta, AssistantTurnComplete,
         ToolExecutionStarted, ToolExecutionCompleted,
     )
@@ -113,7 +113,7 @@ async def task_diagnose_autoagent():
     print("  Task 1: PR#17 — Use diagnose skill to investigate AutoAgent tests")
     print("=" * 70)
 
-    from openharness.tools.skill_tool import SkillTool
+    from codeless.tools.skill_tool import SkillTool
 
     engine = make_anthropic_engine(
         "You are a debugger. Start by loading the 'diagnose' skill to get "
@@ -155,11 +155,11 @@ async def task_memory_research_autoagent():
     print("  Task 2: PR#12 — Research AutoAgent → save to memory → search → use")
     print("=" * 70)
 
-    from openharness.memory.search import find_relevant_memories
-    from openharness.memory.scan import scan_memory_files
-    import openharness.memory.paths as mp
-    import openharness.memory.manager as mm
-    import openharness.memory.scan as ms
+    from codeless.memory.search import find_relevant_memories
+    from codeless.memory.scan import scan_memory_files
+    import codeless.memory.paths as mp
+    import codeless.memory.manager as mm
+    import codeless.memory.scan as ms
 
     with tempfile.TemporaryDirectory() as tmpdir:
         mem_dir = Path(tmpdir) / "memory"
@@ -329,10 +329,10 @@ async def task_session_resume_autoagent():
     print("  Task 4: PR#16 — Research AutoAgent → save → resume → continue")
     print("=" * 70)
 
-    from openharness.services.session_storage import (
+    from codeless.services.session_storage import (
         save_session_snapshot, load_session_snapshot,
     )
-    from openharness.engine.messages import ConversationMessage
+    from codeless.engine.messages import ConversationMessage
 
     with tempfile.TemporaryDirectory() as session_dir:
         # Phase 1: Original 3-turn research session
@@ -414,12 +414,12 @@ async def task_cron_autoagent_maintenance():
     print("  Task 5: PR#16 — Cron scheduler for AutoAgent maintenance")
     print("=" * 70)
 
-    from openharness.services.cron import (
+    from codeless.services.cron import (
         load_cron_jobs, upsert_cron_job, delete_cron_job,
         get_cron_job, set_job_enabled,
         mark_job_run, next_run_time,
     )
-    import openharness.services.cron as cron_mod
+    import codeless.services.cron as cron_mod
 
     with tempfile.TemporaryDirectory() as tmpdir:
         registry_path = Path(tmpdir) / "cron_jobs.json"
@@ -502,16 +502,16 @@ async def task_full_dev_workflow():
     print("  Task 6: ALL PRs — Full development workflow on AutoAgent")
     print("=" * 70)
 
-    from openharness.tools.skill_tool import SkillTool
-    from openharness.memory.scan import scan_memory_files
-    from openharness.memory.search import find_relevant_memories
-    from openharness.services.session_storage import save_session_snapshot, load_session_snapshot
-    from openharness.services.cron import upsert_cron_job, load_cron_jobs, validate_cron_expression
-    from openharness.engine.messages import ConversationMessage
-    import openharness.memory.paths as mp
-    import openharness.memory.manager as mm
-    import openharness.memory.scan as ms
-    import openharness.services.cron as cron_mod
+    from codeless.tools.skill_tool import SkillTool
+    from codeless.memory.scan import scan_memory_files
+    from codeless.memory.search import find_relevant_memories
+    from codeless.services.session_storage import save_session_snapshot, load_session_snapshot
+    from codeless.services.cron import upsert_cron_job, load_cron_jobs, validate_cron_expression
+    from codeless.engine.messages import ConversationMessage
+    import codeless.memory.paths as mp
+    import codeless.memory.manager as mm
+    import codeless.memory.scan as ms
+    import codeless.services.cron as cron_mod
 
     with tempfile.TemporaryDirectory() as tmpdir:
         mem_dir = Path(tmpdir) / "memory"

@@ -1,4 +1,4 @@
-"""Tests for openharness.config.settings."""
+"""Tests for codeless.config.settings."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from openharness.auth.storage import store_credential
-from openharness.config.settings import (
+from codeless.auth.storage import store_credential
+from codeless.config.settings import (
     ProviderProfile,
     Settings,
     display_model_setting,
@@ -40,26 +40,26 @@ class TestSettings:
         assert s.resolve_api_key() == "sk-test-123"
 
     def test_resolve_api_key_from_env(self, monkeypatch):
-        monkeypatch.delenv("OPENHARNESS_ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_ANTHROPIC_API_KEY", raising=False)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-env-456")
         s = Settings()
         assert s.resolve_api_key() == "sk-env-456"
 
-    def test_resolve_api_key_prefers_openharness_env(self, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_ANTHROPIC_API_KEY", "sk-oh-456")
+    def test_resolve_api_key_prefers_codeless_env(self, monkeypatch):
+        monkeypatch.setenv("CODELESS_ANTHROPIC_API_KEY", "sk-oh-456")
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-env-456")
         s = Settings()
         assert s.resolve_api_key() == "sk-oh-456"
 
     def test_resolve_api_key_instance_takes_precedence(self, monkeypatch):
-        monkeypatch.delenv("OPENHARNESS_ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_ANTHROPIC_API_KEY", raising=False)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-env-456")
         s = Settings(api_key="sk-instance-789")
         assert s.resolve_api_key() == "sk-instance-789"
 
     def test_resolve_api_key_missing_raises(self, monkeypatch):
-        monkeypatch.delenv("OPENHARNESS_ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.delenv("OPENHARNESS_OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         s = Settings()
@@ -81,9 +81,9 @@ class TestSettings:
         assert s.permission.mode == "default"
 
     def test_web_settings_env_overrides(self, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_WEB_PROXY", "http://proxy.example.com:7890")
-        monkeypatch.setenv("OPENHARNESS_WEB_RESOLUTION_MODE", "synthetic_dns")
-        monkeypatch.setenv("OPENHARNESS_WEB_SYNTHETIC_DNS_CIDRS", "100.64.0.0/10,203.0.113.0/24")
+        monkeypatch.setenv("CODELESS_WEB_PROXY", "http://proxy.example.com:7890")
+        monkeypatch.setenv("CODELESS_WEB_RESOLUTION_MODE", "synthetic_dns")
+        monkeypatch.setenv("CODELESS_WEB_SYNTHETIC_DNS_CIDRS", "100.64.0.0/10,203.0.113.0/24")
 
         updated = _apply_env_overrides(Settings())
 
@@ -101,7 +101,7 @@ class TestSettings:
         """When api_format=openai, resolve_auth() should use OPENAI_API_KEY
         from the environment rather than the flat api_key field which may
         contain an Anthropic key from settings.json."""
-        monkeypatch.delenv("OPENHARNESS_OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_OPENAI_API_KEY", raising=False)
         monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-correct")
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         s = Settings(api_key="sk-ant-wrong-provider", api_format="openai")
@@ -110,21 +110,21 @@ class TestSettings:
         assert auth.value == "sk-openai-correct"
         assert "OPENAI" in auth.source
 
-    def test_resolve_auth_prefers_openharness_env_for_openai(self, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_OPENAI_API_KEY", "sk-oh-openai")
+    def test_resolve_auth_prefers_codeless_env_for_openai(self, monkeypatch):
+        monkeypatch.setenv("CODELESS_OPENAI_API_KEY", "sk-oh-openai")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-correct")
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         s = Settings(api_key="sk-ant-wrong-provider", api_format="openai")
         s = s.sync_active_profile_from_flat_fields()
         auth = s.resolve_auth()
         assert auth.value == "sk-oh-openai"
-        assert auth.source == "env:OPENHARNESS_OPENAI_API_KEY"
+        assert auth.source == "env:CODELESS_OPENAI_API_KEY"
 
     def test_resolve_auth_falls_back_to_flat_api_key(self, monkeypatch):
         """When no provider-specific env var is set, resolve_auth() should
         still fall back to the flat api_key field."""
-        monkeypatch.delenv("OPENHARNESS_ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.delenv("OPENHARNESS_OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         s = Settings(api_key="sk-fallback-key")
@@ -136,7 +136,7 @@ class TestSettings:
         """_apply_env_overrides should pick up OPENAI_BASE_URL for relay
         providers that use OpenAI-compatible format."""
         monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
-        monkeypatch.delenv("OPENHARNESS_BASE_URL", raising=False)
+        monkeypatch.delenv("CODELESS_BASE_URL", raising=False)
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.setenv("OPENAI_BASE_URL", "https://relay.example.com/v1")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-relay-key")
@@ -145,9 +145,9 @@ class TestSettings:
         s = load_settings(path)
         assert s.base_url == "https://relay.example.com/v1"
 
-    def test_load_settings_uses_profile_specific_openharness_env_key(self, tmp_path: Path, monkeypatch):
+    def test_load_settings_uses_profile_specific_codeless_env_key(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-wrong")
-        monkeypatch.setenv("OPENHARNESS_OPENAI_API_KEY", "sk-oh-openai")
+        monkeypatch.setenv("CODELESS_OPENAI_API_KEY", "sk-oh-openai")
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         path = tmp_path / "settings.json"
         path.write_text(
@@ -160,7 +160,7 @@ class TestSettings:
 
     def test_load_settings_ignores_wrong_provider_native_env_key(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-wrong")
-        monkeypatch.delenv("OPENHARNESS_OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         path = tmp_path / "settings.json"
         path.write_text(
@@ -172,8 +172,8 @@ class TestSettings:
         assert s.api_key == ""
 
     def test_env_overrides_pick_up_compact_threshold_settings(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONTEXT_WINDOW_TOKENS", "123456")
-        monkeypatch.setenv("OPENHARNESS_AUTO_COMPACT_THRESHOLD_TOKENS", "120000")
+        monkeypatch.setenv("CODELESS_CONTEXT_WINDOW_TOKENS", "123456")
+        monkeypatch.setenv("CODELESS_AUTO_COMPACT_THRESHOLD_TOKENS", "120000")
         path = tmp_path / "settings.json"
         path.write_text(json.dumps({}))
         s = load_settings(path)
@@ -193,28 +193,28 @@ class TestSettings:
 
 class TestLoadSaveSettings:
     def test_load_missing_file_returns_defaults(self, tmp_path: Path, monkeypatch):
-        monkeypatch.delenv("OPENHARNESS_ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.delenv("OPENHARNESS_OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
         monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
-        monkeypatch.delenv("OPENHARNESS_BASE_URL", raising=False)
+        monkeypatch.delenv("CODELESS_BASE_URL", raising=False)
         monkeypatch.delenv("ANTHROPIC_MODEL", raising=False)
-        monkeypatch.delenv("OPENHARNESS_MODEL", raising=False)
+        monkeypatch.delenv("CODELESS_MODEL", raising=False)
         path = tmp_path / "nonexistent.json"
         s = load_settings(path)
         assert s == Settings().materialize_active_profile()
 
     def test_load_existing_file(self, tmp_path: Path, monkeypatch):
-        monkeypatch.delenv("OPENHARNESS_ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.delenv("OPENHARNESS_OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
         monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
         monkeypatch.delenv("ANTHROPIC_MODEL", raising=False)
-        monkeypatch.delenv("OPENHARNESS_MODEL", raising=False)
+        monkeypatch.delenv("CODELESS_MODEL", raising=False)
         path = tmp_path / "settings.json"
         path.write_text(json.dumps({"model": "claude-opus-4-20250514", "verbose": True, "fast_mode": True}))
         s = load_settings(path)
@@ -224,14 +224,14 @@ class TestLoadSaveSettings:
         assert s.api_key == ""  # default preserved
 
     def test_save_and_load_roundtrip(self, tmp_path: Path, monkeypatch):
-        monkeypatch.delenv("OPENHARNESS_ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.delenv("OPENHARNESS_OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("CODELESS_OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
         monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
         monkeypatch.delenv("ANTHROPIC_MODEL", raising=False)
-        monkeypatch.delenv("OPENHARNESS_MODEL", raising=False)
+        monkeypatch.delenv("CODELESS_MODEL", raising=False)
         path = tmp_path / "settings.json"
         original = Settings(api_key="sk-roundtrip", model="claude-opus-4-20250514", verbose=True)
         save_settings(original, path)
@@ -510,7 +510,7 @@ class TestLoadSaveSettings:
         assert materialized.model == "claude-opus-4-6"
 
     def test_resolve_auth_prefers_profile_scoped_credential_for_custom_compatible_profile(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path))
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-global-env")
         store_credential("profile:kimi-anthropic", "api_key", "sk-profile-specific", use_keyring=False)
         settings = Settings(
@@ -564,11 +564,11 @@ def test_normalize_anthropic_model_name_matches_hermes_behavior():
         path.write_text(json.dumps({"model": "from-file", "base_url": "https://file.example"}))
         monkeypatch.setenv("ANTHROPIC_MODEL", "from-env-model")
         monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://env.example/anthropic")
-        monkeypatch.setenv("OPENHARNESS_TIMEOUT", "42.5")
-        monkeypatch.setenv("OPENHARNESS_MAX_TURNS", "42")
+        monkeypatch.setenv("CODELESS_TIMEOUT", "42.5")
+        monkeypatch.setenv("CODELESS_MAX_TURNS", "42")
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-env-override")
-        monkeypatch.setenv("OPENHARNESS_SANDBOX_ENABLED", "true")
-        monkeypatch.setenv("OPENHARNESS_SANDBOX_FAIL_IF_UNAVAILABLE", "1")
+        monkeypatch.setenv("CODELESS_SANDBOX_ENABLED", "true")
+        monkeypatch.setenv("CODELESS_SANDBOX_FAIL_IF_UNAVAILABLE", "1")
 
         s = load_settings(path)
 
@@ -631,9 +631,9 @@ class TestAnsiEscapeSequences:
         updated = _apply_env_overrides(s)
         assert updated.model == "claude-opus-4-6"
 
-    def test_env_override_strips_ansi_from_openharness_model(self, monkeypatch):
-        """Test that ANSI escape sequences are stripped from OPENHARNESS_MODEL env var."""
-        monkeypatch.setenv("OPENHARNESS_MODEL", "\x1b[32mclaude-sonnet-4-6\x1b[0m")
+    def test_env_override_strips_ansi_from_codeless_model(self, monkeypatch):
+        """Test that ANSI escape sequences are stripped from CODELESS_MODEL env var."""
+        monkeypatch.setenv("CODELESS_MODEL", "\x1b[32mclaude-sonnet-4-6\x1b[0m")
         s = Settings()
         updated = _apply_env_overrides(s)
         assert updated.model == "claude-sonnet-4-6"
@@ -649,7 +649,7 @@ class TestMiniMaxProvider:
     """Tests for MiniMax provider profile and auth integration."""
 
     def test_minimax_in_default_provider_profiles(self):
-        from openharness.config.settings import default_provider_profiles
+        from codeless.config.settings import default_provider_profiles
 
         profiles = default_provider_profiles()
         assert "minimax" in profiles
@@ -661,12 +661,12 @@ class TestMiniMaxProvider:
         assert profile.base_url == "https://api.minimax.io/v1"
 
     def test_auth_source_provider_name_minimax(self):
-        from openharness.config.settings import auth_source_provider_name
+        from codeless.config.settings import auth_source_provider_name
 
         assert auth_source_provider_name("minimax_api_key") == "minimax"
 
     def test_default_auth_source_for_minimax_provider(self):
-        from openharness.config.settings import default_auth_source_for_provider
+        from codeless.config.settings import default_auth_source_for_provider
 
         assert default_auth_source_for_provider("minimax") == "minimax_api_key"
 
@@ -713,7 +713,7 @@ class TestNvidiaProvider:
     """Tests for NVIDIA NIM provider profile and auth integration."""
 
     def test_nvidia_in_default_provider_profiles(self):
-        from openharness.config.settings import default_provider_profiles
+        from codeless.config.settings import default_provider_profiles
 
         profiles = default_provider_profiles()
         assert "nvidia" in profiles
@@ -725,12 +725,12 @@ class TestNvidiaProvider:
         assert profile.base_url == "https://integrate.api.nvidia.com/v1"
 
     def test_auth_source_provider_name_nvidia(self):
-        from openharness.config.settings import auth_source_provider_name
+        from codeless.config.settings import auth_source_provider_name
 
         assert auth_source_provider_name("nvidia_api_key") == "nvidia"
 
     def test_default_auth_source_for_nvidia_provider(self):
-        from openharness.config.settings import default_auth_source_for_provider
+        from codeless.config.settings import default_auth_source_for_provider
 
         assert default_auth_source_for_provider("nvidia") == "nvidia_api_key"
 
@@ -777,7 +777,7 @@ class TestQwenProvider:
     """Tests for Qwen (DashScope) provider profile and auth integration."""
 
     def test_qwen_in_default_provider_profiles(self):
-        from openharness.config.settings import default_provider_profiles
+        from codeless.config.settings import default_provider_profiles
 
         profiles = default_provider_profiles()
         assert "qwen" in profiles
@@ -789,12 +789,12 @@ class TestQwenProvider:
         assert profile.base_url == "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
     def test_auth_source_provider_name_qwen(self):
-        from openharness.config.settings import auth_source_provider_name
+        from codeless.config.settings import auth_source_provider_name
 
         assert auth_source_provider_name("dashscope_api_key") == "dashscope"
 
     def test_default_auth_source_for_qwen_provider(self):
-        from openharness.config.settings import default_auth_source_for_provider
+        from codeless.config.settings import default_auth_source_for_provider
 
         assert default_auth_source_for_provider("dashscope") == "dashscope_api_key"
 
@@ -818,7 +818,7 @@ class TestQwenProvider:
         assert "DASHSCOPE_API_KEY" in resolved.source
 
     def test_display_model_setting_for_qwen(self):
-        from openharness.config.settings import display_model_setting
+        from codeless.config.settings import display_model_setting
 
         profile = ProviderProfile(
             label="Qwen (DashScope)",
@@ -854,7 +854,7 @@ class TestModelScopeProvider:
     """Tests for ModelScope provider profile and auth integration."""
 
     def test_modelscope_in_default_provider_profiles(self):
-        from openharness.config.settings import default_provider_profiles
+        from codeless.config.settings import default_provider_profiles
 
         profiles = default_provider_profiles()
         assert "modelscope" in profiles
@@ -866,12 +866,12 @@ class TestModelScopeProvider:
         assert profile.base_url == "https://api-inference.modelscope.cn/v1"
 
     def test_auth_source_provider_name_modelscope(self):
-        from openharness.config.settings import auth_source_provider_name
+        from codeless.config.settings import auth_source_provider_name
 
         assert auth_source_provider_name("modelscope_api_key") == "modelscope"
 
     def test_default_auth_source_for_modelscope_provider(self):
-        from openharness.config.settings import default_auth_source_for_provider
+        from codeless.config.settings import default_auth_source_for_provider
 
         assert default_auth_source_for_provider("modelscope") == "modelscope_api_key"
 

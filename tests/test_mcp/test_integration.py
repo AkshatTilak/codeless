@@ -5,13 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from openharness.config.settings import Settings
-from openharness.mcp.config import load_mcp_server_configs
-from openharness.mcp.types import McpResourceInfo, McpStdioServerConfig, McpToolInfo
-from openharness.plugins.types import LoadedPlugin
-from openharness.plugins.schemas import PluginManifest
-from openharness.tools import create_default_tool_registry
-from openharness.tools.base import ToolExecutionContext
+from codeless.config.settings import Settings
+from codeless.mcp.config import load_mcp_server_configs
+from codeless.mcp.types import McpResourceInfo, McpStdioServerConfig, McpToolInfo
+from codeless.plugins.types import LoadedPlugin
+from codeless.plugins.schemas import PluginManifest
+from codeless.tools import create_default_tool_registry
+from codeless.tools.base import ToolExecutionContext
 
 
 @dataclass

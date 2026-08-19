@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-from openharness.swarm.types import (
+from codeless.swarm.types import (
     SpawnResult,
     TeammateExecutor,
     TeammateIdentity,

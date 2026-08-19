@@ -38,10 +38,10 @@ jobs:
         run: uv sync --extra dev
 
       - name: Scan autopilot intake
-        run: uv run python -m openharness autopilot scan all --cwd "$GITHUB_WORKSPACE"
+        run: uv run python -m codeless autopilot scan all --cwd "$GITHUB_WORKSPACE"
 
       - name: Export dashboard
-        run: uv run python -m openharness autopilot export-dashboard --cwd "$GITHUB_WORKSPACE"
+        run: uv run python -m codeless autopilot export-dashboard --cwd "$GITHUB_WORKSPACE"
 
       - name: Commit dashboard updates
         run: |

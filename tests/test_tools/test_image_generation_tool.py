@@ -9,9 +9,9 @@ from typing import Any
 
 import pytest
 
-from openharness.config.settings import ImageGenerationConfig
-from openharness.tools.base import ToolExecutionContext
-from openharness.tools.image_generation_tool import ImageGenerationTool, ImageGenerationToolInput
+from codeless.config.settings import ImageGenerationConfig
+from codeless.tools.base import ToolExecutionContext
+from codeless.tools.image_generation_tool import ImageGenerationTool, ImageGenerationToolInput
 
 
 class _FakeStreamResponse:
@@ -118,7 +118,7 @@ async def test_execute_codex_hosted_generation(monkeypatch: pytest.MonkeyPatch, 
         ]
     )
     monkeypatch.setattr(
-        "openharness.tools.image_generation_tool.httpx.AsyncClient",
+        "codeless.tools.image_generation_tool.httpx.AsyncClient",
         lambda *args, **kwargs: _FakeAsyncClient(response, sink),
     )
 
@@ -199,11 +199,11 @@ def test_resolve_output_paths_multiple(tmp_path: Path) -> None:
 
 
 def test_image_generation_config_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENHARNESS_IMAGE_GENERATION_PROVIDER", "openai")
-    monkeypatch.setenv("OPENHARNESS_IMAGE_GENERATION_MODEL", "gpt-image-1")
-    monkeypatch.setenv("OPENHARNESS_IMAGE_GENERATION_API_KEY", "sk-test")
-    monkeypatch.setenv("OPENHARNESS_IMAGE_GENERATION_BASE_URL", "https://example.test/v1")
-    monkeypatch.setenv("OPENHARNESS_IMAGE_GENERATION_CODEX_MODEL", "gpt-5.4")
+    monkeypatch.setenv("CODELESS_IMAGE_GENERATION_PROVIDER", "openai")
+    monkeypatch.setenv("CODELESS_IMAGE_GENERATION_MODEL", "gpt-image-1")
+    monkeypatch.setenv("CODELESS_IMAGE_GENERATION_API_KEY", "sk-test")
+    monkeypatch.setenv("CODELESS_IMAGE_GENERATION_BASE_URL", "https://example.test/v1")
+    monkeypatch.setenv("CODELESS_IMAGE_GENERATION_CODEX_MODEL", "gpt-5.4")
 
     cfg = ImageGenerationConfig.from_env()
 

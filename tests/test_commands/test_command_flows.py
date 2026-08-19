@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from openharness.commands.registry import CommandContext, create_default_command_registry
-from openharness.config.settings import load_settings
-from openharness.engine.messages import ConversationMessage, TextBlock
-from openharness.engine.query_engine import QueryEngine
-from openharness.permissions import PermissionChecker
-from openharness.state import AppState, AppStateStore
-from openharness.tools import create_default_tool_registry
+from codeless.commands.registry import CommandContext, create_default_command_registry
+from codeless.config.settings import load_settings
+from codeless.engine.messages import ConversationMessage, TextBlock
+from codeless.engine.query_engine import QueryEngine
+from codeless.permissions import PermissionChecker
+from codeless.state import AppState, AppStateStore
+from codeless.tools import create_default_tool_registry
 
 
 class FakeApiClient:
@@ -72,8 +72,8 @@ def _write_fixture_plugin(root: Path) -> Path:
 
 @pytest.mark.asyncio
 async def test_command_flow_for_memory_modes_and_tasks(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     registry = create_default_command_registry()
     context = _build_context(tmp_path)
 
@@ -129,7 +129,7 @@ async def test_command_flow_for_memory_modes_and_tasks(tmp_path: Path, monkeypat
 
 @pytest.mark.asyncio
 async def test_plugin_command_lifecycle_flow(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     registry = create_default_command_registry()
     context = _build_context(tmp_path)
     plugin_source = _write_fixture_plugin(tmp_path / "plugin-source")
@@ -157,7 +157,7 @@ async def test_plugin_command_lifecycle_flow(tmp_path: Path, monkeypatch):
 async def test_plugin_command_rejects_traversal_uninstall_without_deleting_sibling(
     tmp_path: Path, monkeypatch
 ):
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     registry = create_default_command_registry()
     context = _build_context(tmp_path)
     victim = tmp_path / "victim"

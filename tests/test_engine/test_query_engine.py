@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from openharness.api.client import ApiMessageCompleteEvent, ApiRetryEvent, ApiTextDeltaEvent
-from openharness.api.errors import RequestFailure
-from openharness.api.usage import UsageSnapshot
-from openharness.config.settings import PermissionSettings, Settings
-from openharness.engine.messages import ConversationMessage, TextBlock, ToolUseBlock
-from openharness.engine.query_engine import QueryEngine
-from openharness.prompts.context import build_runtime_system_prompt
-from openharness.engine.stream_events import (
+from codeless.api.client import ApiMessageCompleteEvent, ApiRetryEvent, ApiTextDeltaEvent
+from codeless.api.errors import RequestFailure
+from codeless.api.usage import UsageSnapshot
+from codeless.config.settings import PermissionSettings, Settings
+from codeless.engine.messages import ConversationMessage, TextBlock, ToolUseBlock
+from codeless.engine.query_engine import QueryEngine
+from codeless.prompts.context import build_runtime_system_prompt
+from codeless.engine.stream_events import (
     AssistantTextDelta,
     AssistantTurnComplete,
     CompactProgressEvent,
@@ -24,18 +24,18 @@ from openharness.engine.stream_events import (
     ToolExecutionCompleted,
     ToolExecutionStarted,
 )
-from openharness.permissions import PermissionChecker, PermissionMode
-from openharness.tasks import get_task_manager
-from openharness.tools import create_default_tool_registry
-from openharness.tools.base import BaseTool, ToolExecutionContext, ToolRegistry, ToolResult
-from openharness.tools.glob_tool import GlobTool
-from openharness.tools.grep_tool import GrepTool
+from codeless.permissions import PermissionChecker, PermissionMode
+from codeless.jobs import get_task_manager
+from codeless.tools import create_default_tool_registry
+from codeless.tools.base import BaseTool, ToolExecutionContext, ToolRegistry, ToolResult
+from codeless.tools.glob_tool import GlobTool
+from codeless.tools.grep_tool import GrepTool
 from pydantic import BaseModel
-from openharness.engine.messages import ToolResultBlock
-from openharness.hooks import HookExecutionContext, HookExecutor, HookEvent
-from openharness.hooks.loader import HookRegistry
-from openharness.hooks.schemas import PromptHookDefinition
-from openharness.engine.query import QueryContext, _execute_tool_call, _is_prompt_too_long_error
+from codeless.engine.messages import ToolResultBlock
+from codeless.hooks import HookExecutionContext, HookExecutor, HookEvent
+from codeless.hooks.loader import HookRegistry
+from codeless.hooks.schemas import PromptHookDefinition
+from codeless.engine.query import QueryContext, _execute_tool_call, _is_prompt_too_long_error
 
 
 @dataclass
@@ -340,7 +340,7 @@ async def test_query_engine_executes_tool_calls(tmp_path: Path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_query_engine_coordinator_mode_uses_coordinator_prompt_and_runs_agent_loop(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("CLAUDE_CODE_COORDINATOR_MODE", "1")
 
     api_client = CoordinatorLoopApiClient()
@@ -437,8 +437,8 @@ async def test_query_engine_surfaces_retry_status_events(tmp_path: Path):
 @pytest.mark.asyncio
 async def test_query_engine_emits_compact_progress_before_reply(tmp_path: Path, monkeypatch):
     long_text = "alpha " * 50000
-    monkeypatch.setattr("openharness.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
-    monkeypatch.setattr("openharness.services.compact.should_autocompact", lambda *args, **kwargs: True)
+    monkeypatch.setattr("codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
+    monkeypatch.setattr("codeless.services.compact.should_autocompact", lambda *args, **kwargs: True)
     engine = QueryEngine(
         api_client=FakeApiClient(
             [
@@ -483,8 +483,8 @@ async def test_query_engine_emits_compact_progress_before_reply(tmp_path: Path, 
 
 @pytest.mark.asyncio
 async def test_query_engine_reactive_compacts_after_prompt_too_long(tmp_path: Path, monkeypatch):
-    monkeypatch.setattr("openharness.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
-    monkeypatch.setattr("openharness.services.compact.should_autocompact", lambda *args, **kwargs: False)
+    monkeypatch.setattr("codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
+    monkeypatch.setattr("codeless.services.compact.should_autocompact", lambda *args, **kwargs: False)
     engine = QueryEngine(
         api_client=PromptTooLongThenSuccessApiClient(),
         tool_registry=create_default_tool_registry(),
@@ -701,7 +701,7 @@ class _RecordingHookExecutor:
         self.calls: list[tuple[HookEvent, dict]] = []
 
     async def execute(self, event: HookEvent, payload: dict):
-        from openharness.hooks.types import AggregatedHookResult
+        from codeless.hooks.types import AggregatedHookResult
 
         self.calls.append((event, dict(payload)))
         return AggregatedHookResult(results=[])
@@ -861,7 +861,7 @@ async def test_notification_hook_fires_on_permission_prompt(tmp_path: Path, monk
 @pytest.mark.asyncio
 async def test_subagent_stop_hook_fires_when_spawned_agent_finishes(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("CLAUDE_CODE_COORDINATOR_MODE", raising=False)
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     recorder = _RecordingHookExecutor()
     engine = QueryEngine(
         api_client=FakeApiClient(
@@ -1274,7 +1274,7 @@ async def test_query_engine_persists_compacted_tool_turn_history(tmp_path: Path,
     """Compaction must not make a completed tool turn disappear from engine history."""
 
     monkeypatch.delenv("CLAUDE_CODE_COORDINATOR_MODE", raising=False)
-    monkeypatch.setattr("openharness.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
+    monkeypatch.setattr("codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
     should_calls = {"count": 0}
 
     def _should_compact_once(*args, **kwargs):
@@ -1282,7 +1282,7 @@ async def test_query_engine_persists_compacted_tool_turn_history(tmp_path: Path,
         should_calls["count"] += 1
         return should_calls["count"] == 1
 
-    monkeypatch.setattr("openharness.services.compact.should_autocompact", _should_compact_once)
+    monkeypatch.setattr("codeless.services.compact.should_autocompact", _should_compact_once)
 
     registry = ToolRegistry()
     registry.register(_OkTool())
@@ -1474,9 +1474,9 @@ async def test_query_engine_continue_pending_sanitizes_dangling_tool_use(tmp_pat
 
 @pytest.mark.asyncio
 async def test_query_engine_offloads_large_tool_result_outputs(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
-    monkeypatch.setenv("OPENHARNESS_TOOL_OUTPUT_INLINE_CHARS", "256")
-    monkeypatch.setenv("OPENHARNESS_TOOL_OUTPUT_PREVIEW_CHARS", "128")
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_TOOL_OUTPUT_INLINE_CHARS", "256")
+    monkeypatch.setenv("CODELESS_TOOL_OUTPUT_PREVIEW_CHARS", "128")
     registry = ToolRegistry()
     registry.register(_LargeOutputTool())
 

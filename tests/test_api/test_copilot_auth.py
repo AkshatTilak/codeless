@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from openharness.api.copilot_auth import (
+from codeless.api.copilot_auth import (
     COPILOT_DEFAULT_API_BASE,
     CopilotAuthInfo,
     DeviceCodeResponse,
@@ -92,7 +92,7 @@ class TestTokenPersistence:
     """Round-trip save / load / clear of the Copilot auth file."""
 
     def test_save_and_load_round_trip(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         save_copilot_auth("gho_abc123")
         info = load_copilot_auth()
         assert info is not None
@@ -100,7 +100,7 @@ class TestTokenPersistence:
         assert info.enterprise_url is None
 
     def test_save_and_load_with_enterprise_url(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         save_copilot_auth("gho_ent_token", enterprise_url="company.ghe.com")
         info = load_copilot_auth()
         assert info is not None
@@ -108,35 +108,35 @@ class TestTokenPersistence:
         assert info.enterprise_url == "company.ghe.com"
 
     def test_load_returns_none_when_file_missing(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         assert load_copilot_auth() is None
 
     def test_load_returns_none_on_corrupt_json(self, tmp_path: Path, monkeypatch):
         cfg_dir = tmp_path / "cfg"
         cfg_dir.mkdir(parents=True)
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(cfg_dir))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(cfg_dir))
         (cfg_dir / "copilot_auth.json").write_text("NOT VALID JSON{{{", encoding="utf-8")
         assert load_copilot_auth() is None
 
     def test_clear_removes_file(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         save_copilot_auth("gho_xyz")
         clear_github_token()
         assert load_copilot_auth() is None
 
     def test_clear_noop_when_no_file(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         # Should not raise
         clear_github_token()
 
     def test_backward_compat_load_github_token(self, tmp_path: Path, monkeypatch):
         """load_github_token() should return just the token string."""
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         save_copilot_auth("gho_compat")
         assert load_github_token() == "gho_compat"
 
     def test_backward_compat_load_github_token_none(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         assert load_github_token() is None
 
 
@@ -160,7 +160,7 @@ class TestRequestDeviceCode:
                 }
             )
 
-        monkeypatch.setattr("openharness.api.copilot_auth.httpx.post", fake_post)
+        monkeypatch.setattr("codeless.api.copilot_auth.httpx.post", fake_post)
         result = request_device_code()
 
         assert isinstance(result, DeviceCodeResponse)
@@ -186,7 +186,7 @@ class TestRequestDeviceCode:
                 }
             )
 
-        monkeypatch.setattr("openharness.api.copilot_auth.httpx.post", fake_post)
+        monkeypatch.setattr("codeless.api.copilot_auth.httpx.post", fake_post)
         result = request_device_code(github_domain="company.ghe.com")
 
         assert result.device_code == "dc_ent"
@@ -212,8 +212,8 @@ class TestPollForAccessToken:
                 return FakeHttpResponse(_json={"error": "authorization_pending"})
             return FakeHttpResponse(_json={"access_token": "gho_good_token"})
 
-        monkeypatch.setattr("openharness.api.copilot_auth.httpx.post", fake_post)
-        monkeypatch.setattr("openharness.api.copilot_auth.time.sleep", lambda _: None)
+        monkeypatch.setattr("codeless.api.copilot_auth.httpx.post", fake_post)
+        monkeypatch.setattr("codeless.api.copilot_auth.time.sleep", lambda _: None)
 
         token = poll_for_access_token("dc_test", interval=0, timeout=60)
         assert token == "gho_good_token"
@@ -234,8 +234,8 @@ class TestPollForAccessToken:
         def fake_sleep(seconds: float) -> None:
             recorded_sleeps.append(seconds)
 
-        monkeypatch.setattr("openharness.api.copilot_auth.httpx.post", fake_post)
-        monkeypatch.setattr("openharness.api.copilot_auth.time.sleep", fake_sleep)
+        monkeypatch.setattr("codeless.api.copilot_auth.httpx.post", fake_post)
+        monkeypatch.setattr("codeless.api.copilot_auth.time.sleep", fake_sleep)
 
         token = poll_for_access_token("dc_sd", interval=5, timeout=120)
         assert token == "gho_token"
@@ -255,9 +255,9 @@ class TestPollForAccessToken:
         def fake_post(*args: Any, **kwargs: Any) -> FakeHttpResponse:
             return FakeHttpResponse(_json={"error": "authorization_pending"})
 
-        monkeypatch.setattr("openharness.api.copilot_auth.httpx.post", fake_post)
-        monkeypatch.setattr("openharness.api.copilot_auth.time.sleep", lambda _: None)
-        monkeypatch.setattr("openharness.api.copilot_auth.time.monotonic", fake_monotonic)
+        monkeypatch.setattr("codeless.api.copilot_auth.httpx.post", fake_post)
+        monkeypatch.setattr("codeless.api.copilot_auth.time.sleep", lambda _: None)
+        monkeypatch.setattr("codeless.api.copilot_auth.time.monotonic", fake_monotonic)
 
         with pytest.raises(RuntimeError, match="timed out"):
             poll_for_access_token("dc_timeout", interval=0, timeout=10)
@@ -270,8 +270,8 @@ class TestPollForAccessToken:
                 _json={"error": "access_denied", "error_description": "User denied"}
             )
 
-        monkeypatch.setattr("openharness.api.copilot_auth.httpx.post", fake_post)
-        monkeypatch.setattr("openharness.api.copilot_auth.time.sleep", lambda _: None)
+        monkeypatch.setattr("codeless.api.copilot_auth.httpx.post", fake_post)
+        monkeypatch.setattr("codeless.api.copilot_auth.time.sleep", lambda _: None)
 
         with pytest.raises(RuntimeError, match="User denied"):
             poll_for_access_token("dc_denied", interval=0, timeout=60)

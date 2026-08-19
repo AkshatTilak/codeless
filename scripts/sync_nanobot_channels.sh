@@ -11,8 +11,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-UPSTREAM_FILE="$REPO_ROOT/src/openharness/channels/UPSTREAM"
-CHANNELS_DEST="$REPO_ROOT/src/openharness/channels"
+UPSTREAM_FILE="$REPO_ROOT/src/codeless/channels/UPSTREAM"
+CHANNELS_DEST="$REPO_ROOT/src/codeless/channels"
 
 # ---------- parse args ----------
 APPLY=false
@@ -70,11 +70,11 @@ done
 # Rewrite imports
 for f in "$CHANNELS_DEST/bus/"*.py "$CHANNELS_DEST/impl/"*.py; do
   sed -i \
-    -e 's/from nanobot\.bus\./from openharness.channels.bus./g' \
-    -e 's/from nanobot\.channels\./from openharness.channels.impl./g' \
-    -e 's/from nanobot\.config\.schema import/from openharness.config.schema import/g' \
-    -e 's/from nanobot\.utils\.helpers import/from openharness.utils.helpers import/g' \
-    -e 's/from nanobot\.config\.loader import/from openharness.config.loader import/g' \
+    -e 's/from nanobot\.bus\./from codeless.channels.bus./g' \
+    -e 's/from nanobot\.channels\./from codeless.channels.impl./g' \
+    -e 's/from nanobot\.config\.schema import/from codeless.config.schema import/g' \
+    -e 's/from nanobot\.utils\.helpers import/from codeless.utils.helpers import/g' \
+    -e 's/from nanobot\.config\.loader import/from codeless.config.loader import/g' \
     "$f"
   # Replace loguru
   sed -i \

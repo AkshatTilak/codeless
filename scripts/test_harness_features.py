@@ -31,7 +31,7 @@ def _env() -> dict[str, str]:
 
 
 def _run_oh(*args: str, timeout: int = 90) -> subprocess.CompletedProcess:
-    cmd = [sys.executable, "-m", "openharness", *args]
+    cmd = [sys.executable, "-m", "codeless", *args]
     return subprocess.run(
         cmd, capture_output=True, text=True, timeout=timeout,
         env=_env(), cwd=str(PROJECT_ROOT),
@@ -42,7 +42,7 @@ def _run_oh(*args: str, timeout: int = 90) -> subprocess.CompletedProcess:
 
 async def test_api_retry_config() -> tuple[bool, str]:
     """Test that retry configuration is properly set up."""
-    from openharness.api.client import MAX_RETRIES, RETRYABLE_STATUS_CODES, _get_retry_delay
+    from codeless.api.client import MAX_RETRIES, RETRYABLE_STATUS_CODES, _get_retry_delay
 
     if MAX_RETRIES != 3:
         return False, f"Expected MAX_RETRIES=3, got {MAX_RETRIES}"
@@ -75,7 +75,7 @@ async def test_api_retry_real_call() -> tuple[bool, str]:
 
 async def test_skills_loaded() -> tuple[bool, str]:
     """Test that bundled skills are loaded from .md files."""
-    from openharness.skills.bundled import get_bundled_skills
+    from codeless.skills.bundled import get_bundled_skills
 
     skills = get_bundled_skills()
     names = [s.name for s in skills]
@@ -92,8 +92,8 @@ async def test_skills_loaded() -> tuple[bool, str]:
 
 async def test_skills_in_system_prompt() -> tuple[bool, str]:
     """Test that skills metadata is injected into the system prompt."""
-    from openharness.config.settings import load_settings
-    from openharness.prompts.context import build_runtime_system_prompt
+    from codeless.config.settings import load_settings
+    from codeless.prompts.context import build_runtime_system_prompt
 
     prompt = build_runtime_system_prompt(load_settings(), cwd=".")
     if "Available Skills" not in prompt:
@@ -107,8 +107,8 @@ async def test_skills_in_system_prompt() -> tuple[bool, str]:
 
 async def test_skill_tool_invocation() -> tuple[bool, str]:
     """Test that SkillTool can load a skill's content."""
-    from openharness.tools.skill_tool import SkillTool, SkillToolInput
-    from openharness.tools.base import ToolExecutionContext
+    from codeless.tools.skill_tool import SkillTool, SkillToolInput
+    from codeless.tools.base import ToolExecutionContext
 
     tool = SkillTool()
     result = await tool.execute(
@@ -140,7 +140,7 @@ async def test_skill_real_model() -> tuple[bool, str]:
 
 async def test_parallel_tools_code() -> tuple[bool, str]:
     """Test that the query loop supports parallel execution path."""
-    from openharness.engine.query import run_query
+    from codeless.engine.query import run_query
     import inspect
     source = inspect.getsource(run_query)
     if "asyncio.gather" not in source:
@@ -154,9 +154,9 @@ async def test_parallel_tools_code() -> tuple[bool, str]:
 
 async def test_path_permissions_deny() -> tuple[bool, str]:
     """Test that path-level deny rules work."""
-    from openharness.permissions.checker import PermissionChecker
-    from openharness.config.settings import PermissionSettings, PathRuleConfig
-    from openharness.permissions.modes import PermissionMode
+    from codeless.permissions.checker import PermissionChecker
+    from codeless.config.settings import PermissionSettings, PathRuleConfig
+    from codeless.permissions.modes import PermissionMode
 
     settings = PermissionSettings(
         mode=PermissionMode.FULL_AUTO,
@@ -179,9 +179,9 @@ async def test_path_permissions_deny() -> tuple[bool, str]:
 
 async def test_command_deny_pattern() -> tuple[bool, str]:
     """Test that command deny patterns work."""
-    from openharness.permissions.checker import PermissionChecker
-    from openharness.config.settings import PermissionSettings
-    from openharness.permissions.modes import PermissionMode
+    from codeless.permissions.checker import PermissionChecker
+    from codeless.config.settings import PermissionSettings
+    from codeless.permissions.modes import PermissionMode
 
     settings = PermissionSettings(
         mode=PermissionMode.FULL_AUTO,

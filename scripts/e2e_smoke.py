@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run real end-to-end OpenHarness scenarios against an Anthropic-compatible API."""
+"""Run real end-to-end Codeless scenarios against an Anthropic-compatible API."""
 
 from __future__ import annotations
 
@@ -14,23 +14,23 @@ from typing import Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from openharness.api.client import AnthropicApiClient
-from openharness.config.paths import get_project_issue_file, get_project_pr_comments_file
-from openharness.config.settings import load_settings
-from openharness.engine import QueryEngine
-from openharness.engine.stream_events import (
+from codeless.api.client import AnthropicApiClient
+from codeless.config.paths import get_project_issue_file, get_project_pr_comments_file
+from codeless.config.settings import load_settings
+from codeless.engine import QueryEngine
+from codeless.engine.stream_events import (
     AssistantTurnComplete,
     ToolExecutionCompleted,
     ToolExecutionStarted,
 )
-from openharness.mcp.client import McpClientManager
-from openharness.mcp.config import load_mcp_server_configs
-from openharness.mcp.types import McpStdioServerConfig
-from openharness.memory import add_memory_entry
-from openharness.permissions import PermissionChecker, PermissionMode
-from openharness.plugins import load_plugins
-from openharness.prompts import build_runtime_system_prompt
-from openharness.tools import create_default_tool_registry
+from codeless.mcp.client import McpClientManager
+from codeless.mcp.config import load_mcp_server_configs
+from codeless.mcp.types import McpStdioServerConfig
+from codeless.memory import add_memory_entry
+from codeless.permissions import PermissionChecker, PermissionMode
+from codeless.plugins import load_plugins
+from codeless.prompts import build_runtime_system_prompt
+from codeless.tools import create_default_tool_registry
 
 
 ScenarioSetup = Callable[[Path, Path], dict[str, object] | None]
@@ -97,7 +97,7 @@ def _validate_file_io(cwd: Path, final_text: str, tool_names: list[str], started
         return False, "model did not complete both tool calls"
     if "write_file" not in tool_names or "read_file" not in tool_names:
         return False, f"unexpected tool sequence: {tool_names}"
-    if contents != "OPENHARNESS_E2E_OK":
+    if contents != "CODELESS_E2E_OK":
         return False, f"unexpected smoke.txt contents: {contents!r}"
     if "FINAL_OK" not in final_text:
         return False, f"unexpected final text: {final_text!r}"
@@ -168,7 +168,7 @@ def _setup_context_flow(cwd: Path, _: Path) -> None:
 
 
 def _setup_plugin_combo_flow(cwd: Path, _: Path) -> None:
-    plugin_dir = cwd / ".openharness" / "plugins" / "fixture-plugin"
+    plugin_dir = cwd / ".codeless" / "plugins" / "fixture-plugin"
     (plugin_dir / "skills").mkdir(parents=True, exist_ok=True)
     (plugin_dir / "plugin.json").write_text(
         '{"name":"fixture-plugin","version":"1.0.0","description":"Fixture project plugin"}\n',
@@ -193,14 +193,14 @@ def _setup_worktree_flow(cwd: Path, _: Path) -> None:
 
     subprocess.run(["git", "init"], cwd=cwd, check=True, capture_output=True, text=True)
     subprocess.run(
-        ["git", "config", "user.email", "openharness@example.com"],
+        ["git", "config", "user.email", "codeless@example.com"],
         cwd=cwd,
         check=True,
         capture_output=True,
         text=True,
     )
     subprocess.run(
-        ["git", "config", "user.name", "OpenHarness Tests"],
+        ["git", "config", "user.name", "Codeless Tests"],
         cwd=cwd,
         check=True,
         capture_output=True,
@@ -376,7 +376,7 @@ def _validate_cron_flow(cwd: Path, final_text: str, tool_names: list[str], start
 
 
 def _validate_worktree_flow(cwd: Path, final_text: str, tool_names: list[str], started: int, completed: int) -> tuple[bool, str]:
-    worktree_path = cwd / ".openharness" / "worktrees" / "smoke-worktree"
+    worktree_path = cwd / ".codeless" / "worktrees" / "smoke-worktree"
     required = {"enter_worktree", "read_file", "exit_worktree"}
     if not required.issubset(set(tool_names)):
         return False, f"missing required tools: {sorted(required - set(tool_names))}"
@@ -416,9 +416,9 @@ SCENARIOS: dict[str, Scenario] = {
     "file_io": Scenario(
         name="file_io",
         prompt=(
-            "You are running an OpenHarness smoke test. "
+            "You are running an Codeless smoke test. "
             "You must use tools. "
-            "1. Use write_file to create smoke.txt with the exact content OPENHARNESS_E2E_OK. "
+            "1. Use write_file to create smoke.txt with the exact content CODELESS_E2E_OK. "
             "2. Use read_file to verify the file content. "
             "3. Reply with exactly FINAL_OK once verification succeeds."
         ),
@@ -429,7 +429,7 @@ SCENARIOS: dict[str, Scenario] = {
     "search_edit": Scenario(
         name="search_edit",
         prompt=(
-            "You are running an OpenHarness search and edit test. "
+            "You are running an Codeless search and edit test. "
             "You must use tools. "
             "1. Use write_file to create src/demo.py with two lines: alpha and beta. "
             "2. Use glob to find the python file. "
@@ -445,7 +445,7 @@ SCENARIOS: dict[str, Scenario] = {
     "phase48": Scenario(
         name="phase48",
         prompt=(
-            "You are running an OpenHarness Phase 4-8 smoke test. "
+            "You are running an Codeless Phase 4-8 smoke test. "
             "You must use tools. "
             "1. Use tool_search to find the todo tool. "
             "2. Use todo_write to append a TODO item with the exact text phase48 smoke item. "
@@ -459,7 +459,7 @@ SCENARIOS: dict[str, Scenario] = {
     "task_flow": Scenario(
         name="task_flow",
         prompt=(
-            "You are running an OpenHarness background task test. "
+            "You are running an Codeless background task test. "
             "You must use tools. "
             "1. Use task_create with type local_bash and command printf 'TASK_FLOW_OK'. "
             "2. Use sleep for 0.2 seconds. "
@@ -473,7 +473,7 @@ SCENARIOS: dict[str, Scenario] = {
     "skill_flow": Scenario(
         name="skill_flow",
         prompt=(
-            "You are running an OpenHarness skill loading test. "
+            "You are running an Codeless skill loading test. "
             "You must use tools. "
             "1. Use the skill tool to read the Pytest skill. "
             "2. Verify it mentions fixtures. "
@@ -487,7 +487,7 @@ SCENARIOS: dict[str, Scenario] = {
     "mcp_model": Scenario(
         name="mcp_model",
         prompt=(
-            "You are running an OpenHarness MCP integration test. "
+            "You are running an Codeless MCP integration test. "
             "You must use tools. "
             "1. Use mcp__fixture__hello with the argument name='kimi'. "
             "2. Verify the tool result contains fixture-hello:kimi. "
@@ -501,7 +501,7 @@ SCENARIOS: dict[str, Scenario] = {
     "mcp_resource": Scenario(
         name="mcp_resource",
         prompt=(
-            "You are running an OpenHarness MCP resource test. "
+            "You are running an Codeless MCP resource test. "
             "You must use tools. "
             "1. Use list_mcp_resources. "
             "2. Use read_mcp_resource to read fixture://readme from server fixture. "
@@ -529,7 +529,7 @@ SCENARIOS: dict[str, Scenario] = {
     "agent_flow": Scenario(
         name="agent_flow",
         prompt=(
-            "You are running an OpenHarness agent delegation test. "
+            "You are running an Codeless agent delegation test. "
             "You must use tools. "
             "1. Use the agent tool with description 'echo agent' and prompt 'ready'. "
             "Set command to exactly: while read line; do echo AGENT_ECHO:$line; break; done "
@@ -546,7 +546,7 @@ SCENARIOS: dict[str, Scenario] = {
     "remote_agent_flow": Scenario(
         name="remote_agent_flow",
         prompt=(
-            "You are running an OpenHarness remote-agent mode test. "
+            "You are running an Codeless remote-agent mode test. "
             "You must use tools. "
             "1. Use the agent tool with mode remote_agent, description 'remote echo agent', and prompt 'ready'. "
             "Set command to exactly: while read line; do echo AGENT_ECHO:$line; break; done "
@@ -563,7 +563,7 @@ SCENARIOS: dict[str, Scenario] = {
     "plugin_combo": Scenario(
         name="plugin_combo",
         prompt=(
-            "You are running an OpenHarness plugin combo test. "
+            "You are running an Codeless plugin combo test. "
             "You must use tools. "
             "1. Use the skill tool to read FixtureSkill and verify it says COMBO_SKILL_OK. "
             "2. Use mcp__fixture-plugin_fixture__hello with name='combo'. "
@@ -577,7 +577,7 @@ SCENARIOS: dict[str, Scenario] = {
     "ask_user_flow": Scenario(
         name="ask_user_flow",
         prompt=(
-            "You are running an OpenHarness ask-user test. "
+            "You are running an Codeless ask-user test. "
             "You must use tools. "
             "1. Use ask_user_question to ask exactly What color should answer.txt contain? "
             "2. Use write_file to create answer.txt with the returned answer and nothing else. "
@@ -592,7 +592,7 @@ SCENARIOS: dict[str, Scenario] = {
     "task_update_flow": Scenario(
         name="task_update_flow",
         prompt=(
-            "You are running an OpenHarness task update test. "
+            "You are running an Codeless task update test. "
             "You must use tools. "
             "1. Use task_create with type local_bash and command printf 'TASK_UPDATE_OK'. "
             "2. Use task_update to set progress to 75 and status_note to waiting on review. "
@@ -606,7 +606,7 @@ SCENARIOS: dict[str, Scenario] = {
     "notebook_flow": Scenario(
         name="notebook_flow",
         prompt=(
-            "You are running an OpenHarness notebook test. "
+            "You are running an Codeless notebook test. "
             "You must use tools. "
             "1. Use notebook_edit to create analysis.ipynb and set cell 0 to exactly print('NB_OK'). "
             "2. Use read_file to verify the notebook JSON contains NB_OK. "
@@ -619,7 +619,7 @@ SCENARIOS: dict[str, Scenario] = {
     "lsp_flow": Scenario(
         name="lsp_flow",
         prompt=(
-            "You are running an OpenHarness LSP test. "
+            "You are running an Codeless LSP test. "
             "You must use tools. "
             "1. Use lsp on pkg/app.py to find the definition of greet. "
             "2. Use lsp hover on greet to confirm the docstring says Return a greeting. "
@@ -633,7 +633,7 @@ SCENARIOS: dict[str, Scenario] = {
     "cron_flow": Scenario(
         name="cron_flow",
         prompt=(
-            "You are running an OpenHarness cron test. "
+            "You are running an Codeless cron test. "
             "You must use tools. "
             "1. Use cron_create with name smoke-cron, schedule daily, and command printf 'CRON_SMOKE_OK'. "
             "2. Use cron_list to verify smoke-cron exists. "
@@ -648,7 +648,7 @@ SCENARIOS: dict[str, Scenario] = {
     "worktree_flow": Scenario(
         name="worktree_flow",
         prompt=(
-            "You are running an OpenHarness worktree test. "
+            "You are running an Codeless worktree test. "
             "You must use tools. "
             "1. Use enter_worktree with branch smoke/worktree. "
             "2. Use read_file to read demo.txt inside the returned worktree path and verify it contains WORKTREE_OK. "
@@ -676,7 +676,7 @@ SCENARIOS: dict[str, Scenario] = {
     "mcp_auth_flow": Scenario(
         name="mcp_auth_flow",
         prompt=(
-            "You are running an OpenHarness MCP auth reconfiguration test. "
+            "You are running an Codeless MCP auth reconfiguration test. "
             "You must use tools. "
             "1. Use mcp_auth on server fixture with mode bearer and value token-smoke. "
             "2. Use mcp__fixture__hello with name='auth'. "
@@ -763,14 +763,14 @@ async def _run() -> int:
         raise SystemExit("Missing API key.")
 
     selected = list(SCENARIOS) if args.scenario == "all" else [args.scenario]
-    with tempfile.TemporaryDirectory(prefix="openharness-e2e-suite-") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="codeless-e2e-suite-") as temp_dir:
         suite_root = Path(temp_dir)
         previous_env = {
-            "OPENHARNESS_CONFIG_DIR": os.environ.get("OPENHARNESS_CONFIG_DIR"),
-            "OPENHARNESS_DATA_DIR": os.environ.get("OPENHARNESS_DATA_DIR"),
+            "CODELESS_CONFIG_DIR": os.environ.get("CODELESS_CONFIG_DIR"),
+            "CODELESS_DATA_DIR": os.environ.get("CODELESS_DATA_DIR"),
         }
-        os.environ["OPENHARNESS_CONFIG_DIR"] = str(suite_root / "config")
-        os.environ["OPENHARNESS_DATA_DIR"] = str(suite_root / "data")
+        os.environ["CODELESS_CONFIG_DIR"] = str(suite_root / "config")
+        os.environ["CODELESS_DATA_DIR"] = str(suite_root / "data")
         try:
             settings = load_settings().merge_cli_overrides(model=args.model, base_url=args.base_url)
             client = AnthropicApiClient(api_key=api_key, base_url=settings.base_url)

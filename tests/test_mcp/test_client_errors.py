@@ -14,11 +14,11 @@ try:
 except NameError:  # pragma: no cover - Python < 3.11 compatibility
     from exceptiongroup import BaseExceptionGroup
 
-from openharness.mcp.client import McpClientManager, McpServerNotConnectedError
-from openharness.mcp.types import McpConnectionStatus, McpStdioServerConfig, McpToolInfo
-from openharness.tools.base import ToolExecutionContext
-from openharness.tools.mcp_tool import McpToolAdapter
-from openharness.tools.read_mcp_resource_tool import ReadMcpResourceTool
+from codeless.mcp.client import McpClientManager, McpServerNotConnectedError
+from codeless.mcp.types import McpConnectionStatus, McpStdioServerConfig, McpToolInfo
+from codeless.tools.base import ToolExecutionContext
+from codeless.tools.mcp_tool import McpToolAdapter
+from codeless.tools.read_mcp_resource_tool import ReadMcpResourceTool
 
 
 class _AsyncContextManager:
@@ -161,8 +161,8 @@ async def test_close_failed_stack_suppresses_base_exception_group_cleanup_error(
 
 @pytest.mark.asyncio
 async def test_connect_all_marks_http_server_failed_when_initialize_is_cancelled(monkeypatch):
-    import openharness.mcp.client as client_module
-    from openharness.mcp.types import McpHttpServerConfig
+    import codeless.mcp.client as client_module
+    from codeless.mcp.types import McpHttpServerConfig
 
     manager = McpClientManager(
         {

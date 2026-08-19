@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pexpect
 
-from openharness.config.settings import load_settings
+from codeless.config.settings import load_settings
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,7 +29,7 @@ def _spawn_oh(*, env: dict[str, str] | None = None) -> pexpect.spawn:
         timeout=180,
     )
     child.delaybeforesend = 0.1
-    if os.environ.get("OPENHARNESS_E2E_DEBUG") == "1":
+    if os.environ.get("CODELESS_E2E_DEBUG") == "1":
         child.logfile_read = sys.stdout
     return child
 
@@ -45,7 +45,7 @@ def _submit(child: pexpect.spawn, text: str) -> None:
 
 def _isolated_env(permission_mode: str = "full_auto") -> tuple[tempfile.TemporaryDirectory[str], dict[str, str]]:
     settings = load_settings()
-    temp_dir = tempfile.TemporaryDirectory(prefix="openharness-react-tui-")
+    temp_dir = tempfile.TemporaryDirectory(prefix="codeless-react-tui-")
     config_dir = Path(temp_dir.name) / "config"
     data_dir = Path(temp_dir.name) / "data"
     config_dir.mkdir(parents=True, exist_ok=True)
@@ -54,9 +54,9 @@ def _isolated_env(permission_mode: str = "full_auto") -> tuple[tempfile.Temporar
     payload["permission"]["mode"] = permission_mode
     (config_dir / "settings.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     env = os.environ.copy()
-    env["OPENHARNESS_CONFIG_DIR"] = str(config_dir)
-    env["OPENHARNESS_DATA_DIR"] = str(data_dir)
-    env["OPENHARNESS_FRONTEND_RAW_RETURN"] = "1"
+    env["CODELESS_CONFIG_DIR"] = str(config_dir)
+    env["CODELESS_DATA_DIR"] = str(data_dir)
+    env["CODELESS_FRONTEND_RAW_RETURN"] = "1"
     return temp_dir, env
 
 
@@ -68,7 +68,7 @@ def _run_permission_file_io() -> None:
     child = _spawn_oh(env=env)
     try:
         print("[react_tui_permission_file_io] waiting for app shell")
-        child.expect("OpenHarness")
+        child.expect("Codeless")
         child.expect("model: kimi-k2.5")
         _submit(
             child,
@@ -93,7 +93,7 @@ def _run_question_flow() -> None:
     temp_dir, env = _isolated_env()
     child = _spawn_oh(env=env)
     try:
-        child.expect("OpenHarness")
+        child.expect("Codeless")
         child.expect("model: kimi-k2.5")
         _submit(
             child,
@@ -118,7 +118,7 @@ def _run_question_flow() -> None:
 
 def _run_command_flow() -> None:
     temp_dir, env = _isolated_env()
-    env["OPENHARNESS_FRONTEND_SCRIPT"] = json.dumps(
+    env["CODELESS_FRONTEND_SCRIPT"] = json.dumps(
         [
             "/plan",
             "Reply with exactly FINAL_OK_REACT_TUI_COMMANDS.",
@@ -127,7 +127,7 @@ def _run_command_flow() -> None:
     child = _spawn_oh(env=env)
     try:
         print("[react_tui_command_flow] waiting for app shell")
-        child.expect("OpenHarness")
+        child.expect("Codeless")
         child.expect("model: kimi-k2.5")
         print("[react_tui_command_flow] waiting for plan mode indicator")
         child.expect("PLAN MODE")

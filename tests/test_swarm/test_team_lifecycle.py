@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from openharness.swarm.team_lifecycle import (
+from codeless.swarm.team_lifecycle import (
     TeamFile,
     TeamLifecycleManager,
     TeamMember,

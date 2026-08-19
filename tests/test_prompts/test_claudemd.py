@@ -4,16 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openharness.config.paths import (
+from codeless.config.paths import (
     get_project_active_repo_context_path,
     get_project_issue_file,
     get_project_pr_comments_file,
 )
-from openharness.engine.messages import ConversationMessage, TextBlock
-from openharness.personalization import rules as personalization_rules
-from openharness.personalization.session_hook import update_rules_from_session
-from openharness.prompts import build_runtime_system_prompt, discover_claude_md_files, load_claude_md_prompt
-from openharness.config.settings import Settings
+from codeless.engine.messages import ConversationMessage, TextBlock
+from codeless.personalization import rules as personalization_rules
+from codeless.personalization.session_hook import update_rules_from_session
+from codeless.prompts import build_runtime_system_prompt, discover_claude_md_files, load_claude_md_prompt
+from codeless.config.settings import Settings
 
 
 def test_discover_claude_md_files(tmp_path: Path):
@@ -44,7 +44,7 @@ def test_load_claude_md_prompt(tmp_path: Path):
 
 
 def test_build_runtime_system_prompt_combines_sections(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.delenv("CLAUDE_CODE_COORDINATOR_MODE", raising=False)
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -59,7 +59,7 @@ def test_build_runtime_system_prompt_combines_sections(tmp_path: Path, monkeypat
 
 
 def test_build_runtime_system_prompt_includes_plan_mode_guidance(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     repo = tmp_path / "repo"
     repo.mkdir()
 
@@ -76,7 +76,7 @@ def test_build_runtime_system_prompt_includes_plan_mode_guidance(tmp_path: Path,
 
 
 def test_build_runtime_system_prompt_includes_project_context_and_fast_mode(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     repo = tmp_path / "repo"
     repo.mkdir()
     get_project_issue_file(repo).write_text("# Bug\nNeed to fix flaky test.\n", encoding="utf-8")
@@ -95,7 +95,7 @@ def test_build_runtime_system_prompt_includes_project_context_and_fast_mode(tmp_
 
 
 def test_build_runtime_system_prompt_includes_active_repo_context(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     repo = tmp_path / "repo"
     repo.mkdir()
     get_project_active_repo_context_path(repo).write_text(
@@ -110,7 +110,7 @@ def test_build_runtime_system_prompt_includes_active_repo_context(tmp_path: Path
 
 
 def test_build_runtime_system_prompt_uses_coordinator_prompt_when_enabled(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("CLAUDE_CODE_COORDINATOR_MODE", "1")
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -123,7 +123,7 @@ def test_build_runtime_system_prompt_uses_coordinator_prompt_when_enabled(tmp_pa
 
 
 def test_build_runtime_system_prompt_skips_coordinator_context_when_disabled(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.delenv("CLAUDE_CODE_COORDINATOR_MODE", raising=False)
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -139,7 +139,7 @@ def test_build_runtime_system_prompt_skips_coordinator_context_when_disabled(tmp
 
 
 def test_build_runtime_system_prompt_does_not_reinject_exported_secret_values(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.delenv("CLAUDE_CODE_COORDINATOR_MODE", raising=False)
     repo = tmp_path / "repo"
     repo.mkdir()

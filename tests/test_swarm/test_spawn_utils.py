@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 
-from openharness.swarm.spawn_utils import (
+from codeless.swarm.spawn_utils import (
     TEAMMATE_COMMAND_ENV_VAR,
     build_inherited_cli_flags,
     build_inherited_env_vars,
@@ -29,27 +29,27 @@ def test_build_inherited_env_vars_disables_coordinator_mode(monkeypatch):
     assert env["CLAUDE_CODE_COORDINATOR_MODE"] == "0"
 
 
-def test_build_inherited_env_vars_forwards_openharness_config_dir(monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", "/opt/data/.openharness")
+def test_build_inherited_env_vars_forwards_codeless_config_dir(monkeypatch):
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", "/opt/data/.codeless")
 
     env = build_inherited_env_vars()
 
-    assert env["OPENHARNESS_CONFIG_DIR"] == "/opt/data/.openharness"
+    assert env["CODELESS_CONFIG_DIR"] == "/opt/data/.codeless"
 
 
-def test_build_inherited_env_vars_includes_openharness_auth_vars(monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_PROVIDER", "openai")
-    monkeypatch.setenv("OPENHARNESS_BASE_URL", "https://relay.example.com/v1")
-    monkeypatch.setenv("OPENHARNESS_OPENAI_API_KEY", "sk-oh-openai")
-    monkeypatch.setenv("OPENHARNESS_ANTHROPIC_API_KEY", "sk-oh-anthropic")
+def test_build_inherited_env_vars_includes_codeless_auth_vars(monkeypatch):
+    monkeypatch.setenv("CODELESS_PROVIDER", "openai")
+    monkeypatch.setenv("CODELESS_BASE_URL", "https://relay.example.com/v1")
+    monkeypatch.setenv("CODELESS_OPENAI_API_KEY", "sk-oh-openai")
+    monkeypatch.setenv("CODELESS_ANTHROPIC_API_KEY", "sk-oh-anthropic")
 
     env = build_inherited_env_vars()
 
-    assert env["OPENHARNESS_AGENT_TEAMS"] == "1"
-    assert env["OPENHARNESS_PROVIDER"] == "openai"
-    assert env["OPENHARNESS_BASE_URL"] == "https://relay.example.com/v1"
-    assert env["OPENHARNESS_OPENAI_API_KEY"] == "sk-oh-openai"
-    assert env["OPENHARNESS_ANTHROPIC_API_KEY"] == "sk-oh-anthropic"
+    assert env["CODELESS_AGENT_TEAMS"] == "1"
+    assert env["CODELESS_PROVIDER"] == "openai"
+    assert env["CODELESS_BASE_URL"] == "https://relay.example.com/v1"
+    assert env["CODELESS_OPENAI_API_KEY"] == "sk-oh-openai"
+    assert env["CODELESS_ANTHROPIC_API_KEY"] == "sk-oh-anthropic"
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +66,7 @@ def test_build_inherited_cli_flags_explicit_model_included():
 
 def test_build_inherited_cli_flags_inherit_model_excluded():
     """model='inherit' must NOT produce a --model flag so the subprocess
-    picks up the parent's model from the OPENHARNESS_MODEL env var."""
+    picks up the parent's model from the CODELESS_MODEL env var."""
     flags = build_inherited_cli_flags(model="inherit")
     assert "--model" not in flags
 

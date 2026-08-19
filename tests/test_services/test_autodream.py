@@ -5,21 +5,21 @@ import os
 import time
 from pathlib import Path
 
-from openharness.config.settings import Settings
-from openharness.services.autodream.backup import create_memory_backup, diff_memory_dirs, restore_memory_backup
-from openharness.services.autodream.lock import (
+from codeless.config.settings import Settings
+from codeless.services.autodream.backup import create_memory_backup, diff_memory_dirs, restore_memory_backup
+from codeless.services.autodream.lock import (
     list_sessions_touched_since,
     read_last_consolidated_at,
     rollback_consolidation_lock,
     try_acquire_consolidation_lock,
 )
-from openharness.services.autodream.prompt import build_consolidation_prompt
-from openharness.services.autodream.service import execute_auto_dream, start_dream_now
-from openharness.services.session_storage import get_project_session_dir
+from codeless.services.autodream.prompt import build_consolidation_prompt
+from codeless.services.autodream.service import execute_auto_dream, start_dream_now
+from codeless.services.session_storage import get_project_session_dir
 
 
 def test_consolidation_lock_acquire_and_rollback(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     cwd = tmp_path / "repo"
     cwd.mkdir()
 
@@ -48,7 +48,7 @@ def test_consolidation_lock_supports_memory_dir_override(tmp_path: Path) -> None
 
 
 def test_list_sessions_touched_since_excludes_current(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     cwd = tmp_path / "repo"
     cwd.mkdir()
     session_dir = get_project_session_dir(cwd)
@@ -111,7 +111,7 @@ def test_memory_backup_diff_and_restore(tmp_path: Path) -> None:
 
 
 async def test_execute_auto_dream_skips_when_disabled(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     cwd = tmp_path / "repo"
     cwd.mkdir()
     settings = Settings()
@@ -156,7 +156,7 @@ async def test_start_dream_now_uses_overrides(tmp_path: Path, monkeypatch) -> No
             return None
 
         async def create_shell_task(self, **kwargs):
-            from openharness.tasks.types import TaskRecord
+            from codeless.jobs.types import TaskRecord
 
             captured.update(kwargs)
             return TaskRecord(
@@ -170,7 +170,7 @@ async def test_start_dream_now_uses_overrides(tmp_path: Path, monkeypatch) -> No
                 env=kwargs["env"],
             )
 
-    monkeypatch.setattr("openharness.services.autodream.service.get_task_manager", lambda: _Manager())
+    monkeypatch.setattr("codeless.services.autodream.service.get_task_manager", lambda: _Manager())
     settings = Settings()
     task = await start_dream_now(
         cwd=cwd,

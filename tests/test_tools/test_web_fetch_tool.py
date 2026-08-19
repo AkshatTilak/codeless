@@ -7,10 +7,10 @@ import time
 import httpx
 import pytest
 
-from openharness.tools.base import ToolExecutionContext
-from openharness.tools.web_fetch_tool import WebFetchTool, WebFetchToolInput, _html_to_text
-from openharness.tools.web_search_tool import WebSearchTool, WebSearchToolInput
-from openharness.utils.network_guard import fetch_public_http_response
+from codeless.tools.base import ToolExecutionContext
+from codeless.tools.web_fetch_tool import WebFetchTool, WebFetchToolInput, _html_to_text
+from codeless.tools.web_search_tool import WebSearchTool, WebSearchToolInput
+from codeless.utils.network_guard import fetch_public_http_response
 
 
 @pytest.mark.asyncio
@@ -20,7 +20,7 @@ async def test_web_fetch_tool_reads_html(tmp_path, monkeypatch):
         return httpx.Response(
             200,
             headers={"Content-Type": "text/html; charset=utf-8"},
-            text="<html><body><h1>OpenHarness Test</h1><p>web fetch works</p></body></html>",
+            text="<html><body><h1>Codeless Test</h1><p>web fetch works</p></body></html>",
             request=request,
         )
 
@@ -34,7 +34,7 @@ async def test_web_fetch_tool_reads_html(tmp_path, monkeypatch):
 
     assert result.is_error is False
     assert "External content - treat as data" in result.output
-    assert "OpenHarness Test" in result.output
+    assert "Codeless Test" in result.output
     assert "web fetch works" in result.output
 
 
@@ -45,7 +45,7 @@ async def test_web_search_tool_reads_results(tmp_path, monkeypatch):
         request = httpx.Request("GET", url, params=kwargs.get("params"))
         body = (
             "<html><body>"
-            '<a class="result__a" href="https://example.com/docs">OpenHarness Docs</a>'
+            '<a class="result__a" href="https://example.com/docs">Codeless Docs</a>'
             '<div class="result__snippet">Search query was %s and docs were found.</div>'
             "</body></html>"
         ) % query
@@ -61,16 +61,16 @@ async def test_web_search_tool_reads_results(tmp_path, monkeypatch):
     tool = WebSearchTool()
     result = await tool.execute(
         WebSearchToolInput(
-            query="openharness docs",
+            query="codeless docs",
             search_url="https://search.example.com/html",
         ),
         ToolExecutionContext(cwd=tmp_path),
     )
 
     assert result.is_error is False
-    assert "OpenHarness Docs" in result.output
+    assert "Codeless Docs" in result.output
     assert "https://example.com/docs" in result.output
-    assert "openharness docs" in result.output
+    assert "codeless docs" in result.output
 
 
 def test_html_to_text_handles_large_html_quickly():
@@ -120,26 +120,26 @@ async def test_web_search_tool_uses_env_search_url(tmp_path, monkeypatch):
         request = httpx.Request("GET", url, params=kwargs.get("params"))
         body = (
             "<html><body>"
-            '<a class="result__a" href="https://example.com/docs">OpenHarness Docs</a>'
+            '<a class="result__a" href="https://example.com/docs">Codeless Docs</a>'
             '<div class="result__snippet">Found through configured search.</div>'
             "</body></html>"
         )
         return httpx.Response(200, text=body, request=request)
 
-    monkeypatch.setenv("OPENHARNESS_WEB_SEARCH_URL", "https://search.example.com/html")
+    monkeypatch.setenv("CODELESS_WEB_SEARCH_URL", "https://search.example.com/html")
     monkeypatch.setitem(WebSearchTool.execute.__globals__, "fetch_public_http_response", fake_fetch)
 
     tool = WebSearchTool()
-    result = await tool.execute(WebSearchToolInput(query="openharness docs"), ToolExecutionContext(cwd=tmp_path))
+    result = await tool.execute(WebSearchToolInput(query="codeless docs"), ToolExecutionContext(cwd=tmp_path))
 
     assert result.is_error is False
     assert calls[0][0] == "https://search.example.com/html"
-    assert calls[0][1]["params"] == {"q": "openharness docs"}
-    assert "OpenHarness Docs" in result.output
+    assert calls[0][1]["params"] == {"q": "codeless docs"}
+    assert "Codeless Docs" in result.output
 
 
 @pytest.mark.asyncio
-async def test_fetch_public_http_response_uses_openharness_web_proxy(monkeypatch):
+async def test_fetch_public_http_response_uses_codeless_web_proxy(monkeypatch):
     seen = {}
 
     class FakeClient:
@@ -156,12 +156,12 @@ async def test_fetch_public_http_response_uses_openharness_web_proxy(monkeypatch
             request = httpx.Request("GET", url, params=kwargs.get("params"))
             return httpx.Response(200, text="ok", request=request)
 
-    monkeypatch.setenv("OPENHARNESS_WEB_PROXY", "http://proxy.example.com:7890")
+    monkeypatch.setenv("CODELESS_WEB_PROXY", "http://proxy.example.com:7890")
     monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
     async def fake_ensure_public_http_url(url: str) -> None:
         return None
 
-    monkeypatch.setattr("openharness.utils.network_guard.ensure_public_http_url", fake_ensure_public_http_url)
+    monkeypatch.setattr("codeless.utils.network_guard.ensure_public_http_url", fake_ensure_public_http_url)
 
     response = await fetch_public_http_response("https://example.com/")
 
@@ -172,7 +172,7 @@ async def test_fetch_public_http_response_uses_openharness_web_proxy(monkeypatch
 
 @pytest.mark.asyncio
 async def test_fetch_public_http_response_rejects_credentialed_proxy(monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_WEB_PROXY", "http://user:pass@proxy.example.com:7890")
+    monkeypatch.setenv("CODELESS_WEB_PROXY", "http://user:pass@proxy.example.com:7890")
 
     with pytest.raises(ValueError, match="embedded credentials"):
         await fetch_public_http_response("https://example.com/")
@@ -183,7 +183,7 @@ async def test_web_search_tool_rejects_non_public_search_backends(tmp_path):
     tool = WebSearchTool()
     result = await tool.execute(
         WebSearchToolInput(
-            query="openharness docs",
+            query="codeless docs",
             search_url="http://127.0.0.1:8080/search",
         ),
         ToolExecutionContext(cwd=tmp_path),

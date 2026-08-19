@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from openharness.config.settings import Settings, load_settings, save_settings
-from openharness.mcp.types import McpHttpServerConfig, McpStdioServerConfig
-from openharness.tools.base import ToolExecutionContext
-from openharness.tools.mcp_auth_tool import McpAuthTool, McpAuthToolInput
+from codeless.config.settings import Settings, load_settings, save_settings
+from codeless.mcp.types import McpHttpServerConfig, McpStdioServerConfig
+from codeless.tools.base import ToolExecutionContext
+from codeless.tools.mcp_auth_tool import McpAuthTool, McpAuthToolInput
 
 
 class FakeMcpManager:
@@ -34,7 +34,7 @@ class FakeMcpManager:
 
 @pytest.mark.asyncio
 async def test_mcp_auth_tool_updates_http_headers(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     save_settings(
         Settings(
             mcp_servers={
@@ -60,7 +60,7 @@ async def test_mcp_auth_tool_updates_http_headers(tmp_path: Path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_mcp_auth_tool_updates_stdio_env(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     save_settings(
         Settings(
             mcp_servers={
@@ -82,7 +82,7 @@ async def test_mcp_auth_tool_updates_stdio_env(tmp_path: Path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_mcp_auth_tool_can_start_from_active_manager_config(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     save_settings(Settings())
     manager = FakeMcpManager()
     manager._seed = {

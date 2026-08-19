@@ -7,7 +7,7 @@ import ipaddress
 import httpx
 import pytest
 
-from openharness.utils.network_guard import fetch_public_http_response
+from codeless.utils.network_guard import fetch_public_http_response
 
 
 class FakeAsyncClient:
@@ -27,7 +27,7 @@ class FakeAsyncClient:
 
 @pytest.fixture(autouse=True)
 def isolated_config_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
 
 
 @pytest.mark.asyncio
@@ -35,7 +35,7 @@ async def test_fetch_public_http_response_direct_rejects_non_public_dns(monkeypa
     async def fake_resolve(host: str, port: int):
         return {ipaddress.ip_address("100.64.1.2")}
 
-    monkeypatch.setattr("openharness.utils.network_guard._resolve_host_addresses", fake_resolve)
+    monkeypatch.setattr("codeless.utils.network_guard._resolve_host_addresses", fake_resolve)
 
     with pytest.raises(ValueError, match="synthetic DNS"):
         await fetch_public_http_response("https://example.com/")
@@ -46,9 +46,9 @@ async def test_fetch_public_http_response_synthetic_dns_allows_declared_cidr(mon
     async def fake_resolve(host: str, port: int):
         return {ipaddress.ip_address("100.64.1.2")}
 
-    monkeypatch.setenv("OPENHARNESS_WEB_RESOLUTION_MODE", "synthetic_dns")
-    monkeypatch.setenv("OPENHARNESS_WEB_SYNTHETIC_DNS_CIDRS", "100.64.0.0/10")
-    monkeypatch.setattr("openharness.utils.network_guard._resolve_host_addresses", fake_resolve)
+    monkeypatch.setenv("CODELESS_WEB_RESOLUTION_MODE", "synthetic_dns")
+    monkeypatch.setenv("CODELESS_WEB_SYNTHETIC_DNS_CIDRS", "100.64.0.0/10")
+    monkeypatch.setattr("codeless.utils.network_guard._resolve_host_addresses", fake_resolve)
     monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
 
     response = await fetch_public_http_response("https://example.com/")
@@ -60,7 +60,7 @@ async def test_fetch_public_http_response_synthetic_dns_allows_declared_cidr(mon
 async def test_fetch_public_http_response_synthetic_dns_uses_persisted_settings(
     monkeypatch,
 ):
-    from openharness.config.settings import Settings, WebSettings, save_settings
+    from codeless.config.settings import Settings, WebSettings, save_settings
 
     async def fake_resolve(host: str, port: int):
         return {ipaddress.ip_address("100.64.1.2")}
@@ -73,7 +73,7 @@ async def test_fetch_public_http_response_synthetic_dns_uses_persisted_settings(
             )
         )
     )
-    monkeypatch.setattr("openharness.utils.network_guard._resolve_host_addresses", fake_resolve)
+    monkeypatch.setattr("codeless.utils.network_guard._resolve_host_addresses", fake_resolve)
     monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
 
     response = await fetch_public_http_response("https://example.com/")
@@ -83,7 +83,7 @@ async def test_fetch_public_http_response_synthetic_dns_uses_persisted_settings(
 
 @pytest.mark.asyncio
 async def test_fetch_public_http_response_synthetic_dns_requires_declared_cidrs(monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_WEB_RESOLUTION_MODE", "synthetic_dns")
+    monkeypatch.setenv("CODELESS_WEB_RESOLUTION_MODE", "synthetic_dns")
 
     with pytest.raises(ValueError, match="web.synthetic_dns_cidrs"):
         await fetch_public_http_response("https://example.com/")
@@ -93,8 +93,8 @@ async def test_fetch_public_http_response_synthetic_dns_requires_declared_cidrs(
 async def test_fetch_public_http_response_synthetic_dns_rejects_literal_non_public_ip(
     monkeypatch,
 ):
-    monkeypatch.setenv("OPENHARNESS_WEB_RESOLUTION_MODE", "synthetic_dns")
-    monkeypatch.setenv("OPENHARNESS_WEB_SYNTHETIC_DNS_CIDRS", "100.64.0.0/10")
+    monkeypatch.setenv("CODELESS_WEB_RESOLUTION_MODE", "synthetic_dns")
+    monkeypatch.setenv("CODELESS_WEB_SYNTHETIC_DNS_CIDRS", "100.64.0.0/10")
 
     with pytest.raises(ValueError, match="non-public"):
         await fetch_public_http_response("http://100.64.1.2/")
@@ -107,9 +107,9 @@ async def test_fetch_public_http_response_synthetic_dns_rejects_undeclared_priva
     async def fake_resolve(host: str, port: int):
         return {ipaddress.ip_address("10.0.0.1")}
 
-    monkeypatch.setenv("OPENHARNESS_WEB_RESOLUTION_MODE", "synthetic_dns")
-    monkeypatch.setenv("OPENHARNESS_WEB_SYNTHETIC_DNS_CIDRS", "100.64.0.0/10")
-    monkeypatch.setattr("openharness.utils.network_guard._resolve_host_addresses", fake_resolve)
+    monkeypatch.setenv("CODELESS_WEB_RESOLUTION_MODE", "synthetic_dns")
+    monkeypatch.setenv("CODELESS_WEB_SYNTHETIC_DNS_CIDRS", "100.64.0.0/10")
+    monkeypatch.setattr("codeless.utils.network_guard._resolve_host_addresses", fake_resolve)
 
     with pytest.raises(ValueError, match="non-public"):
         await fetch_public_http_response("https://example.com/")
@@ -120,9 +120,9 @@ async def test_fetch_public_http_response_proxy_mode_does_not_resolve_target_dns
     async def fail_resolve(host: str, port: int):
         raise AssertionError("proxy mode should not resolve ordinary target domains locally")
 
-    monkeypatch.setenv("OPENHARNESS_WEB_PROXY", "http://proxy.example.com:7890")
-    monkeypatch.setenv("OPENHARNESS_WEB_SYNTHETIC_DNS_CIDRS", "not-a-cidr")
-    monkeypatch.setattr("openharness.utils.network_guard._resolve_host_addresses", fail_resolve)
+    monkeypatch.setenv("CODELESS_WEB_PROXY", "http://proxy.example.com:7890")
+    monkeypatch.setenv("CODELESS_WEB_SYNTHETIC_DNS_CIDRS", "not-a-cidr")
+    monkeypatch.setattr("codeless.utils.network_guard._resolve_host_addresses", fail_resolve)
     monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
 
     response = await fetch_public_http_response("https://example.com/")
@@ -132,7 +132,7 @@ async def test_fetch_public_http_response_proxy_mode_does_not_resolve_target_dns
 
 @pytest.mark.asyncio
 async def test_fetch_public_http_response_proxy_mode_rejects_literal_non_public_ip(monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_WEB_PROXY", "http://proxy.example.com:7890")
+    monkeypatch.setenv("CODELESS_WEB_PROXY", "http://proxy.example.com:7890")
 
     with pytest.raises(ValueError, match="non-public"):
         await fetch_public_http_response("http://127.0.0.1/")
@@ -147,7 +147,7 @@ async def test_fetch_public_http_response_rejects_non_public_redirect_in_proxy_m
             request = httpx.Request("GET", url, params=kwargs.get("params"))
             return httpx.Response(302, headers={"Location": "http://127.0.0.1/"}, request=request)
 
-    monkeypatch.setenv("OPENHARNESS_WEB_PROXY", "http://proxy.example.com:7890")
+    monkeypatch.setenv("CODELESS_WEB_PROXY", "http://proxy.example.com:7890")
     monkeypatch.setattr(httpx, "AsyncClient", RedirectClient)
 
     with pytest.raises(ValueError, match="non-public"):

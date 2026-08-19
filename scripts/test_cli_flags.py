@@ -25,7 +25,7 @@ def _env() -> dict[str, str]:
 
 def _run_oh(*args: str, timeout: int = 60) -> subprocess.CompletedProcess:
     """Run the oh CLI with the given args."""
-    cmd = [sys.executable, "-m", "openharness", *args]
+    cmd = [sys.executable, "-m", "codeless", *args]
     return subprocess.run(
         cmd,
         capture_output=True,
@@ -69,7 +69,7 @@ def test_help_output() -> tuple[bool, str]:
 
 def test_print_mode() -> tuple[bool, str]:
     """Test -p flag: non-interactive mode with real model call."""
-    result = _run_oh("-p", "Say exactly: hello openharness", "--model", os.environ.get("ANTHROPIC_MODEL", "kimi-k2.5"))
+    result = _run_oh("-p", "Say exactly: hello codeless", "--model", os.environ.get("ANTHROPIC_MODEL", "kimi-k2.5"))
     output = result.stdout.strip().lower()
     if result.returncode != 0:
         return False, f"Exit code {result.returncode}: {result.stderr[:200]}"

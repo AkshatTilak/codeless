@@ -1,8 +1,8 @@
-"""Schema regressions for openharness.config.schema channel configs."""
+"""Schema regressions for codeless.config.schema channel configs."""
 
 from __future__ import annotations
 
-from openharness.config.schema import TelegramConfig
+from codeless.config.schema import TelegramConfig
 
 
 class TestTelegramConfig:

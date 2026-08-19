@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "openharness-ai"
+name = "codeless-ai"
 version = "0.1.9"
-description = "Open-source Python port of Claude Code - an AI-powered CLI coding assistant"
+description = "Autonomous agent execution harness for Agent Buildable Base"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
-    { name = "novix-science" },
+    { name = "Akshat Tilak" },
 ]
 
 dependencies = [
@@ -23,16 +23,13 @@ dependencies = [
     "pydantic>=2.0.0",
     "httpx>=0.27.0",
     "websockets>=12.0",
-    "mcp>=1.0.0",
+    "mcp>=1.0.0,<2.0.0",
     "pyperclip>=1.9.0",
     "pyyaml>=6.0",
     "questionary>=2.0.1",
     "watchfiles>=0.20.0",
     "croniter>=2.0.0",
-    "slack-sdk>=3.0.0",
-    "python-telegram-bot>=21.0.0",
-    "discord.py>=2.0.0",
-    "lark-oapi>=1.5.0",
+    "tzdata>=2024.1; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
@@ -46,20 +43,18 @@ dev = [
 ]
 
 [project.scripts]
-openharness = "openharness.cli:app"
-oh = "openharness.cli:app"
-openh = "openharness.cli:app"
-ohmo = "ohmo.cli:app"
+codeless = "codeless.cli:app"
+clh = "codeless.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/openharness", "ohmo"]
+packages = ["src/codeless"]
 
 [tool.hatch.build]
 exclude = [
     "/.git",
     "/.venv",
-    "/.openharness-venv",
-    "/.openharness",
+    "/.codeless-venv",
+    "/.codeless",
     "/.pytest_cache",
     "/.mypy_cache",
     "/.ruff_cache",
@@ -68,9 +63,9 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel.force-include]
-"frontend/terminal/package.json" = "openharness/_frontend/package.json"
-"frontend/terminal/tsconfig.json" = "openharness/_frontend/tsconfig.json"
-"frontend/terminal/src" = "openharness/_frontend/src"
+"frontend/terminal/package.json" = "codeless/_frontend/package.json"
+"frontend/terminal/tsconfig.json" = "codeless/_frontend/tsconfig.json"
+"frontend/terminal/src" = "codeless/_frontend/src"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

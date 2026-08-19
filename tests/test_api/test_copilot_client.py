@@ -7,19 +7,19 @@ from typing import AsyncIterator
 
 import pytest
 
-from openharness.api.client import (
+from codeless.api.client import (
     ApiMessageCompleteEvent,
     ApiMessageRequest,
     ApiStreamEvent,
     ApiTextDeltaEvent,
 )
-from openharness.api.copilot_auth import (
+from codeless.api.copilot_auth import (
     save_copilot_auth,
 )
-from openharness.api.copilot_client import CopilotClient
-from openharness.api.errors import AuthenticationFailure
-from openharness.api.usage import UsageSnapshot
-from openharness.engine.messages import ConversationMessage, TextBlock
+from codeless.api.copilot_client import CopilotClient
+from codeless.api.errors import AuthenticationFailure
+from codeless.api.usage import UsageSnapshot
+from codeless.engine.messages import ConversationMessage, TextBlock
 
 
 # ---------------------------------------------------------------------------
@@ -54,50 +54,50 @@ class TestCopilotClientInit:
     """Test CopilotClient construction and auth validation."""
 
     def test_raises_when_no_token(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         with pytest.raises(AuthenticationFailure, match="No GitHub Copilot token"):
             CopilotClient()
 
     def test_succeeds_with_explicit_token(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         client = CopilotClient(github_token="gho_explicit")
         assert client._token == "gho_explicit"
         assert client._enterprise_url is None
 
     def test_loads_from_persisted_token(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         save_copilot_auth("gho_persisted")
         client = CopilotClient()
         assert client._token == "gho_persisted"
 
     def test_explicit_token_takes_precedence(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         save_copilot_auth("gho_persisted")
         client = CopilotClient(github_token="gho_override")
         assert client._token == "gho_override"
 
     def test_enterprise_url_from_auth_file(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         save_copilot_auth("gho_ent", enterprise_url="company.ghe.com")
         client = CopilotClient()
         assert client._enterprise_url == "company.ghe.com"
 
     def test_explicit_enterprise_url_takes_precedence(self, tmp_path: Path, monkeypatch):
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         save_copilot_auth("gho_ent", enterprise_url="old.ghe.com")
         client = CopilotClient(github_token="gho_x", enterprise_url="new.ghe.com")
         assert client._enterprise_url == "new.ghe.com"
 
     def test_inner_client_uses_correct_api_base(self, tmp_path: Path, monkeypatch):
         """The inner OpenAI client should be pointed at the correct API base."""
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         client = CopilotClient(github_token="gho_test")
         # Default: public GitHub
         assert client._inner._client.base_url is not None
 
     def test_inner_client_enterprise_base(self, tmp_path: Path, monkeypatch):
         """Enterprise URL should produce the correct Copilot API base."""
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         save_copilot_auth("gho_ent", enterprise_url="company.ghe.com")
         client = CopilotClient()
         # The inner client should use the enterprise API base
@@ -116,7 +116,7 @@ class TestStreamMessage:
     @pytest.mark.asyncio
     async def test_delegates_to_inner_client(self, tmp_path: Path, monkeypatch):
         """stream_message should yield events from the inner client's stream_message."""
-        monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "cfg"))
+        monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "cfg"))
         fake_inner = FakeInnerClient()
 
         client = CopilotClient(github_token="gho_stream")

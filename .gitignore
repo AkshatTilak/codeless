@@ -10,7 +10,7 @@ build/
 .mypy_cache/
 .ruff_cache/
 .venv/
-.openharness-venv/
+.codeless-venv/
 venv/
 env/
 .env
@@ -28,7 +28,7 @@ htmlcov/
 frontend/terminal/node_modules/
 
 # User data (never commit API keys or session data)
-.openharness/
+.codeless/
 react_tui_smoke.txt
 
 # OS

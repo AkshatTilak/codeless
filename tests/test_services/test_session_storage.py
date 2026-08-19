@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from openharness.api.usage import UsageSnapshot
-from openharness.engine.messages import ConversationMessage, TextBlock
-from openharness.services.session_storage import (
+from codeless.api.usage import UsageSnapshot
+from codeless.engine.messages import ConversationMessage, TextBlock
+from codeless.services.session_storage import (
     export_session_markdown,
     get_project_session_dir,
     load_session_snapshot,
@@ -16,7 +16,7 @@ from openharness.services.session_storage import (
 
 
 def test_save_and_load_session_snapshot(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
 
@@ -42,7 +42,7 @@ def test_save_and_load_session_snapshot(tmp_path: Path, monkeypatch):
 
 
 def test_export_session_markdown(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
 
@@ -56,13 +56,13 @@ def test_export_session_markdown(tmp_path: Path, monkeypatch):
 
     assert path.exists()
     content = path.read_text(encoding="utf-8")
-    assert "OpenHarness Session Transcript" in content
+    assert "Codeless Session Transcript" in content
     assert "hello" in content
     assert "world" in content
 
 
 def test_load_session_snapshot_sanitizes_legacy_empty_assistant_messages(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
 

@@ -5,14 +5,14 @@ from typing import Any
 
 import pytest
 
-from openharness.api.client import ApiMessageRequest, ApiMessageCompleteEvent, ApiTextDeltaEvent
-from openharness.api.codex_client import (
+from codeless.api.client import ApiMessageRequest, ApiMessageCompleteEvent, ApiTextDeltaEvent
+from codeless.api.codex_client import (
     CodexApiClient,
     _convert_messages_to_codex,
     _format_codex_stream_error,
     _resolve_codex_url,
 )
-from openharness.engine.messages import ConversationMessage, ImageBlock, TextBlock, ToolResultBlock, ToolUseBlock
+from codeless.engine.messages import ConversationMessage, ImageBlock, TextBlock, ToolResultBlock, ToolUseBlock
 
 
 class _FakeStreamResponse:
@@ -182,7 +182,7 @@ async def test_codex_client_streams_text(monkeypatch):
         ]
     )
     monkeypatch.setattr(
-        "openharness.api.codex_client.httpx.AsyncClient",
+        "codeless.api.codex_client.httpx.AsyncClient",
         lambda *args, **kwargs: _FakeAsyncClient(response, sink),
     )
 
@@ -221,7 +221,7 @@ async def test_codex_client_emits_tool_use(monkeypatch):
         ]
     )
     monkeypatch.setattr(
-        "openharness.api.codex_client.httpx.AsyncClient",
+        "codeless.api.codex_client.httpx.AsyncClient",
         lambda *args, **kwargs: _FakeAsyncClient(response, sink),
     )
 

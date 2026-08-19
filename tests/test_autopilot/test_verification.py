@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from openharness.autopilot import service
-from openharness.autopilot.service import (
+from codeless.autopilot import service
+from codeless.autopilot.service import (
     _DEFAULT_VERIFICATION_POLICY,
     RepoAutopilotStore,
     _parse_verification_entry,

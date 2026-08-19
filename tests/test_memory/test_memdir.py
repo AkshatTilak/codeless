@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openharness.memory import (
+from codeless.memory import (
     add_memory_entry,
     find_relevant_memories,
     get_memory_entrypoint,
@@ -13,12 +13,12 @@ from openharness.memory import (
     migrate_memory,
     remove_memory_entry,
 )
-from openharness.memory.scan import _parse_memory_file, scan_memory_files
-from openharness.memory.usage import find_stale_memory_candidates, load_usage_index, mark_memory_used
+from codeless.memory.scan import _parse_memory_file, scan_memory_files
+from codeless.memory.usage import find_stale_memory_candidates, load_usage_index, mark_memory_used
 
 
 def test_memory_paths_are_stable(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project_dir = tmp_path / "repo"
     project_dir.mkdir()
 
@@ -30,7 +30,7 @@ def test_memory_paths_are_stable(tmp_path: Path, monkeypatch):
 
 
 def test_load_memory_prompt_includes_entrypoint(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project_dir = tmp_path / "repo"
     project_dir.mkdir()
     entrypoint = get_memory_entrypoint(project_dir)
@@ -44,7 +44,7 @@ def test_load_memory_prompt_includes_entrypoint(tmp_path: Path, monkeypatch):
 
 
 def test_find_relevant_memories(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project_dir = tmp_path / "repo"
     project_dir.mkdir()
     memory_dir = get_project_memory_dir(project_dir)
@@ -58,7 +58,7 @@ def test_find_relevant_memories(tmp_path: Path, monkeypatch):
 
 
 def test_add_memory_entry_writes_schema_and_dedupes(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project_dir = tmp_path / "repo"
     project_dir.mkdir()
 
@@ -76,7 +76,7 @@ def test_add_memory_entry_writes_schema_and_dedupes(tmp_path: Path, monkeypatch)
 
 
 def test_remove_memory_entry_soft_deletes_and_hides_entry(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project_dir = tmp_path / "repo"
     project_dir.mkdir()
 
@@ -91,7 +91,7 @@ def test_remove_memory_entry_soft_deletes_and_hides_entry(tmp_path: Path, monkey
 
 
 def test_migrate_memory_backfills_schema(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project_dir = tmp_path / "repo"
     project_dir.mkdir()
     memory_dir = get_project_memory_dir(project_dir)
@@ -119,7 +119,7 @@ def test_migrate_memory_backfills_schema(tmp_path: Path, monkeypatch):
 
 
 def test_usage_index_marks_recalled_memories_and_stale_candidates(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project_dir = tmp_path / "repo"
     project_dir.mkdir()
     memory_dir = get_project_memory_dir(project_dir)
@@ -227,7 +227,7 @@ def test_parse_frontmatter_handles_quoted_values(tmp_path: Path):
 
 
 def test_scan_memory_files_with_frontmatter(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project_dir = tmp_path / "repo"
     project_dir.mkdir()
     memory_dir = get_project_memory_dir(project_dir)
@@ -248,7 +248,7 @@ def test_scan_memory_files_with_frontmatter(tmp_path: Path, monkeypatch):
 
 
 def test_search_prefers_metadata_over_body(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project_dir = tmp_path / "repo"
     project_dir.mkdir()
     memory_dir = get_project_memory_dir(project_dir)
@@ -271,7 +271,7 @@ def test_search_prefers_metadata_over_body(tmp_path: Path, monkeypatch):
 
 
 def test_search_finds_body_content(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project_dir = tmp_path / "repo"
     project_dir.mkdir()
     memory_dir = get_project_memory_dir(project_dir)
@@ -287,7 +287,7 @@ def test_search_finds_body_content(tmp_path: Path, monkeypatch):
 
 
 def test_search_handles_cjk_queries(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project_dir = tmp_path / "repo"
     project_dir.mkdir()
     memory_dir = get_project_memory_dir(project_dir)

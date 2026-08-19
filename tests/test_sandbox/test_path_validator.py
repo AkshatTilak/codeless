@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openharness.sandbox.path_validator import validate_sandbox_path
+import pytest
+
+from codeless.sandbox.path_validator import validate_sandbox_path
 
 
 def test_path_within_cwd_allowed(tmp_path):
@@ -51,7 +53,10 @@ def test_symlink_escape_blocked(tmp_path):
     secret.write_text("sensitive")
 
     link = cwd / "link.txt"
-    link.symlink_to(secret)
+    try:
+        link.symlink_to(secret)
+    except OSError:
+        pytest.skip("Symlink creation not permitted on this Windows environment")
 
     allowed, reason = validate_sandbox_path(link, cwd)
     assert allowed is False

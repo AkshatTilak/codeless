@@ -8,43 +8,43 @@ from pathlib import Path
 
 import pytest
 
-from openharness.api.client import ApiMessageCompleteEvent
-from openharness.api.usage import UsageSnapshot
-from openharness.commands.registry import CommandContext, create_default_command_registry
-from openharness.config.settings import Settings
-from openharness.engine.messages import ConversationMessage, ToolUseBlock
-from openharness.engine.query_engine import QueryEngine
-from openharness.memory import add_memory_entry, get_project_memory_dir
-from openharness.memory.agent import (
+from codeless.api.client import ApiMessageCompleteEvent
+from codeless.api.usage import UsageSnapshot
+from codeless.commands.registry import CommandContext, create_default_command_registry
+from codeless.config.settings import Settings
+from codeless.engine.messages import ConversationMessage, ToolUseBlock
+from codeless.engine.query_engine import QueryEngine
+from codeless.memory import add_memory_entry, get_project_memory_dir
+from codeless.memory.agent import (
     ensure_agent_memory_vault,
     get_agent_memory_entrypoint,
     initialize_agent_memory_from_snapshot,
 )
-from openharness.memory.relevance import format_relevant_memories, select_relevant_memories
-from openharness.memory.schema import (
+from codeless.memory.relevance import format_relevant_memories, select_relevant_memories
+from codeless.memory.schema import (
     memory_freshness_text,
     parse_memory_scope,
     parse_memory_type,
     truncate_entrypoint_content,
 )
-from openharness.memory.team import (
+from codeless.memory.team import (
     check_team_memory_secrets,
     ensure_team_memory_vault,
     validate_team_memory_write_path,
 )
-from openharness.permissions import PermissionChecker
-from openharness.services.memory_extract import (
+from codeless.permissions import PermissionChecker
+from codeless.services.memory_extract import (
     extract_memories_from_turn,
     has_memory_writes_since,
     parse_extraction_records,
     validate_extraction_tool_request,
 )
-from openharness.services.session_memory import (
+from codeless.services.session_memory import (
     get_session_memory_content,
     get_session_memory_path,
     update_session_memory_file,
 )
-from openharness.tools import create_default_tool_registry
+from codeless.tools import create_default_tool_registry
 
 
 class _FakeApiClient:
@@ -73,7 +73,7 @@ def test_schema_truncation_and_freshness() -> None:
 
 
 def test_relevance_formats_staleness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
     path = add_memory_entry(project, "Redis Rule", "Redis cache decisions matter.", memory_type="project")
@@ -90,7 +90,7 @@ def test_relevance_formats_staleness(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 @pytest.mark.asyncio
 async def test_memory_extraction_writes_typed_note(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
     api = _FakeApiClient(
@@ -132,7 +132,7 @@ def test_memory_write_detection_resolves_relative_paths_from_cwd(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
     memory_dir = get_project_memory_dir(project)
@@ -151,7 +151,7 @@ def test_memory_write_detection_resolves_relative_paths_from_cwd(
 
 
 def test_session_memory_file_round_trip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
     messages = [ConversationMessage.from_user_text("current task: finish memory runtime")]
@@ -163,7 +163,7 @@ def test_session_memory_file_round_trip(tmp_path: Path, monkeypatch: pytest.Monk
 
 
 def test_team_memory_guards_and_agent_memory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
 
@@ -181,10 +181,10 @@ def test_team_memory_guards_and_agent_memory(tmp_path: Path, monkeypatch: pytest
 
 
 def test_agent_memory_snapshot_initializes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
-    snapshot = project / ".openharness" / "agent-memory-snapshots" / "reviewer"
+    snapshot = project / ".codeless" / "agent-memory-snapshots" / "reviewer"
     snapshot.mkdir(parents=True)
     (snapshot / "MEMORY.md").write_text("# Snapshot\n", encoding="utf-8")
 
@@ -196,7 +196,7 @@ def test_agent_memory_snapshot_initializes(tmp_path: Path, monkeypatch: pytest.M
 
 @pytest.mark.asyncio
 async def test_memory_commands_expose_session_team_and_agent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENHARNESS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
     engine = QueryEngine(

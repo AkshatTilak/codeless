@@ -6,12 +6,12 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from openharness.cli import app
-from openharness.config.settings import load_settings
+from codeless.cli import app
+from codeless.config.settings import load_settings
 
 
 def test_cli_config_set_persists_nested_web_settings(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OPENHARNESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     runner = CliRunner()
 
     mode_result = runner.invoke(app, ["config", "set", "web.resolution_mode", "synthetic_dns"])

@@ -1,4 +1,4 @@
-"""Real large tasks that exercise multiple OpenHarness features together.
+"""Real large tasks that exercise multiple Codeless features together.
 
 Each task is a realistic multi-turn scenario that combines 3+ features,
 running on the AutoAgent codebase (an unfamiliar project) with real Kimi K2.5 API.
@@ -19,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from openharness.config.settings import Settings
+from codeless.config.settings import Settings
 
 API_KEY = os.environ.get("ANTHROPIC_API_KEY", "sk-Ue1kdhq9prvNwuwySlzRtWVD7ek0iJJaHyPdKDa3ecKLwYuG")
 BASE_URL = os.environ.get("ANTHROPIC_BASE_URL", "https://api.moonshot.cn/anthropic")
@@ -35,19 +35,19 @@ RESULTS: dict[str, tuple[bool, float]] = {}
 # ====================================================================
 
 def make_engine(system_prompt, cwd=None, hook_executor=None, max_tokens=4096, max_turns=DEFAULT_MAX_TURNS):
-    from openharness.api.client import AnthropicApiClient
-    from openharness.config.settings import PermissionSettings
-    from openharness.engine.query_engine import QueryEngine
-    from openharness.permissions.checker import PermissionChecker
-    from openharness.permissions.modes import PermissionMode
-    from openharness.tools.base import ToolRegistry
-    from openharness.tools.bash_tool import BashTool
-    from openharness.tools.file_read_tool import FileReadTool
-    from openharness.tools.file_write_tool import FileWriteTool
-    from openharness.tools.file_edit_tool import FileEditTool
-    from openharness.tools.glob_tool import GlobTool
-    from openharness.tools.grep_tool import GrepTool
-    from openharness.tools.web_fetch_tool import WebFetchTool
+    from codeless.api.client import AnthropicApiClient
+    from codeless.config.settings import PermissionSettings
+    from codeless.engine.query_engine import QueryEngine
+    from codeless.permissions.checker import PermissionChecker
+    from codeless.permissions.modes import PermissionMode
+    from codeless.tools.base import ToolRegistry
+    from codeless.tools.bash_tool import BashTool
+    from codeless.tools.file_read_tool import FileReadTool
+    from codeless.tools.file_write_tool import FileWriteTool
+    from codeless.tools.file_edit_tool import FileEditTool
+    from codeless.tools.glob_tool import GlobTool
+    from codeless.tools.grep_tool import GrepTool
+    from codeless.tools.web_fetch_tool import WebFetchTool
 
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
     reg = ToolRegistry()
@@ -63,7 +63,7 @@ def make_engine(system_prompt, cwd=None, hook_executor=None, max_tokens=4096, ma
 
 
 def collect(events):
-    from openharness.engine.stream_events import (
+    from codeless.engine.stream_events import (
         AssistantTextDelta, AssistantTurnComplete,
         ToolExecutionStarted, ToolExecutionCompleted,
     )
@@ -94,11 +94,11 @@ async def task_security_audit_with_hooks():
     """Full security audit: agent reads code, fetches OWASP checklist, reports issues.
     Hooks log every tool use. Permission denies dangerous commands."""
 
-    from openharness.hooks.events import HookEvent
-    from openharness.hooks.loader import HookRegistry
-    from openharness.hooks.schemas import CommandHookDefinition
-    from openharness.hooks.executor import HookExecutor, HookExecutionContext
-    from openharness.api.client import AnthropicApiClient
+    from codeless.hooks.events import HookEvent
+    from codeless.hooks.loader import HookRegistry
+    from codeless.hooks.schemas import CommandHookDefinition
+    from codeless.hooks.executor import HookExecutor, HookExecutionContext
+    from codeless.api.client import AnthropicApiClient
 
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
 
@@ -169,25 +169,25 @@ async def task_security_audit_with_hooks():
 async def task_coordinator_code_review():
     """Coordinator delegates code review to 2 worker agents, synthesizes results."""
 
-    from openharness.coordinator.coordinator_mode import (
+    from codeless.coordinator.coordinator_mode import (
         get_coordinator_system_prompt, format_task_notification, TaskNotification,
     )
-    from openharness.coordinator.agent_definitions import get_agent_definition
-    from openharness.swarm.in_process import start_in_process_teammate, TeammateAbortController
-    from openharness.swarm.types import TeammateSpawnConfig
-    from openharness.swarm.team_lifecycle import TeamLifecycleManager, TeamMember
-    from openharness.engine.query import QueryContext
-    from openharness.api.client import AnthropicApiClient
-    from openharness.config.settings import PermissionSettings
-    from openharness.permissions.checker import PermissionChecker
-    from openharness.permissions.modes import PermissionMode
-    from openharness.tools.base import ToolRegistry
-    from openharness.tools.bash_tool import BashTool
-    from openharness.tools.file_read_tool import FileReadTool
-    from openharness.tools.glob_tool import GlobTool
-    from openharness.tools.grep_tool import GrepTool
-    import openharness.swarm.mailbox as mb
-    import openharness.swarm.team_lifecycle as tl
+    from codeless.coordinator.agent_definitions import get_agent_definition
+    from codeless.swarm.in_process import start_in_process_teammate, TeammateAbortController
+    from codeless.swarm.types import TeammateSpawnConfig
+    from codeless.swarm.team_lifecycle import TeamLifecycleManager, TeamMember
+    from codeless.engine.query import QueryContext
+    from codeless.api.client import AnthropicApiClient
+    from codeless.config.settings import PermissionSettings
+    from codeless.permissions.checker import PermissionChecker
+    from codeless.permissions.modes import PermissionMode
+    from codeless.tools.base import ToolRegistry
+    from codeless.tools.bash_tool import BashTool
+    from codeless.tools.file_read_tool import FileReadTool
+    from codeless.tools.glob_tool import GlobTool
+    from codeless.tools.grep_tool import GrepTool
+    import codeless.swarm.mailbox as mb
+    import codeless.swarm.team_lifecycle as tl
 
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
 
@@ -298,13 +298,13 @@ async def task_migration_plan_with_memory():
     """Agent analyzes AutoAgent, saves findings to memory, creates migration plan,
     saves session for later resume."""
 
-    from openharness.coordinator.agent_definitions import get_agent_definition
-    from openharness.skills.registry import SkillRegistry
-    from openharness.skills.types import SkillDefinition
-    from openharness.memory.manager import add_memory_entry, list_memory_files, remove_memory_entry
-    from openharness.services.session_storage import save_session_snapshot, export_session_markdown
-    import openharness.memory.paths as mp
-    import openharness.memory.manager as mm
+    from codeless.coordinator.agent_definitions import get_agent_definition
+    from codeless.skills.registry import SkillRegistry
+    from codeless.skills.types import SkillDefinition
+    from codeless.memory.manager import add_memory_entry, list_memory_files, remove_memory_entry
+    from codeless.services.session_storage import save_session_snapshot, export_session_markdown
+    import codeless.memory.paths as mp
+    import codeless.memory.manager as mm
 
     with tempfile.TemporaryDirectory() as tmpdir:
         mem_dir = Path(tmpdir) / "memory"
@@ -418,7 +418,7 @@ async def task_migration_plan_with_memory():
 async def task_bugfix_in_worktree():
     """Agent creates a worktree, makes a fix in isolation, verifies it, cleans up."""
 
-    from openharness.swarm.worktree import WorktreeManager
+    from codeless.swarm.worktree import WorktreeManager
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create a test repo with a "buggy" file
@@ -517,28 +517,28 @@ if __name__ == "__main__":
 async def task_full_pipeline():
     """Simulate the full research→plan→implement→verify pipeline with coordinator."""
 
-    from openharness.coordinator.coordinator_mode import (
+    from codeless.coordinator.coordinator_mode import (
         get_coordinator_system_prompt, format_task_notification, TaskNotification,
     )
-    from openharness.swarm.in_process import start_in_process_teammate, TeammateAbortController
-    from openharness.swarm.types import TeammateSpawnConfig
-    from openharness.swarm.permission_sync import (
+    from codeless.swarm.in_process import start_in_process_teammate, TeammateAbortController
+    from codeless.swarm.types import TeammateSpawnConfig
+    from codeless.swarm.permission_sync import (
         create_permission_request, write_permission_request,
         read_pending_permissions, resolve_permission, PermissionResolution,
     )
-    from openharness.swarm.team_lifecycle import TeamLifecycleManager, TeamMember
-    from openharness.engine.query import QueryContext
-    from openharness.api.client import AnthropicApiClient
-    from openharness.config.settings import PermissionSettings
-    from openharness.permissions.checker import PermissionChecker
-    from openharness.permissions.modes import PermissionMode
-    from openharness.tools.base import ToolRegistry
-    from openharness.tools.bash_tool import BashTool
-    from openharness.tools.file_read_tool import FileReadTool
-    from openharness.tools.glob_tool import GlobTool
-    from openharness.tools.grep_tool import GrepTool
-    import openharness.swarm.mailbox as mb
-    import openharness.swarm.team_lifecycle as tl
+    from codeless.swarm.team_lifecycle import TeamLifecycleManager, TeamMember
+    from codeless.engine.query import QueryContext
+    from codeless.api.client import AnthropicApiClient
+    from codeless.config.settings import PermissionSettings
+    from codeless.permissions.checker import PermissionChecker
+    from codeless.permissions.modes import PermissionMode
+    from codeless.tools.base import ToolRegistry
+    from codeless.tools.bash_tool import BashTool
+    from codeless.tools.file_read_tool import FileReadTool
+    from codeless.tools.glob_tool import GlobTool
+    from codeless.tools.grep_tool import GrepTool
+    import codeless.swarm.mailbox as mb
+    import codeless.swarm.team_lifecycle as tl
 
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
 
@@ -665,7 +665,7 @@ async def task_full_pipeline():
 async def task_refactor_with_session():
     """Refactor code across 3 turns, save session, verify it can be loaded."""
 
-    from openharness.services.session_storage import (
+    from codeless.services.session_storage import (
         save_session_snapshot, load_session_snapshot,
     )
 
