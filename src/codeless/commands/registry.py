@@ -2574,6 +2574,11 @@ def create_default_command_registry(
                 _plugin_command_handler,
             )
         )
+
+    # Register ABB Slash Command Pack (C4 collision-resolved)
+    from codeless.abb.commands import register_abb_slash_commands
+    register_abb_slash_commands(registry)
+
     return registry
 
 

@@ -7,7 +7,7 @@ import os
 import shutil
 from typing import TYPE_CHECKING, Any
 
-from codeless.platforms import get_platform, get_platform_capabilities
+import codeless.platforms as platforms
 from codeless.swarm.spawn_utils import is_tmux_available
 from codeless.swarm.types import BackendDetectionResult, BackendType, TeammateExecutor
 
@@ -60,7 +60,7 @@ def _is_it2_cli_available() -> bool:
 
 def _get_tmux_install_instructions() -> str:
     """Return platform-specific tmux installation instructions."""
-    system = get_platform()
+    system = platforms.get_platform()
     if system == "macos":
         return (
             "To use agent swarms, install tmux:\n"
@@ -381,7 +381,7 @@ class BackendRegistry:
         from codeless.swarm.subprocess_backend import SubprocessBackend
 
         self._backends["subprocess"] = SubprocessBackend()
-        if get_platform_capabilities().supports_swarm_mailbox:
+        if platforms.get_platform_capabilities().supports_swarm_mailbox:
             from codeless.swarm.in_process import InProcessBackend
 
             self._backends["in_process"] = InProcessBackend()

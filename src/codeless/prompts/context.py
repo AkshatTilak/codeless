@@ -184,4 +184,14 @@ def build_runtime_system_prompt(
                     pass
                 sections.append(format_relevant_memories(relevant))
 
+    # ABB Governance Persona & Instructions (agent.md, workflows, permissions)
+    try:
+        from codeless.abb.permissions import get_mode_engine
+        mode_engine = get_mode_engine()
+        persona_instructions = mode_engine.get_persona_instructions(Path(cwd))
+        if persona_instructions:
+            sections.append(persona_instructions)
+    except Exception:
+        pass
+
     return "\n\n".join(section for section in sections if section.strip())

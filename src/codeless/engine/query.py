@@ -725,13 +725,22 @@ async def run_query(
         usage = UsageSnapshot()
 
         try:
+            from codeless.abb.permissions import get_mode_engine, TriMode
+
+            mode_engine = get_mode_engine()
+            allowed_tool_names = (
+                mode_engine.get_allowed_tools([t.name for t in context.tool_registry.list_tools()])
+                if mode_engine.current_mode != TriMode.AGENT
+                else None
+            )
+
             async for event in context.api_client.stream_message(
                 ApiMessageRequest(
                     model=context.model,
                     messages=messages,
                     system_prompt=context.system_prompt,
                     max_tokens=effective_max_tokens,
-                    tools=context.tool_registry.to_api_schema(),
+                    tools=context.tool_registry.to_api_schema(allowed_tool_names),
                     effort=context.effort,
                 )
             ):

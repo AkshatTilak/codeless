@@ -36,6 +36,21 @@ class GlobTool(BaseTool):
     async def execute(self, arguments: GlobToolInput, context: ToolExecutionContext) -> ToolResult:
         root, pattern = _resolve_glob_request(context.cwd, arguments.root, arguments.pattern)
         matches = await _glob(root, pattern, limit=arguments.limit)
+
+        # If searching root and shadow workspace exists, merge ABB shadow workspace matches
+        if not arguments.root:
+            abb_ws = resolve_abb_workspace(context.cwd, auto_init=True)
+            if abb_ws.exists() and abb_ws.resolve() != context.cwd.resolve():
+                abb_matches = await _glob(abb_ws, pattern, limit=arguments.limit)
+                if abb_matches:
+                    seen = set(matches)
+                    for m in abb_matches:
+                        if m not in seen:
+                            matches.append(m)
+                            seen.add(m)
+                    matches.sort()
+                    matches = matches[:arguments.limit]
+
         if not matches:
             return ToolResult(output="(no matches)")
         return ToolResult(output="\n".join(matches))

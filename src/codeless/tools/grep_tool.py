@@ -26,7 +26,8 @@ class GrepToolInput(BaseModel):
     timeout_seconds: int = Field(default=20, ge=1, le=120)
 
 
-from codeless.abb.virtualization import resolve_virtual_path
+from codeless.abb.virtualization import is_abb_path, resolve_virtual_path
+from codeless.abb.shadow import resolve_abb_workspace
 
 
 class GrepTool(BaseTool):
@@ -41,7 +42,12 @@ class GrepTool(BaseTool):
         return True
 
     async def execute(self, arguments: GrepToolInput, context: ToolExecutionContext) -> ToolResult:
-        root = resolve_virtual_path(context.cwd, arguments.root) if arguments.root else context.cwd
+        if arguments.root:
+            root = resolve_virtual_path(context.cwd, arguments.root)
+        elif arguments.file_glob and is_abb_path(arguments.file_glob):
+            root = resolve_abb_workspace(context.cwd)
+        else:
+            root = context.cwd
         if not root.exists():
             return ToolResult(
                 output=(

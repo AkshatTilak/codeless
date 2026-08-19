@@ -8,7 +8,9 @@ from typing import Any
 from codeless.abb.hooks.dag_guard import check_dag_dependencies
 from codeless.abb.hooks.frontmatter import parse_frontmatter, validate_task_frontmatter
 from codeless.abb.hooks.rollup import rollup_task_completion
+from codeless.abb.permissions import get_mode_engine
 from codeless.abb.shadow import resolve_abb_workspace
+from codeless.abb.verification import verify_subtask_gate
 from codeless.abb.virtualization import is_abb_path, resolve_virtual_path
 
 
@@ -30,8 +32,13 @@ def pre_tool_use_abb_guard(
 
     path_str = str(raw_path).replace("\\", "/").strip()
 
+    # 0. Mode Permission Check (Plan / Agent / Ask)
+    mode_allowed, mode_reason = get_mode_engine().evaluate_write_permission(raw_path, cwd)
+    if not mode_allowed:
+        return False, f"ABB Mode Permission Blocked: {mode_reason}"
+
     # Check if target is a task file
-    if not is_abb_path(path_str) or "tasks/" not in path_str and not path_str.startswith("tasks"):
+    if not is_abb_path(path_str) or ("tasks/" not in path_str and not path_str.startswith("tasks")):
         return True, "OK"
 
     # Skip template files
@@ -73,6 +80,12 @@ def pre_tool_use_abb_guard(
     allowed, dag_reason = check_dag_dependencies(task_id, depends_on, new_status, tasks_dir)
     if not allowed:
         return False, f"ABB DAG Dependency Blocked: {dag_reason}"
+
+    # 3. Two-Track Verification Gate (when transitioning a subtask to 'done')
+    if new_status == "done" and "tasks/sub" in str(resolved).replace("\\", "/"):
+        ver_passed, ver_reason, _ = verify_subtask_gate(task_id, cwd, abb_ws)
+        if not ver_passed:
+            return False, f"ABB Verification Gate Blocked: {ver_reason}"
 
     return True, "OK"
 

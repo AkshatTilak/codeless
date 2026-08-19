@@ -87,6 +87,54 @@ class TaskSnapshot(BaseModel):
         )
 
 
+class AbbTaskPayload(BaseModel):
+    """Structured representation of an ABB Base Task or Subtask."""
+
+    id: str
+    title: str = ""
+    status: Literal["pending", "in_progress", "done", "blocked"] = "pending"
+    parent: str | None = None
+    complexity: str | None = None
+    depends_on: list[str] = Field(default_factory=list)
+    dependencies_satisfied: bool = True
+    file_path: str | None = None
+
+
+class AbbDagSnapshotPayload(BaseModel):
+    """Snapshot of the full ABB task DAG tree."""
+
+    goal: dict[str, Any] = Field(default_factory=dict)
+    base_tasks: list[AbbTaskPayload] = Field(default_factory=list)
+    subtasks: list[AbbTaskPayload] = Field(default_factory=list)
+    active_subtask_id: str | None = None
+
+
+class AbbWorkflowPayload(BaseModel):
+    """Active workflow routed by the agent."""
+
+    workflow_id: str
+    title: str
+    path: str
+
+
+class AbbVerificationPayload(BaseModel):
+    """Live verification manifest test progress."""
+
+    subtask_id: str
+    track: int
+    command: str
+    status: Literal["running", "passed", "failed"]
+    output: str = ""
+
+
+class AbbModePayload(BaseModel):
+    """Tri-Mode permissions state."""
+
+    mode: Literal["plan", "agent", "ask"]
+    allowed_tools: list[str] = Field(default_factory=list)
+    path_rules: dict[str, str] = Field(default_factory=dict)
+
+
 class BackendEvent(BaseModel):
     """One event sent from the Python backend to the React frontend."""
 
@@ -107,6 +155,11 @@ class BackendEvent(BaseModel):
         "todo_update",
         "plan_mode_change",
         "swarm_status",
+        "abb_dag_snapshot",
+        "abb_task_updated",
+        "abb_active_workflow",
+        "abb_verification_progress",
+        "abb_mode_change",
         "error",
         "shutdown",
     ]
@@ -128,11 +181,68 @@ class BackendEvent(BaseModel):
     attempt: int | None = None
     compact_checkpoint: str | None = None
     compact_metadata: dict[str, Any] | None = None
-    # New fields for enhanced events
+    # Enhanced events
     todo_markdown: str | None = None
     plan_mode: str | None = None
     swarm_teammates: list[dict[str, Any]] | None = None
     swarm_notifications: list[dict[str, Any]] | None = None
+    # ABB Governance events (C12)
+    abb_dag: AbbDagSnapshotPayload | None = None
+    abb_task: AbbTaskPayload | None = None
+    abb_workflow: AbbWorkflowPayload | None = None
+    abb_verification: AbbVerificationPayload | None = None
+    abb_mode: AbbModePayload | None = None
+
+    @classmethod
+    def abb_dag_snapshot(cls, dag: AbbDagSnapshotPayload) -> "BackendEvent":
+        return cls(type="abb_dag_snapshot", abb_dag=dag)
+
+    @classmethod
+    def abb_task_updated(cls, task: AbbTaskPayload) -> "BackendEvent":
+        return cls(type="abb_task_updated", abb_task=task)
+
+    @classmethod
+    def abb_active_workflow(cls, workflow_id: str, title: str, path: str) -> "BackendEvent":
+        return cls(
+            type="abb_active_workflow",
+            abb_workflow=AbbWorkflowPayload(workflow_id=workflow_id, title=title, path=path),
+        )
+
+    @classmethod
+    def abb_verification_progress(
+        cls,
+        subtask_id: str,
+        track: int,
+        command: str,
+        status: Literal["running", "passed", "failed"],
+        output: str = "",
+    ) -> "BackendEvent":
+        return cls(
+            type="abb_verification_progress",
+            abb_verification=AbbVerificationPayload(
+                subtask_id=subtask_id,
+                track=track,
+                command=command,
+                status=status,
+                output=output,
+            ),
+        )
+
+    @classmethod
+    def abb_mode_change(
+        cls,
+        mode: Literal["plan", "agent", "ask"],
+        allowed_tools: list[str] | None = None,
+        path_rules: dict[str, str] | None = None,
+    ) -> "BackendEvent":
+        return cls(
+            type="abb_mode_change",
+            abb_mode=AbbModePayload(
+                mode=mode,
+                allowed_tools=allowed_tools or [],
+                path_rules=path_rules or {},
+            ),
+        )
 
     @classmethod
     def ready(

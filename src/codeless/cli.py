@@ -367,17 +367,17 @@ def _evaluate_dry_run_readiness(
     if auth_status.startswith("missing") and entrypoint.get("kind") in {"interactive_session", "model_prompt"} and level != "blocked":
         level = "warning"
         reasons.append("Authentication is missing, so live model execution would not start successfully.")
-        next_actions.append("Run `oh auth login` or configure the active profile credentials before executing.")
+        next_actions.append("Run `codeless auth login` or configure the active profile credentials before executing.")
 
     if not prompt and level == "ready":
         reasons.append("No prompt provided; dry-run only validated the session setup path.")
-        next_actions.append("Provide `-p/--print` for a single prompt preview, or start `oh` normally to enter an interactive session.")
+        next_actions.append("Provide `-p/--print` for a single prompt preview, or start `codeless` normally to enter an interactive session.")
     elif level == "ready":
         reasons.append("Resolved configuration, prompt assembly, and static discovery checks all look usable.")
         if entrypoint.get("kind") == "slash_command":
-            next_actions.append(f"You can run `oh -p \"{prompt}\"` directly.")
+            next_actions.append(f"You can run `codeless -p \"{prompt}\"` directly.")
         elif entrypoint.get("kind") == "model_prompt":
-            next_actions.append("You can run this prompt directly with `oh -p '...'` or open the interactive UI with `oh`.")
+            next_actions.append("You can run this prompt directly with `codeless -p '...'` or open the interactive UI with `codeless`.")
         else:
             next_actions.append("You can run Codeless normally with the current configuration.")
 
@@ -594,6 +594,26 @@ def _build_dry_run_preview(
         entrypoint=preview["entrypoint"],
         validation=preview["validation"],
     )
+
+    try:
+        from codeless.abb.dry_run import audit_abb_readiness
+        abb_report = audit_abb_readiness(cwd)
+        preview["abb_readiness"] = {
+            "status": abb_report.overall_status,
+            "abb_workspace": str(abb_report.abb_workspace_path),
+            "checks": [
+                {
+                    "name": c.name,
+                    "status": c.status,
+                    "detail": c.detail,
+                    "hint": c.hint,
+                }
+                for c in abb_report.checks
+            ],
+        }
+    except Exception as exc:
+        preview["abb_readiness"] = {"status": "error", "error": str(exc)}
+
     return preview
 
 
@@ -734,6 +754,19 @@ def _format_dry_run_preview(preview: dict[str, object]) -> str:
         args = str(entrypoint.get("args") or "").strip()
         if args:
             lines.append(f"- args: {args}")
+
+    abb_info = preview.get("abb_readiness")
+    if isinstance(abb_info, dict) and abb_info.get("checks"):
+        lines.extend(["", "ABB Governance Readiness"])
+        lines.append(f"- overall: {str(abb_info.get('status', '')).upper()}")
+        lines.append(f"- workspace: {abb_info.get('abb_workspace')}")
+        checks = abb_info.get("checks", [])
+        if isinstance(checks, list):
+            for c in checks:
+                status_icon = "✅" if c.get("status") == "ok" else ("⚠️" if c.get("status") == "warning" else "🚫")
+                lines.append(f"  {status_icon} [{c.get('status', '').upper()}] {c.get('name')}: {c.get('detail')}")
+                if c.get("hint"):
+                    lines.append(f"     Hint: {c.get('hint')}")
 
     preview_text = str(preview.get("system_prompt_preview") or "").strip()
     if preview_text:

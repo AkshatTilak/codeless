@@ -66,7 +66,12 @@ def is_abb_path(candidate: str | Path, project_root: Optional[Path] = None) -> b
     if not parts:
         return False
 
-    first_part = parts[0]
+    # Strip leading wildcards like '**'
+    non_wildcard_parts = [part for part in parts if part not in {"**", "*"}]
+    if not non_wildcard_parts:
+        return False
+
+    first_part = non_wildcard_parts[0]
     if first_part in ABB_TOP_LEVEL_FILES:
         return True
     if first_part in ABB_DOMAINS:

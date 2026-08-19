@@ -3,6 +3,11 @@ import {spawn, type ChildProcessWithoutNullStreams} from 'node:child_process';
 import readline from 'node:readline';
 
 import type {
+	AbbDagSnapshot,
+	AbbModeSnapshot,
+	AbbTaskSnapshot,
+	AbbVerificationProgressSnapshot,
+	AbbWorkflowSnapshot,
 	BackendEvent,
 	BridgeSessionSnapshot,
 	FrontendConfig,
@@ -37,6 +42,11 @@ export function useBackendSession(config: FrontendConfig, onExit: (code?: number
 	const [todoMarkdown, setTodoMarkdown] = useState('');
 	const [swarmTeammates, setSwarmTeammates] = useState<SwarmTeammateSnapshot[]>([]);
 	const [swarmNotifications, setSwarmNotifications] = useState<SwarmNotificationSnapshot[]>([]);
+	// ABB State (C12)
+	const [abbDag, setAbbDag] = useState<AbbDagSnapshot | null>(null);
+	const [abbWorkflow, setAbbWorkflow] = useState<AbbWorkflowSnapshot | null>(null);
+	const [abbVerification, setAbbVerification] = useState<AbbVerificationProgressSnapshot | null>(null);
+	const [abbMode, setAbbMode] = useState<AbbModeSnapshot | null>(null);
 	const statusRef = useRef<Record<string, unknown>>({});
 	const childRef = useRef<ChildProcessWithoutNullStreams | null>(null);
 	const sentInitialPrompt = useRef(false);
@@ -429,6 +439,60 @@ export function useBackendSession(config: FrontendConfig, onExit: (code?: number
 			}
 			return;
 		}
+		// ABB Governance Handlers (C12)
+		if (event.type === 'abb_dag_snapshot') {
+			if (event.abb_dag != null) {
+				startTransition(() => {
+					setAbbDag(event.abb_dag ?? null);
+				});
+			}
+			return;
+		}
+		if (event.type === 'abb_task_updated') {
+			if (event.abb_task != null) {
+				const updated = event.abb_task;
+				startTransition(() => {
+					setAbbDag((prev) => {
+						if (!prev) {
+							return prev;
+						}
+						const subtasks = prev.subtasks.map((s) => (s.id === updated.id ? updated : s));
+						const base_tasks = prev.base_tasks.map((b) => (b.id === updated.id ? updated : b));
+						return {...prev, subtasks, base_tasks};
+					});
+				});
+			}
+			return;
+		}
+		if (event.type === 'abb_active_workflow') {
+			if (event.abb_workflow != null) {
+				startTransition(() => {
+					setAbbWorkflow(event.abb_workflow ?? null);
+				});
+			}
+			return;
+		}
+		if (event.type === 'abb_verification_progress') {
+			if (event.abb_verification != null) {
+				startTransition(() => {
+					setAbbVerification(event.abb_verification ?? null);
+				});
+			}
+			return;
+		}
+		if (event.type === 'abb_mode_change') {
+			if (event.abb_mode != null) {
+				startTransition(() => {
+					setAbbMode(event.abb_mode ?? null);
+					setStatus((s) => {
+						const next = {...s, permission_mode: event.abb_mode?.mode};
+						statusRef.current = next;
+						return next;
+					});
+				});
+			}
+			return;
+		}
 		if (event.type === 'shutdown') {
 			onExit(0);
 		}
@@ -451,12 +515,16 @@ export function useBackendSession(config: FrontendConfig, onExit: (code?: number
 			todoMarkdown,
 			swarmTeammates,
 			swarmNotifications,
+			abbDag,
+			abbWorkflow,
+			abbVerification,
+			abbMode,
 			setModal,
 			setSelectRequest,
 			setBusy,
 			setBusyLabel,
 			sendRequest,
 		}),
-		[assistantBuffer, bridgeSessions, busy, busyLabel, commands, mcpServers, modal, ready, selectRequest, status, swarmNotifications, swarmTeammates, tasks, todoMarkdown, transcript]
+		[abbDag, abbMode, abbVerification, abbWorkflow, assistantBuffer, bridgeSessions, busy, busyLabel, commands, mcpServers, modal, ready, selectRequest, status, swarmNotifications, swarmTeammates, tasks, todoMarkdown, transcript]
 	);
 }

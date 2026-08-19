@@ -75,6 +75,9 @@ class ToolRegistry:
         """Return all registered tools."""
         return list(self._tools.values())
 
-    def to_api_schema(self) -> list[dict[str, Any]]:
-        """Return all tool schemas in API format."""
+    def to_api_schema(self, allowed_names: set[str] | list[str] | None = None) -> list[dict[str, Any]]:
+        """Return tool schemas in API format, optionally filtered by allowed names."""
+        if allowed_names:
+            allowed = set(allowed_names)
+            return [tool.to_api_schema() for tool in self._tools.values() if tool.name in allowed]
         return [tool.to_api_schema() for tool in self._tools.values()]

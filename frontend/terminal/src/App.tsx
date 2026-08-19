@@ -2,6 +2,8 @@ import React, {useDeferredValue, useEffect, useMemo, useRef, useState} from 'rea
 import {Box, Text, useApp, useInput} from 'ink';
 
 import {readClipboardImage, type ImageAttachment} from './clipboardImage.js';
+import {AbbDagPanel} from './components/AbbDagPanel.js';
+import {AbbWorkflowBanner} from './components/AbbWorkflowBanner.js';
 import {CommandPicker} from './components/CommandPicker.js';
 import {ConversationView} from './components/ConversationView.js';
 import {ModalHost} from './components/ModalHost.js';
@@ -80,6 +82,8 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 	const deferredTodoMarkdown = useDeferredValue(session.todoMarkdown);
 	const deferredSwarmTeammates = useDeferredValue(session.swarmTeammates);
 	const deferredSwarmNotifications = useDeferredValue(session.swarmNotifications);
+	const deferredAbbDag = useDeferredValue(session.abbDag);
+	const deferredAbbWorkflow = useDeferredValue(session.abbWorkflow);
 	const clipboardStatusTimerRef = useRef<NodeJS.Timeout | null>(null);
 
 	useEffect(() => {
@@ -502,6 +506,11 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 
 	return (
 		<Box flexDirection="column" paddingX={1} height="100%">
+			{/* Active ABB Workflow Banner */}
+			{session.ready && deferredAbbWorkflow ? (
+				<AbbWorkflowBanner workflow={deferredAbbWorkflow} />
+			) : null}
+
 			{/* Conversation area */}
 			<Box flexDirection="column" flexGrow={1}>
 				<ConversationView
@@ -511,6 +520,11 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 					outputStyle={outputStyle}
 				/>
 			</Box>
+
+			{/* ABB DAG Hierarchy Panel */}
+			{session.ready && deferredAbbDag ? (
+				<AbbDagPanel dag={deferredAbbDag} />
+			) : null}
 
 			{/* Backend modal (permission confirm, question, mcp auth) */}
 			{session.modal ? (

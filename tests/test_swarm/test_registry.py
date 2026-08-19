@@ -24,7 +24,6 @@ def test_registry_registers_subprocess_and_in_process(monkeypatch):
         supports_sandbox_runtime=True,
         supports_docker_sandbox=True,
     )
-    monkeypatch.setattr("codeless.swarm.registry.get_platform_capabilities", lambda: caps)
     monkeypatch.setattr("codeless.platforms.get_platform_capabilities", lambda: caps)
     registry = BackendRegistry()
     available = registry.available_backends()
@@ -49,7 +48,6 @@ def test_get_executor_in_process(monkeypatch):
         supports_sandbox_runtime=True,
         supports_docker_sandbox=True,
     )
-    monkeypatch.setattr("codeless.swarm.registry.get_platform_capabilities", lambda: caps)
     monkeypatch.setattr("codeless.platforms.get_platform_capabilities", lambda: caps)
     registry = BackendRegistry()
     executor = registry.get_executor("in_process")

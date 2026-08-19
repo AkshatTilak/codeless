@@ -123,6 +123,7 @@ class ReactBackendHost:
             )
         )
         await self._emit(self._status_snapshot())
+        await self._emit_abb_state()
 
         reader = asyncio.create_task(self._read_requests())
         try:
@@ -289,14 +290,22 @@ class ReactBackendHost:
                 )
                 return
             if isinstance(event, AssistantTurnComplete):
+                text_content = event.message.text.strip()
+                if "ROUTE:" in text_content:
+                    for line in text_content.splitlines():
+                        if "ROUTE:" in line:
+                            wf_path = line.split("ROUTE:", 1)[1].strip()
+                            wf_id = Path(wf_path).stem
+                            await self._emit(BackendEvent.abb_active_workflow(workflow_id=wf_id, title=wf_id.capitalize(), path=wf_path))
                 await self._emit(
                     BackendEvent(
                         type="assistant_complete",
-                        message=event.message.text.strip(),
-                        item=TranscriptItem(role="assistant", text=event.message.text.strip()),
+                        message=text_content,
+                        item=TranscriptItem(role="assistant", text=text_content),
                     )
                 )
                 await self._emit(BackendEvent.tasks_snapshot(get_task_manager().list_tasks()))
+                await self._emit_abb_state()
                 return
             if isinstance(event, ToolExecutionStarted):
                 self._last_tool_inputs[event.tool_name] = event.tool_input or {}
@@ -385,6 +394,7 @@ class ReactBackendHost:
             )
         await self._emit(self._status_snapshot())
         await self._emit(BackendEvent.tasks_snapshot(get_task_manager().list_tasks()))
+        await self._emit_abb_state()
         await self._emit(BackendEvent(type="line_complete"))
         return should_continue
 
@@ -432,6 +442,56 @@ class ReactBackendHost:
             mcp_servers=self._bundle.mcp_manager.list_statuses(),
             bridge_sessions=get_bridge_manager().list_sessions(),
         )
+
+    async def _emit_abb_state(self) -> None:
+        if self._bundle is None:
+            return
+        from codeless.abb.shadow import resolve_abb_workspace
+        from codeless.abb.verification import get_dag_snapshot
+        from codeless.ui.protocol import AbbDagSnapshotPayload, AbbTaskPayload
+        from codeless.abb.permissions import get_mode_engine
+
+        try:
+            cwd = Path(self._bundle.cwd).resolve()
+            abb_ws = resolve_abb_workspace(cwd, auto_init=False)
+            if abb_ws.exists():
+                dag_data = get_dag_snapshot(cwd)
+                base_tasks = [
+                    AbbTaskPayload(
+                        id=b.get("id", ""),
+                        title=b.get("title", ""),
+                        status=b.get("status", "pending"),
+                    )
+                    for b in dag_data.get("base_tasks", [])
+                ]
+                subtasks = [
+                    AbbTaskPayload(
+                        id=s.get("id", ""),
+                        title=s.get("title", ""),
+                        status=s.get("status", "pending"),
+                        parent=s.get("parent"),
+                        depends_on=s.get("depends_on", []),
+                        dependencies_satisfied=s.get("dependencies_satisfied", True),
+                    )
+                    for s in dag_data.get("subtasks", [])
+                ]
+                snapshot = AbbDagSnapshotPayload(
+                    goal=dag_data.get("goal", {}),
+                    base_tasks=base_tasks,
+                    subtasks=subtasks,
+                    active_subtask_id=dag_data.get("active_subtask_id"),
+                )
+                await self._emit(BackendEvent.abb_dag_snapshot(snapshot))
+
+                mode_engine = get_mode_engine()
+                await self._emit(
+                    BackendEvent.abb_mode_change(
+                        mode=mode_engine.current_mode.value,
+                        allowed_tools=mode_engine.get_allowed_tools(),
+                    )
+                )
+        except Exception as exc:
+            log.debug("ABB state emission skipped: %s", exc)
 
     async def _emit_todo_update_from_output(self, output: str) -> None:
         """Emit a todo_update event by extracting markdown checklist from tool output."""

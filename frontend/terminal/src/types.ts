@@ -70,6 +70,44 @@ export type SwarmNotificationSnapshot = {
 	timestamp: number;
 };
 
+export type AbbTaskSnapshot = {
+	id: string;
+	title: string;
+	status: 'pending' | 'in_progress' | 'done' | 'blocked';
+	parent?: string | null;
+	complexity?: string | null;
+	depends_on?: string[];
+	dependencies_satisfied?: boolean;
+	file_path?: string | null;
+};
+
+export type AbbDagSnapshot = {
+	goal?: Record<string, unknown>;
+	base_tasks: AbbTaskSnapshot[];
+	subtasks: AbbTaskSnapshot[];
+	active_subtask_id?: string | null;
+};
+
+export type AbbWorkflowSnapshot = {
+	workflow_id: string;
+	title: string;
+	path: string;
+};
+
+export type AbbVerificationProgressSnapshot = {
+	subtask_id: string;
+	track: number;
+	command: string;
+	status: 'running' | 'passed' | 'failed';
+	output: string;
+};
+
+export type AbbModeSnapshot = {
+	mode: 'plan' | 'agent' | 'ask';
+	allowed_tools: string[];
+	path_rules: Record<string, string>;
+};
+
 export type BackendEvent = {
 	type: string;
 	message?: string | null;
@@ -95,4 +133,10 @@ export type BackendEvent = {
 	plan_mode?: string | null;
 	swarm_teammates?: SwarmTeammateSnapshot[] | null;
 	swarm_notifications?: SwarmNotificationSnapshot[] | null;
+	// ABB Governance payloads (C12)
+	abb_dag?: AbbDagSnapshot | null;
+	abb_task?: AbbTaskSnapshot | null;
+	abb_workflow?: AbbWorkflowSnapshot | null;
+	abb_verification?: AbbVerificationProgressSnapshot | null;
+	abb_mode?: AbbModeSnapshot | null;
 };
