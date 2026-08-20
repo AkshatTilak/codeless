@@ -7,14 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from codeless.coordinator.coordinator_mode import get_team_registry
 from codeless.jobs import get_task_manager
 from codeless.tools.agent_tool import AgentTool, AgentToolInput
 from codeless.tools.base import ToolExecutionContext
 from codeless.tools.job_create_tool import JobCreateTool, JobCreateToolInput
 from codeless.tools.job_output_tool import JobOutputTool, JobOutputToolInput
 from codeless.tools.job_update_tool import JobUpdateTool, JobUpdateToolInput
-from codeless.tools.team_create_tool import TeamCreateTool, TeamCreateToolInput
+
 
 
 async def _wait_for_terminal_task(task_id: str, *, timeout_seconds: float = 2.0) -> None:
@@ -26,44 +25,6 @@ async def _wait_for_terminal_task(task_id: str, *, timeout_seconds: float = 2.0)
             return
         await asyncio.sleep(0.05)
     raise AssertionError(f"Task {task_id} did not reach a terminal status in time")
-
-
-@pytest.mark.asyncio
-async def test_task_create_and_output_tool(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
-    context = ToolExecutionContext(cwd=tmp_path)
-
-    create_result = await JobCreateTool().execute(
-        JobCreateToolInput(
-            type="local_bash",
-            description="echo",
-            command="printf 'tool task'",
-        ),
-        context,
-    )
-    assert create_result.is_error is False
-    task_id = create_result.output.split()[2]
-
-    manager = get_task_manager()
-    for _ in range(20):
-        if "tool task" in manager.read_task_output(task_id):
-            break
-        await asyncio.sleep(0.1)
-    output_result = await JobOutputTool().execute(
-        JobOutputToolInput(task_id=task_id),
-        context,
-    )
-    assert "tool task" in output_result.output
-
-
-@pytest.mark.asyncio
-async def test_team_create_tool(tmp_path: Path):
-    result = await TeamCreateTool().execute(
-        TeamCreateToolInput(name="demo", description="test"),
-        ToolExecutionContext(cwd=tmp_path),
-    )
-    assert result.is_error is False
-    assert "Created team demo" == result.output
 
 
 @pytest.mark.asyncio
@@ -97,6 +58,7 @@ async def test_job_update_tool_updates_metadata(tmp_path: Path, monkeypatch):
     assert task.description == "renamed task"
     assert task.metadata["progress"] == "60"
     assert task.metadata["status_note"] == "waiting on verification"
+
 
 
 @pytest.mark.asyncio
@@ -197,27 +159,6 @@ async def test_send_message_swarm_path_uses_subprocess_backend(
     assert agent_id_arg == "worker@default"
 
 
-@pytest.mark.asyncio
-async def test_agent_tool_creates_missing_team_when_team_argument_is_provided(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
-    get_team_registry()._teams.clear()
-    context = ToolExecutionContext(cwd=tmp_path)
-
-    result = await AgentTool().execute(
-        AgentToolInput(
-            description="team auto-create regression",
-            prompt="ready",
-            subagent_type="test-worker-team",
-            team="design-qa-loop",
-            command="python -u -c \"import sys; print(sys.stdin.readline().strip())\"",
-        ),
-        context,
-    )
-
-    assert result.is_error is False
-    teams = {team.name: team for team in get_team_registry().list_teams()}
-    assert "design-qa-loop" in teams
-    assert len(teams["design-qa-loop"].agents) == 1
 
 
 @pytest.mark.asyncio

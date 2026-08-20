@@ -7,7 +7,6 @@ import logging
 from pydantic import BaseModel, Field
 
 from codeless.coordinator.agent_definitions import get_agent_definition
-from codeless.coordinator.coordinator_mode import get_team_registry
 from codeless.hooks import HookEvent
 from codeless.swarm.registry import get_backend_registry
 from codeless.swarm.types import TeammateSpawnConfig
@@ -24,7 +23,7 @@ class AgentToolInput(BaseModel):
     prompt: str = Field(description="Full prompt for the local agent")
     subagent_type: str | None = Field(
         default=None,
-        description="Agent type for definition lookup (e.g. 'general-purpose', 'Explore', 'worker')",
+        description="Agent type for definition lookup (e.g. 'general-purpose', 'Explore', 'worker', 'abb-governance', 'task-planner')",
     )
     model: str | None = Field(default=None)
     command: str | None = Field(default=None, description="Override spawn command")
@@ -53,6 +52,19 @@ class AgentTool(BaseTool):
         agent_def = None
         if arguments.subagent_type:
             agent_def = get_agent_definition(arguments.subagent_type)
+            if agent_def and agent_def.modes:
+                try:
+                    from codeless.abb.permissions import get_mode_engine
+
+                    current_mode = get_mode_engine().current_mode.value
+                    if current_mode not in agent_def.modes:
+                        allowed_str = ", ".join(agent_def.modes)
+                        return ToolResult(
+                            output=f"Agent '{arguments.subagent_type}' cannot be spawned in active mode '{current_mode}'. Required mode(s): {allowed_str}.",
+                            is_error=True,
+                        )
+                except Exception:
+                    pass
 
         # Resolve team and agent name for the swarm backend
         team = arguments.team or "default"
@@ -87,13 +99,6 @@ class AgentTool(BaseTool):
         if not result.success:
             return ToolResult(output=result.error or "Failed to spawn agent", is_error=True)
 
-        if arguments.team:
-            registry = get_team_registry()
-            try:
-                registry.add_agent(arguments.team, result.task_id)
-            except ValueError:
-                registry.create_team(arguments.team)
-                registry.add_agent(arguments.team, result.task_id)
 
         if context.hook_executor is not None:
             manager = get_task_manager()

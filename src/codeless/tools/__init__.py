@@ -1,5 +1,7 @@
 """Built-in tool registration."""
 
+from codeless.tools.abb_task_tool import AbbTaskTool
+from codeless.tools.abb_verify_tool import AbbVerifyTool
 from codeless.tools.ask_user_question_tool import AskUserQuestionTool
 from codeless.tools.agent_tool import AgentTool
 from codeless.tools.bash_tool import BashTool
@@ -10,9 +12,7 @@ from codeless.tools.cron_create_tool import CronCreateTool
 from codeless.tools.cron_delete_tool import CronDeleteTool
 from codeless.tools.cron_list_tool import CronListTool
 from codeless.tools.cron_toggle_tool import CronToggleTool
-from codeless.tools.enter_plan_mode_tool import EnterPlanModeTool
 from codeless.tools.enter_worktree_tool import EnterWorktreeTool
-from codeless.tools.exit_plan_mode_tool import ExitPlanModeTool
 from codeless.tools.exit_worktree_tool import ExitWorktreeTool
 from codeless.tools.file_edit_tool import FileEditTool
 from codeless.tools.file_read_tool import FileReadTool
@@ -37,8 +37,6 @@ from codeless.tools.job_list_tool import JobListTool
 from codeless.tools.job_output_tool import JobOutputTool
 from codeless.tools.job_stop_tool import JobStopTool
 from codeless.tools.job_update_tool import JobUpdateTool
-from codeless.tools.team_create_tool import TeamCreateTool
-from codeless.tools.team_delete_tool import TeamDeleteTool
 from codeless.tools.todo_write_tool import TodoWriteTool
 from codeless.tools.tool_search_tool import ToolSearchTool
 from codeless.tools.web_fetch_tool import WebFetchTool
@@ -71,8 +69,6 @@ def create_default_tool_registry(mcp_manager=None) -> ToolRegistry:
         EnterWorktreeTool(),
         ExitWorktreeTool(),
         TodoWriteTool(),
-        EnterPlanModeTool(),
-        ExitPlanModeTool(),
         CronCreateTool(),
         CronListTool(),
         CronDeleteTool(),
@@ -86,8 +82,8 @@ def create_default_tool_registry(mcp_manager=None) -> ToolRegistry:
         JobUpdateTool(),
         AgentTool(),
         SendMessageTool(),
-        TeamCreateTool(),
-        TeamDeleteTool(),
+        AbbTaskTool(),
+        AbbVerifyTool(),
     ):
         registry.register(tool)
     if mcp_manager is not None:
@@ -105,3 +101,4 @@ __all__ = [
     "ToolResult",
     "create_default_tool_registry",
 ]
+

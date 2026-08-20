@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -57,7 +57,7 @@ def dump_with_frontmatter(frontmatter: dict[str, Any], body: str) -> str:
 
 def validate_task_frontmatter(
     data: dict[str, Any],
-    task_path: Optional[Path] = None,
+    task_path: Path | None = None,
 ) -> list[str]:
     """
     Validate frontmatter data against strict ABB task specification.

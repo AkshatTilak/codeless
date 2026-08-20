@@ -124,8 +124,22 @@ class DockerSandboxSession:
         for key, value in docker_cfg.extra_env.items():
             argv.extend(["-e", f"{key}={value}"])
 
+        # Mount ABB workspace and pass CODELESS_ABB_ROOT
+        try:
+            from codeless.abb.shadow import resolve_abb_workspace
+
+            abb_ws = resolve_abb_workspace(self.cwd, auto_init=True)
+            if abb_ws.exists():
+                abb_str = str(abb_ws.resolve())
+                if not abb_str.startswith(cwd_str):
+                    argv.extend(["-v", f"{abb_str}:{abb_str}"])
+                argv.extend(["-e", f"CODELESS_ABB_ROOT={abb_str}"])
+        except Exception as exc:
+            logger.debug("ABB workspace mount for Docker skipped: %s", exc)
+
         argv.extend([docker_cfg.image, "tail", "-f", "/dev/null"])
         return argv
+
 
     async def start(self) -> None:
         """Create and start the sandbox container."""

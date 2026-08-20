@@ -413,8 +413,9 @@ class ReactBackendHost:
             return f"/provider {value}"
         if command == "resume":
             return f"/resume {value}" if value else "/resume"
-        if command == "permissions":
-            return f"/permissions {value}"
+        if command in {"permissions", "mode"}:
+            return f"/mode {value}"
+
         if command == "theme":
             return f"/theme {value}"
         if command == "output-style":
@@ -564,35 +565,51 @@ class ReactBackendHost:
             )
             return
 
-        if command == "permissions":
+        if command in {"permissions", "mode"}:
+            from codeless.abb.permissions import TriMode, get_mode_engine
+
+            curr_mode = get_mode_engine().current_mode
             options = [
                 {
-                    "value": "default",
-                    "label": "Default",
-                    "description": "Ask before write/execute operations",
-                    "active": settings.permission.mode.value == "default",
-                },
-                {
-                    "value": "full_auto",
-                    "label": "Auto",
-                    "description": "Allow all tools automatically",
-                    "active": settings.permission.mode.value == "full_auto",
+                    "value": "agent",
+                    "label": "Agent",
+                    "description": "Full autonomous execution — code editing, testing, task completion",
+                    "active": curr_mode == TriMode.AGENT,
                 },
                 {
                     "value": "plan",
                     "label": "Plan Mode",
-                    "description": "Block all write operations",
-                    "active": settings.permission.mode.value == "plan",
+                    "description": "Architecture & Task Planning — writes restricted to tasks/ and design/",
+                    "active": curr_mode == TriMode.PLAN,
+                },
+                {
+                    "value": "ask",
+                    "label": "Ask",
+                    "description": "Read-only Q&A — all file modifications blocked",
+                    "active": curr_mode == TriMode.ASK,
+                },
+                {
+                    "value": "codebase",
+                    "label": "Codebase",
+                    "description": "Codebase exploration & memory queries — strictly read-only",
+                    "active": curr_mode == TriMode.CODEBASE,
+                },
+                {
+                    "value": "governance",
+                    "label": "Governance",
+                    "description": "ABB Meta-Spec Governance — writes restricted to STACK.md, agent.md, features/, references/",
+                    "active": curr_mode == TriMode.GOVERNANCE,
                 },
             ]
             await self._emit(
                 BackendEvent(
                     type="select_request",
-                    modal={"kind": "select", "title": "Permission Mode", "command": "permissions"},
+                    modal={"kind": "select", "title": "Operational Mode", "command": "mode"},
                     select_options=options,
                 )
             )
             return
+
 
         if command == "theme":
             options = [

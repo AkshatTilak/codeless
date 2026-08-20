@@ -33,6 +33,17 @@ class BashTool(BaseTool):
 
     async def execute(self, arguments: BashToolInput, context: ToolExecutionContext) -> ToolResult:
         cwd = Path(arguments.cwd).expanduser() if arguments.cwd else context.cwd
+
+        # ABB Mode Permission Guard
+        try:
+            from codeless.abb.hooks.bridge import pre_tool_use_abb_guard
+
+            allowed, reason = pre_tool_use_abb_guard("bash", {"command": arguments.command}, cwd)
+            if not allowed:
+                return ToolResult(output=reason, is_error=True)
+        except Exception:
+            pass
+
         preflight_error = _preflight_interactive_command(arguments.command)
         if preflight_error is not None:
             return ToolResult(
@@ -40,6 +51,7 @@ class BashTool(BaseTool):
                 is_error=True,
                 metadata={"interactive_required": True},
             )
+
         process: asyncio.subprocess.Process | None = None
         try:
             process = await create_shell_subprocess(

@@ -4,19 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import json
-import os
-import shlex
 import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
-
-import yaml
+from typing import Any
 
 from codeless.abb.hooks.frontmatter import parse_frontmatter
-from codeless.abb.shadow import get_project_storage_dir, resolve_abb_workspace
+from codeless.abb.shadow import get_project_storage_dir
 
 
 @dataclass
@@ -45,7 +40,7 @@ class VerificationManifest:
     typecheck: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "VerificationManifest":
+    def from_dict(cls, data: dict[str, Any]) -> VerificationManifest:
         def _normalize_list(val: Any) -> list[str]:
             if isinstance(val, str):
                 val = val.strip()
@@ -152,7 +147,7 @@ async def run_command_async(
                 duration_seconds=duration,
                 timed_out=False,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             try:
                 proc.kill()
                 await proc.wait()
@@ -182,7 +177,7 @@ async def run_command_async(
 async def execute_verification_manifest(
     manifest: VerificationManifest,
     cwd: Path | str,
-    tracks: Tuple[int, ...] = (1, 2),
+    tracks: tuple[int, ...] = (1, 2),
     include_lint: bool = False,
     include_typecheck: bool = False,
 ) -> VerificationReport:
@@ -256,8 +251,10 @@ def run_command_sync(
             cwd=str(cwd_path),
             capture_output=True,
             text=True,
+            check=False,
             timeout=timeout_seconds,
         )
+
         duration = time.perf_counter() - start_time
         return CommandReport(
             command=command,
@@ -294,7 +291,7 @@ def run_command_sync(
 def execute_verification_manifest_sync(
     manifest: VerificationManifest,
     cwd: Path | str,
-    tracks: Tuple[int, ...] = (1, 2),
+    tracks: tuple[int, ...] = (1, 2),
     include_lint: bool = False,
     include_typecheck: bool = False,
 ) -> VerificationReport:
@@ -356,7 +353,7 @@ def verify_subtask_gate(
     task_id: str,
     project_root: Path,
     abb_ws: Path,
-) -> Tuple[bool, str, Optional[VerificationReport]]:
+) -> tuple[bool, str, VerificationReport | None]:
     """
     Verification gate for transitioning a subtask to 'done'.
     Returns (passed, reason, optional_report).
@@ -388,7 +385,7 @@ def record_verification_failure(
     failure_dir = storage_dir / "logs" / "failure"
     failure_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")
     log_file = failure_dir / f"verification_{task_id}_{timestamp}.log"
     log_content = report.format_failure_diagnostic()
     log_file.write_text(log_content, encoding="utf-8")
@@ -402,7 +399,7 @@ def get_dag_snapshot(abb_ws: Path) -> dict[str, Any]:
         "goal": None,
         "base_tasks": [],
         "subtasks": [],
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
     }
 
     # Goal

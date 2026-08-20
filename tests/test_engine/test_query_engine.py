@@ -357,8 +357,9 @@ async def test_query_engine_coordinator_mode_uses_coordinator_prompt_and_runs_ag
     events = [event async for event in engine.submit_message("investigate issue")]
 
     assert len(api_client.requests) == 2
-    assert "You are a **coordinator**." in api_client.requests[0].system_prompt
+    assert "Coordinator Dispatch Overlay" in api_client.requests[0].system_prompt
     assert "Coordinator User Context" not in api_client.requests[0].system_prompt
+
     coordinator_context_messages = [
         msg for msg in api_client.requests[0].messages if msg.role == "user" and "Coordinator User Context" in msg.text
     ]

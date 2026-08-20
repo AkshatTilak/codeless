@@ -25,6 +25,20 @@ def validate_sandbox_path(
     except ValueError:
         pass
 
+    # Check if path is in active ABB shadow workspace or is an ABB virtual path
+    try:
+        from codeless.abb.shadow import resolve_abb_workspace
+
+        abb_ws = resolve_abb_workspace(cwd, auto_init=False)
+        if abb_ws.exists():
+            try:
+                resolved.relative_to(abb_ws.resolve())
+                return True, ""
+            except ValueError:
+                pass
+    except Exception:
+        pass
+
     # Secondary: check extra allowed paths (from filesystem settings)
     for allowed in extra_allowed or []:
         allowed_path = Path(allowed).expanduser().resolve()
@@ -35,3 +49,4 @@ def validate_sandbox_path(
             continue
 
     return False, f"path {resolved} is outside the sandbox boundary ({resolved_cwd})"
+

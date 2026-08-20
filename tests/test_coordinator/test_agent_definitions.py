@@ -61,6 +61,10 @@ def test_get_builtin_returns_expected_names():
     assert "Plan" in names
     assert "worker" in names
     assert "verification" in names
+    assert "abb-governance" in names
+    assert "task-planner" in names
+    assert "claude-code-guide" not in names
+    assert "statusline-setup" not in names
 
 
 def test_builtin_agents_have_descriptions():
@@ -71,8 +75,6 @@ def test_builtin_agents_have_descriptions():
 def test_builtin_explore_has_tools():
     builtins = get_builtin_agent_definitions()
     explore = next(a for a in builtins if a.name == "Explore")
-    # Explore agent uses disallowed_tools pattern — tools may be None (all tools)
-    # with specific tools blocked via other mechanism
     assert explore is not None
 
 
@@ -80,6 +82,13 @@ def test_builtin_general_purpose_has_all_tools():
     builtins = get_builtin_agent_definitions()
     gp = next(a for a in builtins if a.name == "general-purpose")
     assert gp.tools == ["*"] or gp.tools is None  # all tools
+
+
+def test_builtin_agents_have_modes():
+    builtins = {a.name: a for a in get_builtin_agent_definitions()}
+    assert "governance" in builtins["abb-governance"].modes
+    assert "plan" in builtins["task-planner"].modes
+    assert "agent" in builtins["worker"].modes
 
 
 # ---------------------------------------------------------------------------
@@ -100,19 +109,9 @@ def test_builtin_explore_does_not_hardcode_provider_model():
     )
 
 
-def test_builtin_claude_code_guide_does_not_hardcode_provider_model():
-    """claude-code-guide must not hard-code an Anthropic-only model alias."""
-    builtins = get_builtin_agent_definitions()
-    guide = next(a for a in builtins if a.name == "claude-code-guide")
-    assert guide.model not in _PROVIDER_SPECIFIC_MODELS, (
-        f"claude-code-guide.model={guide.model!r} hard-codes a provider-specific model alias; "
-        "use 'inherit' so the agent works with non-Anthropic providers."
-    )
-
-
 def test_builtin_provider_agnostic_agents_use_inherit_or_none():
-    """Plan, verification, Explore, and claude-code-guide must not override the model."""
-    agnostic_agents = {"Plan", "verification", "Explore", "claude-code-guide"}
+    """Plan, verification, Explore, abb-governance, task-planner must not override the model."""
+    agnostic_agents = {"Plan", "verification", "Explore", "abb-governance", "task-planner"}
     builtins = {a.name: a for a in get_builtin_agent_definitions()}
     for name in agnostic_agents:
         agent = builtins[name]
@@ -120,6 +119,7 @@ def test_builtin_provider_agnostic_agents_use_inherit_or_none():
             f"Built-in agent {name!r} sets model={agent.model!r}; "
             "provider-agnostic agents should use None or 'inherit'."
         )
+
 # _parse_agent_frontmatter
 # ---------------------------------------------------------------------------
 

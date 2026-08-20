@@ -43,7 +43,8 @@ async def test_plan_command_refreshes_engine_system_prompt(tmp_path: Path, monke
 
         assert should_continue is True
         assert bundle.app_state.get().permission_mode == "plan"
-        assert "Plan mode is enabled" in bundle.engine.system_prompt
-        assert "Do not call mutating tools" in bundle.engine.system_prompt
+        assert "PLAN" in bundle.engine.system_prompt
+        assert "tasks/" in bundle.engine.system_prompt
     finally:
         await close_runtime(bundle)
+

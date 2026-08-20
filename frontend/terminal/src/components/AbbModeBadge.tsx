@@ -28,6 +28,26 @@ export function AbbModeBadge({
 		);
 	}
 
+	if (normalized === 'codebase') {
+		return (
+			<Box marginRight={1}>
+				<Text backgroundColor="blue" color="white" bold>
+					{' 🔍 CODEBASE '}
+				</Text>
+			</Box>
+		);
+	}
+
+	if (normalized === 'governance' || normalized === 'abb') {
+		return (
+			<Box marginRight={1}>
+				<Text backgroundColor="yellow" color="black" bold>
+					{' 🏛️ GOVERNANCE '}
+				</Text>
+			</Box>
+		);
+	}
+
 	return (
 		<Box marginRight={1}>
 			<Text backgroundColor="green" color="black" bold>
@@ -36,3 +56,4 @@ export function AbbModeBadge({
 		</Box>
 	);
 }
+

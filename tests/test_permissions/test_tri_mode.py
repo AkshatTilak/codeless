@@ -40,11 +40,14 @@ def test_plan_mode_path_rules(tmp_path: Path):
     allowed, _ = engine.evaluate_write_permission("design/system/architecture.md", tmp_path)
     assert allowed
 
-    allowed, _ = engine.evaluate_write_permission("features/auth/spec.md", tmp_path)
-    assert allowed
+    # Meta-specs belong to Governance mode, not Plan mode
+    allowed, reason = engine.evaluate_write_permission("features/auth/spec.md", tmp_path)
+    assert not allowed
+    assert "Plan Mode blocks meta-spec writes" in reason
 
-    allowed, _ = engine.evaluate_write_permission("STACK.md", tmp_path)
-    assert allowed
+    allowed, reason = engine.evaluate_write_permission("STACK.md", tmp_path)
+    assert not allowed
+    assert "Plan Mode blocks meta-spec writes" in reason
 
     # Root project source files blocked in Plan mode
     allowed, reason = engine.evaluate_write_permission("src/codeless/main.py", tmp_path)
@@ -53,6 +56,7 @@ def test_plan_mode_path_rules(tmp_path: Path):
 
     allowed, reason = engine.evaluate_write_permission("tests/test_app.py", tmp_path)
     assert not allowed
+
 
 
 def test_ask_mode_path_rules(tmp_path: Path):

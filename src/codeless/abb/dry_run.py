@@ -6,8 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from codeless.abb.hooks.dag_guard import check_dag_dependencies, index_tasks
-from codeless.abb.hooks.frontmatter import parse_frontmatter, validate_task_frontmatter
+from codeless.abb.hooks.dag_guard import index_tasks
+from codeless.abb.hooks.frontmatter import validate_task_frontmatter
 from codeless.abb.permissions import get_mode_engine
 from codeless.abb.shadow import resolve_abb_workspace
 from codeless.abb.verification import parse_verification_manifest
@@ -41,7 +41,7 @@ class DryRunReport:
         }
 
         lines = [
-            f"=== Codeless ABB Dry-Run Pre-Flight Audit ===",
+            "=== Codeless ABB Dry-Run Pre-Flight Audit ===",
             f"Verdict: {verdict_badge[self.overall_status]}",
             f"Project Root: {self.workspace_path}",
             f"ABB Workspace: {self.abb_workspace_path}",

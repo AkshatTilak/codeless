@@ -7,9 +7,7 @@ workspace while mapping codebase source and tests to the repo root.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from typing import Optional
 
 from codeless.abb.shadow import resolve_abb_workspace
 
@@ -43,7 +41,7 @@ def find_project_root(start_dir: str | Path) -> Path:
     return current
 
 
-def is_abb_path(candidate: str | Path, project_root: Optional[Path] = None) -> bool:
+def is_abb_path(candidate: str | Path, project_root: Path | None = None) -> bool:
     """Return True if the given candidate path corresponds to an ABB file or domain."""
     path_str = str(candidate).replace("\\", "/").strip()
     if not path_str:
@@ -71,13 +69,15 @@ def is_abb_path(candidate: str | Path, project_root: Optional[Path] = None) -> b
     if not non_wildcard_parts:
         return False
 
+    if ".codeless" in non_wildcard_parts:
+        return True
+
     first_part = non_wildcard_parts[0]
     if first_part in ABB_TOP_LEVEL_FILES:
         return True
-    if first_part in ABB_DOMAINS:
-        return True
+    return first_part in ABB_DOMAINS
 
-    return False
+
 
 
 def resolve_virtual_path(
@@ -131,7 +131,7 @@ def resolve_virtual_path(
     return (cwd_path / rel_path).resolve()
 
 
-def unvirtualize_path(path: Path, project_root: Optional[Path] = None) -> str:
+def unvirtualize_path(path: Path, project_root: Path | None = None) -> str:
     """
     Return a clean relative representation of a path for user display and logging.
     """

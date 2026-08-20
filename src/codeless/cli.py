@@ -804,6 +804,7 @@ provider_app = typer.Typer(name="provider", help="Manage provider profiles")
 config_app = typer.Typer(name="config", help="Show or update settings")
 cron_app = typer.Typer(name="cron", help="Manage cron scheduler and jobs")
 autopilot_app = typer.Typer(name="autopilot", help="Manage repo autopilot")
+projects_app = typer.Typer(name="projects", help="Manage shadow workspaces and project storage")
 
 app.add_typer(mcp_app)
 app.add_typer(plugin_app)
@@ -812,6 +813,80 @@ app.add_typer(provider_app)
 app.add_typer(config_app)
 app.add_typer(cron_app)
 app.add_typer(autopilot_app)
+app.add_typer(projects_app)
+
+
+# ---- projects subcommands ----
+
+def _format_bytes(num_bytes: int) -> str:
+    """Format bytes into human-readable string."""
+    if num_bytes < 1024:
+        return f"{num_bytes} B"
+    elif num_bytes < 1024 * 1024:
+        return f"{num_bytes / 1024:.1f} KB"
+    elif num_bytes < 1024 * 1024 * 1024:
+        return f"{num_bytes / (1024 * 1024):.1f} MB"
+    else:
+        return f"{num_bytes / (1024 * 1024 * 1024):.2f} GB"
+
+
+@projects_app.command("list")
+def projects_list_cmd(
+    json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
+) -> None:
+    """List all registered shadow workspaces."""
+    from codeless.abb.shadow import list_shadow_projects
+
+    projects = list_shadow_projects()
+    if json_output:
+        print(json.dumps(projects, indent=2))
+        return
+
+    if not projects:
+        print("No registered shadow workspaces found.")
+        return
+
+    print(f"Registered Shadow Workspaces ({len(projects)}):")
+    for proj in projects:
+        status_icon = "🟢" if proj["exists_on_disk"] else "🔴 (orphaned)"
+        size_str = _format_bytes(proj["disk_size_bytes"])
+        name = proj["project_name"]
+        root = proj["project_root"] or "(unknown root)"
+        h = proj["project_hash"][:12]
+        print(f"  • {name} [{h}...] {status_icon}")
+        print(f"    Root: {root}")
+        print(f"    Shadow: {proj['storage_dir']}")
+        print(f"    Size: {size_str} | Template: v{proj['template_version']}")
+        if proj.get("last_active"):
+            print(f"    Last Active: {proj['last_active']}")
+
+
+@projects_app.command("clean")
+def projects_clean_cmd(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview deletions without deleting"),
+    clean_all: bool = typer.Option(False, "--all", help="Delete all shadow workspaces, not just orphans"),
+    json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
+) -> None:
+    """Prune orphaned (or all) shadow workspaces."""
+    from codeless.abb.shadow import clean_shadow_projects
+
+    targets = clean_shadow_projects(dry_run=dry_run, clean_all=clean_all)
+    if json_output:
+        print(json.dumps(targets, indent=2))
+        return
+
+    action_label = "Would remove" if dry_run else "Removed"
+    if not targets:
+        print("No shadow workspaces to clean.")
+        return
+
+    total_freed = sum(t["disk_size_bytes"] for t in targets)
+    print(f"{action_label} {len(targets)} shadow workspace(s) ({_format_bytes(total_freed)} freed):")
+    for t in targets:
+        orphan_label = "orphaned" if t["is_orphan"] else "active"
+        print(f"  • {t['project_name']} ({t['project_hash'][:12]}...) [{orphan_label}] - {_format_bytes(t['disk_size_bytes'])}")
+        print(f"    Path: {t['storage_dir']}")
+
 
 
 # ---- mcp subcommands ----

@@ -77,26 +77,30 @@ def _build_delegation_section() -> str:
     )
 
 
-def _build_permission_mode_section(settings: Settings) -> str:
-    """Build current permission-mode guidance for the model."""
-    mode = settings.permission.mode
-    if mode == PermissionMode.PLAN:
-        guidance = (
-            "Plan mode is enabled. Treat this session as read-only planning and analysis. "
-            "Do not call mutating tools such as file writes, edits, package installs, "
-            "state-changing shell commands, or task-spawning actions unless the user exits plan mode."
+def _build_mode_policy_section(settings: Settings, cwd: Path) -> str:
+    """Build mode policy section derived from ModeEngine."""
+    try:
+        from codeless.abb.permissions import get_mode_engine
+
+        mode_engine = get_mode_engine()
+        mode_name = mode_engine.current_mode.value
+        allowed_tools = sorted(mode_engine.get_allowed_tools())
+        tools_summary = ", ".join(f"`{t}`" for t in allowed_tools)
+        return (
+            f"# Active Mode & Tool Policy\n"
+            f"- **Mode**: `{mode_name.upper()}`\n"
+            f"- **Policy**: {mode_engine.get_mode_description()}\n"
+            f"- **Permitted Tools**: {tools_summary}"
         )
-    elif mode == PermissionMode.FULL_AUTO:
-        guidance = (
-            "Full-auto permission mode is enabled. You may use mutating tools when they are necessary "
-            "for the user's request, while still keeping changes scoped and intentional."
-        )
-    else:
-        guidance = (
-            "Default permission mode is enabled. Read-only tools can run directly; mutating tools "
-            "may require explicit user approval."
-        )
-    return f"# Current Permission Mode\n{guidance}"
+    except Exception:
+        mode = settings.permission.mode
+        if mode == PermissionMode.PLAN:
+            guidance = "Plan mode is active. Mutating tools are restricted."
+        elif mode == PermissionMode.FULL_AUTO:
+            guidance = "Full-auto mode is active."
+        else:
+            guidance = "Default mode is active."
+        return f"# Active Mode\n{guidance}"
 
 
 def build_runtime_system_prompt(
@@ -109,15 +113,28 @@ def build_runtime_system_prompt(
     include_project_memory: bool = True,
 ) -> str:
     """Build the runtime system prompt with project instructions and memory."""
+    path_cwd = Path(cwd)
+
+    # 1. Base Preamble (mechanics, env, safety)
+    sections = [build_system_prompt(custom_prompt=settings.system_prompt, cwd=str(cwd))]
+
+    # 2. ABB Governance Persona (agent.md, workflows, active mode instructions)
+    try:
+        from codeless.abb.permissions import get_mode_engine
+
+        mode_engine = get_mode_engine()
+        persona_instructions = mode_engine.get_persona_instructions(path_cwd)
+        if persona_instructions:
+            sections.append(persona_instructions)
+    except Exception:
+        pass
+
+    # 3. Active Mode & Tool Policy
+    sections.append(_build_mode_policy_section(settings, path_cwd))
+
+    # 4. Coordinator Dispatch Overlay (when in coordinator mode)
     if is_coordinator_mode():
-        sections = [get_coordinator_system_prompt()]
-    else:
-        sections = [build_system_prompt(custom_prompt=settings.system_prompt, cwd=str(cwd))]
-
-    if not is_coordinator_mode() and settings.system_prompt is None:
-        sections[0] = build_system_prompt(cwd=str(cwd))
-
-    sections.append(_build_permission_mode_section(settings))
+        sections.append(get_coordinator_system_prompt())
 
     if settings.fast_mode:
         sections.append(
@@ -184,14 +201,5 @@ def build_runtime_system_prompt(
                     pass
                 sections.append(format_relevant_memories(relevant))
 
-    # ABB Governance Persona & Instructions (agent.md, workflows, permissions)
-    try:
-        from codeless.abb.permissions import get_mode_engine
-        mode_engine = get_mode_engine()
-        persona_instructions = mode_engine.get_persona_instructions(Path(cwd))
-        if persona_instructions:
-            sections.append(persona_instructions)
-    except Exception:
-        pass
-
     return "\n\n".join(section for section in sections if section.strip())
+

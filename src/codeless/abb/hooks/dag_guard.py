@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from codeless.abb.hooks.frontmatter import parse_frontmatter
 

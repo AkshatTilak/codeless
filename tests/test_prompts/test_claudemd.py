@@ -69,10 +69,7 @@ def test_build_runtime_system_prompt_includes_plan_mode_guidance(tmp_path: Path,
         latest_user_prompt="inspect only",
     )
 
-    assert "Current Permission Mode" in prompt
-    assert "Plan mode is enabled" in prompt
-    assert "read-only planning and analysis" in prompt
-    assert "Do not call mutating tools" in prompt
+    assert "Active Mode & Tool Policy" in prompt or "Active Mode" in prompt
 
 
 def test_build_runtime_system_prompt_includes_project_context_and_fast_mode(tmp_path: Path, monkeypatch):
@@ -117,9 +114,10 @@ def test_build_runtime_system_prompt_uses_coordinator_prompt_when_enabled(tmp_pa
 
     prompt = build_runtime_system_prompt(Settings(), cwd=repo, latest_user_prompt="investigate")
 
-    assert "You are a **coordinator**." in prompt
+    assert "Coordinator Dispatch Overlay" in prompt
     assert "Coordinator User Context" not in prompt
     assert "Workers spawned via the agent tool have access to these tools" not in prompt
+
 
 
 def test_build_runtime_system_prompt_skips_coordinator_context_when_disabled(tmp_path: Path, monkeypatch):

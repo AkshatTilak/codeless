@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
 
-from codeless.abb.hooks.dag_guard import check_dag_dependencies, index_tasks
+from codeless.abb.hooks.dag_guard import index_tasks
 from codeless.abb.hooks.frontmatter import parse_frontmatter, validate_task_frontmatter
+from codeless.abb.permissions import TriMode, get_mode_engine
 from codeless.abb.shadow import resolve_abb_workspace
 from codeless.abb.verification import (
     execute_verification_manifest_sync,
-    get_dag_snapshot,
     parse_verification_manifest,
 )
-from codeless.abb.permissions import TriMode, get_mode_engine
 from codeless.commands.registry import CommandContext, CommandRegistry, CommandResult, SlashCommand
 
 
@@ -65,8 +63,8 @@ async def _plan_handler(args: str, context: CommandContext) -> CommandResult:
 
 async def _skills_handler(args: str, context: CommandContext) -> CommandResult:
     """Handle /skills: Query standard project skills, upstream builtins, and ABB categorized skills."""
+    from codeless.commands.registry import _is_valid_skill_command_name, _skill_command_name
     from codeless.skills import load_skill_registry
-    from codeless.commands.registry import _skill_command_name, _is_valid_skill_command_name
 
     skill_registry = load_skill_registry(
         context.cwd,
@@ -378,15 +376,29 @@ async def _checkpoint_handler(args: str, context: CommandContext) -> CommandResu
 
 
 async def _mode_handler(args: str, context: CommandContext) -> CommandResult:
-    """Handle /mode: Switch Tri-Mode (plan | agent | ask)."""
+    """Handle /mode: Switch operational mode (plan | agent | ask | codebase | governance)."""
     target = args.strip().lower()
-    if target in {"plan", "agent", "ask"}:
+    if target == "abb":
+        target = "governance"
+    if target in {"plan", "agent", "ask", "codebase", "governance"}:
         mode_engine = get_mode_engine()
         mode_engine.set_mode(target)
-        return CommandResult(message=f"🔄 Operational Mode switched to: {target.upper()}")
+        return CommandResult(
+            message=f"🔄 Operational Mode switched to: {target.upper()}\nDomain write boundary updated.",
+            refresh_runtime=True,
+        )
     return CommandResult(
-        message="Tri-Mode Permissions:\n  - `plan`  : Architecture, design, and planning (repo root write blocked)\n  - `agent` : Task execution & verification (two-track gate active)\n  - `ask`   : Read-only memory query\n\nUsage: `/mode <plan|agent|ask>`"
+        message=(
+            "Operational Modes & Domain Write Boundaries:\n"
+            "  - `plan`       : Read-only architecture & task planning (writes allowed to tasks/ and design/ only)\n"
+            "  - `agent`      : Unrestricted implementation & verification (Two-Track gate active)\n"
+            "  - `ask`        : Strictly read-only inquiry (all mutating operations blocked)\n"
+            "  - `codebase`   : Source code implementation (meta-specs in .codeless/abb_workspace protected)\n"
+            "  - `governance` : Meta-specification maintenance (source code files protected)\n\n"
+            "Usage: `/mode <plan|agent|ask|codebase|governance>`"
+        )
     )
+
 
 
 async def _stack_handler(args: str, context: CommandContext) -> CommandResult:

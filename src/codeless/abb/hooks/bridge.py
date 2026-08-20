@@ -8,10 +8,59 @@ from typing import Any
 from codeless.abb.hooks.dag_guard import check_dag_dependencies
 from codeless.abb.hooks.frontmatter import parse_frontmatter, validate_task_frontmatter
 from codeless.abb.hooks.rollup import rollup_task_completion
-from codeless.abb.permissions import get_mode_engine
+from codeless.abb.permissions import TriMode, get_mode_engine
 from codeless.abb.shadow import resolve_abb_workspace
 from codeless.abb.verification import verify_subtask_gate
 from codeless.abb.virtualization import is_abb_path, resolve_virtual_path
+
+
+def _extract_bash_write_targets(command: str) -> list[str]:
+    """
+    Extract file/dir paths being modified by a bash command.
+    Detects redirects (>, >>), rm, mv, cp, mkdir, touch, tee.
+    """
+    import re
+    targets: list[str] = []
+    # Match redirects > or >>
+    redirect_matches = re.findall(r"(?:>>?)\s*([^\s;&|]+)", command)
+    for m in redirect_matches:
+        clean = m.strip("'\"")
+        if clean and clean not in {"/dev/null", "&1", "&2"}:
+            targets.append(clean)
+
+    # Match commands like touch, rm, mkdir, cp, mv, tee
+    for part in re.split(r"[;&|]+", command):
+        tokens = part.strip().split()
+        if not tokens:
+            continue
+        cmd = tokens[0].lower()
+        if cmd in {"touch", "mkdir", "rm", "rmdir"}:
+            for tok in tokens[1:]:
+                if not tok.startswith("-"):
+                    targets.append(tok.strip("'\""))
+        elif cmd in {"cp", "mv"}:
+            args = [tok.strip("'\"") for tok in tokens[1:] if not tok.startswith("-")]
+            if args:
+                targets.append(args[-1])
+        elif cmd == "tee":
+            for tok in tokens[1:]:
+                if not tok.startswith("-"):
+                    targets.append(tok.strip("'\""))
+    return targets
+
+
+def _is_general_state_mutation(command: str) -> bool:
+    """Detect non-file-targeted state modifications like package managers or git commit/push."""
+    import re
+    mutation_patterns = [
+        r"\bgit\s+(add|commit|push|merge|rebase|reset|restore)\b",
+        r"\b(npm|pnpm|yarn|bun)\s+(install|add|remove|uninstall|update)\b",
+        r"\b(pip|uv|poetry|cargo)\s+(install|add|remove)\b",
+    ]
+    for pat in mutation_patterns:
+        if re.search(pat, command, re.IGNORECASE):
+            return True
+    return False
 
 
 def pre_tool_use_abb_guard(
@@ -23,6 +72,45 @@ def pre_tool_use_abb_guard(
     Validate tool invocations before execution.
     Returns (allowed, error_reason).
     """
+    if tool_name == "bash":
+        command = str(arguments.get("command", "")).strip()
+        if not command:
+            return True, "OK"
+
+        engine = get_mode_engine()
+        mode = engine.current_mode
+
+        if mode == TriMode.AGENT:
+            return True, "OK"
+
+        # Check general mutations (git commit, npm install, etc.)
+        if _is_general_state_mutation(command):
+            if mode in {TriMode.ASK, TriMode.PLAN, TriMode.GOVERNANCE}:
+                return False, f"ABB Mode Permission Blocked: Bash command alters repository/package state, which is disallowed in {mode.value.upper()} mode."
+
+        # Extract file write targets
+        write_targets = _extract_bash_write_targets(command)
+        if mode == TriMode.ASK and write_targets:
+            return False, f"ABB Mode Permission Blocked: ASK mode is strictly read-only; bash command writes to {', '.join(write_targets)}."
+
+        for target in write_targets:
+            try:
+                target_p = Path(target)
+                if not target_p.is_absolute():
+                    target_p = (cwd / target_p).resolve()
+                norm_str = str(target_p).replace("\\", "/")
+                if norm_str.startswith("/tmp") or norm_str.startswith("/var/tmp"):
+                    continue
+            except Exception:
+                pass
+
+            allowed, reason = engine.evaluate_write_permission(target, cwd)
+            if not allowed:
+                return False, f"ABB Mode Permission Blocked: {reason}"
+
+        return True, "OK"
+
+
     if tool_name not in {"write_file", "edit_file"}:
         return True, "OK"
 
@@ -32,10 +120,11 @@ def pre_tool_use_abb_guard(
 
     path_str = str(raw_path).replace("\\", "/").strip()
 
-    # 0. Mode Permission Check (Plan / Agent / Ask)
+    # 0. Mode Permission Check
     mode_allowed, mode_reason = get_mode_engine().evaluate_write_permission(raw_path, cwd)
     if not mode_allowed:
         return False, f"ABB Mode Permission Blocked: {mode_reason}"
+
 
     # Check if target is a task file
     if not is_abb_path(path_str) or ("tasks/" not in path_str and not path_str.startswith("tasks")):

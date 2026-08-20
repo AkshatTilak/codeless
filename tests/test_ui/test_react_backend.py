@@ -889,3 +889,30 @@ async def test_ask_edit_approval_skips_when_session_mode_is_full_auto():
 
     assert reply == "always"
     assert events == []
+
+
+@pytest.mark.asyncio
+async def test_backend_host_emits_mode_select_request(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
+
+    host = ReactBackendHost(BackendHostConfig(api_client=StaticApiClient("unused")))
+    host._bundle = await build_runtime(api_client=StaticApiClient("unused"))
+    events = []
+
+    async def _emit(event):
+        events.append(event)
+
+    host._emit = _emit  # type: ignore[method-assign]
+    await start_runtime(host._bundle)
+    try:
+        await host._handle_select_command("mode")
+    finally:
+        await close_runtime(host._bundle)
+
+    event = next(item for item in events if item.type == "select_request")
+    assert event.modal["command"] == "mode"
+    values = [option["value"] for option in event.select_options]
+    assert values == ["agent", "plan", "ask", "codebase", "governance"]
+

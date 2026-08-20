@@ -33,6 +33,7 @@ const scriptedSteps = (() => {
 const SELECTABLE_COMMANDS = new Set([
 	'/provider',
 	'/model',
+	'/mode',
 	'/theme',
 	'/output-style',
 	'/permissions',
@@ -44,6 +45,7 @@ const SELECTABLE_COMMANDS = new Set([
 	'/vim',
 	'/voice',
 ]);
+
 
 type SelectModalState = {
 	title: string;
@@ -197,15 +199,15 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 			return true;
 		}
 
-		// /permissions → show mode picker
-		if (trimmed === '/permissions' || trimmed === '/permissions show') {
-			session.sendRequest({type: 'select_command', command: 'permissions'});
+		// /mode or /permissions → show operational mode picker
+		if (trimmed === '/mode' || trimmed === '/permissions' || trimmed === '/permissions show') {
+			session.sendRequest({type: 'select_command', command: 'mode'});
 			return true;
 		}
 
 		// /plan → toggle plan mode
 		if (trimmed === '/plan') {
-			const currentMode = String(session.status.permission_mode ?? 'default');
+			const currentMode = String(session.status.permission_mode ?? 'agent');
 			if (currentMode === 'plan') {
 				session.sendRequest({type: 'submit_line', line: '/plan off'});
 			} else {
@@ -214,6 +216,7 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 			session.setBusy(true);
 			return true;
 		}
+
 
 		// /resume → request session list from backend (will trigger select_request)
 		if (trimmed === '/resume') {
@@ -375,12 +378,12 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 			return;
 		}
 
-		// Empty-input Tab opens the permission mode picker. This makes leaving
-		// plan mode explicit without requiring users to remember /permissions.
+		// Empty-input Tab opens the operational mode picker.
 		if (!showPicker && key.tab && input.trim() === '') {
-			session.sendRequest({type: 'select_command', command: 'permissions'});
+			session.sendRequest({type: 'select_command', command: 'mode'});
 			return;
 		}
+
 
 		// --- Command picker ---
 		if (showPicker) {

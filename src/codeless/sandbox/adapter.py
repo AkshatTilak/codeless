@@ -33,20 +33,38 @@ class SandboxAvailability:
         return self.enabled and self.available
 
 
-def build_sandbox_runtime_config(settings: Settings) -> dict[str, Any]:
+def build_sandbox_runtime_config(settings: Settings, cwd: Path | None = None) -> dict[str, Any]:
     """Convert Codeless settings into an ``srt`` settings payload."""
+    allow_read = list(settings.sandbox.filesystem.allow_read)
+    allow_write = list(settings.sandbox.filesystem.allow_write)
+
+    if cwd is not None:
+        try:
+            from codeless.abb.shadow import resolve_abb_workspace
+
+            abb_ws = resolve_abb_workspace(cwd, auto_init=False)
+            if abb_ws.exists():
+                abb_str = str(abb_ws.resolve())
+                if abb_str not in allow_read:
+                    allow_read.append(abb_str)
+                if abb_str not in allow_write:
+                    allow_write.append(abb_str)
+        except Exception:
+            pass
+
     return {
         "network": {
             "allowedDomains": list(settings.sandbox.network.allowed_domains),
             "deniedDomains": list(settings.sandbox.network.denied_domains),
         },
         "filesystem": {
-            "allowRead": list(settings.sandbox.filesystem.allow_read),
+            "allowRead": allow_read,
             "denyRead": list(settings.sandbox.filesystem.deny_read),
-            "allowWrite": list(settings.sandbox.filesystem.allow_write),
+            "allowWrite": allow_write,
             "denyWrite": list(settings.sandbox.filesystem.deny_write),
         },
     }
+
 
 
 def get_sandbox_availability(settings: Settings | None = None) -> SandboxAvailability:
