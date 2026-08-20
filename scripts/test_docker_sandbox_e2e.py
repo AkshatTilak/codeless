@@ -110,7 +110,7 @@ def e2e_image():
 @pytest.fixture()
 def project_dir():
     """Create a temporary project directory for one test."""
-    with tempfile.TemporaryDirectory(prefix="oh-docker-e2e-") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="codeless-docker-e2e-") as tmpdir:
         yield Path(tmpdir)
 
 
@@ -362,10 +362,10 @@ class TestFilesystemIsolation:
                 rc, stdout, _ = await _run_and_capture(
                     session, ["ls", "/home"], project_dir,
                 )
-                # The container should have its own /home (with ohuser),
+                # The container should have its own /home (with codelessuser),
                 # not the host's /home
                 assert rc == 0
-                assert "ohuser" in stdout, (
+                assert "codelessuser" in stdout, (
                     "Container /home should contain the sandbox user, not host users"
                 )
             finally:
@@ -623,7 +623,7 @@ def _main() -> int:
             method = getattr(instance, attr)
             name = f"{cls.__name__}.{attr}"
             try:
-                with tempfile.TemporaryDirectory(prefix="oh-docker-e2e-") as tmpdir:
+                with tempfile.TemporaryDirectory(prefix="codeless-docker-e2e-") as tmpdir:
                     # Inject fixtures based on parameter names
                     import inspect
 

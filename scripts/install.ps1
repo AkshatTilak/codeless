@@ -258,40 +258,24 @@ if ($CurrentPath -like "*$VenvBinDir*") {
 # ---------------------------------------------------------------------------
 Write-Step "Verifying installation"
 
-$OhPath = "$VenvBinDir\oh.exe"
-$OpenhPath = "$VenvBinDir\openh.exe"
-$OpenharnessPath = "$VenvBinDir\codeless.exe"
-$OhmoPath = "$VenvBinDir\ohmo.exe"
+$CodelessPath = "$VenvBinDir\codeless.exe"
+$ClhPath = "$VenvBinDir\clh.exe"
 
-# Pick the best available launcher. The 'openh' alias was added after v0.1.6,
-# so PyPI installs of older releases won't have openh.exe. Prefer it when
-# present, otherwise fall back to 'codeless', then 'oh' (which collides
-# with PowerShell's Out-Host alias unless invoked as oh.exe).
 $Launcher = $null
 $LauncherExe = $null
-if (Test-Path $OpenhPath) {
-    $Launcher = "openh"
-    $LauncherExe = $OpenhPath
-} elseif (Test-Path $OpenharnessPath) {
+if (Test-Path $CodelessPath) {
     $Launcher = "codeless"
-    $LauncherExe = $OpenharnessPath
-} elseif (Test-Path $OhPath) {
-    $Launcher = "oh"
-    $LauncherExe = $OhPath
+    $LauncherExe = $CodelessPath
+} elseif (Test-Path $ClhPath) {
+    $Launcher = "clh"
+    $LauncherExe = $ClhPath
 }
 
-if ($LauncherExe -and (Test-Path $OhmoPath)) {
-    $OhVersion = & $LauncherExe --version 2>&1
+if ($LauncherExe) {
+    $CodelessVersion = & $LauncherExe --version 2>&1
     Write-Success "Installation successful!"
     Write-Host ""
-    Write-Host "  $Launcher is ready: $OhVersion" -ForegroundColor Green
-    if ($Launcher -eq "oh") {
-        Write-Host "  Note: 'oh' collides with PowerShell's built-in Out-Host alias." -ForegroundColor Yellow
-        Write-Host "        Invoke it as 'oh.exe', or use 'codeless' instead." -ForegroundColor Yellow
-    } elseif (Test-Path $OhPath) {
-        Write-Host "  'oh' is also installed, but PowerShell may resolve it to Out-Host first." -ForegroundColor Yellow
-    }
-    Write-Host "  ohmo is ready" -ForegroundColor Green
+    Write-Host "  $Launcher is ready: $CodelessVersion" -ForegroundColor Green
 } else {
     # Try module execution
     $ModuleVersion = python -m codeless --version 2>&1
@@ -314,16 +298,6 @@ Write-Host "  Next steps:"
 Write-Host "    1. Restart terminal, or run: refreshenv (if using Chocolatey)"
 Write-Host "       Or manually refresh: `$env:PATH = [System.Environment]::GetEnvironmentVariable('PATH','User')"
 Write-Host "    2. Set your API key:        `$env:ANTHROPIC_API_KEY = 'your_key'"
-if ($Launcher -eq "codeless") {
-    Write-Host "    3. Launch (PowerShell):     codeless"
-    Write-Host "       ('openh' is not available on this release; 'oh' collides with PowerShell's Out-Host alias.)"
-} elseif ($Launcher -eq "oh") {
-    Write-Host "    3. Launch (PowerShell):     oh.exe"
-    Write-Host "       ('oh' alone collides with PowerShell's Out-Host alias — use 'oh.exe' or 'codeless'.)"
-} else {
-    Write-Host "    3. Launch (PowerShell):     openh"
-    Write-Host "       Note: 'oh' may collide with the built-in Out-Host alias in PowerShell."
-}
-Write-Host "    4. Launch ohmo:             ohmo"
-Write-Host "    5. Docs:                    https://github.com/HKUDS/Codeless"
+Write-Host "    3. Launch (PowerShell):     codeless (or clh)"
+Write-Host "    4. Docs:                    https://github.com/HKUDS/Codeless"
 Write-Host ""

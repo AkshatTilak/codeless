@@ -19,7 +19,7 @@ import type {
 	TranscriptItem,
 } from '../types.js';
 
-const PROTOCOL_PREFIX = 'OHJSON:';
+const PROTOCOL_PREFIX = 'CLHJSON:';
 const ASSISTANT_DELTA_FLUSH_MS = 50;
 const ASSISTANT_DELTA_FLUSH_CHARS = 384;
 const TRANSCRIPT_EVENT_FLUSH_MS = 50;

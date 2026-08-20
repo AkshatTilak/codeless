@@ -282,7 +282,7 @@ def test_cli_codex_login_binds_without_switching(monkeypatch, tmp_path: Path):
     assert settings.provider == "openai"
     assert settings.base_url == "https://api.moonshot.cn/anthropic"
     assert settings.api_key == "stale-key"
-    assert "Use `oh provider use codex` to activate it." in result.stdout
+    assert "Use `codeless provider use codex` to activate it." in result.stdout
     binding = load_external_binding(CODEX_PROVIDER)
     assert binding is not None
     assert Path(binding.source_path) == codex_home / "auth.json"
@@ -316,7 +316,7 @@ def test_cli_claude_login_binds_without_switching(monkeypatch, tmp_path: Path):
     assert settings.provider == "anthropic"
     assert settings.api_format == "anthropic"
     assert settings.active_profile == "claude-api"
-    assert "Use `oh provider use claude-subscription` to activate it." in result.stdout
+    assert "Use `codeless provider use claude-subscription` to activate it." in result.stdout
     binding = load_external_binding(CLAUDE_PROVIDER)
     assert binding is not None
     assert Path(binding.source_path) == claude_home / ".credentials.json"

@@ -7,7 +7,7 @@ This page collects concrete ways to use Codeless without overselling the project
 Use Codeless as a lightweight local coding agent for reading code, making edits, and running validation commands.
 
 ```bash
-uv run oh
+uv run codeless
 ```
 
 Example prompt:
@@ -21,8 +21,8 @@ Review this repo, identify the highest-risk bug, patch it, and run the relevant 
 The print mode is useful when you want structured output in shell pipelines or automation jobs.
 
 ```bash
-uv run oh -p "Summarize the purpose of this repository" --output-format json
-uv run oh -p "List files that define the permission system" --output-format stream-json
+uv run codeless -p "Summarize the purpose of this repository" --output-format json
+uv run codeless -p "List files that define the permission system" --output-format stream-json
 ```
 
 ## 3. Skill and plugin playground

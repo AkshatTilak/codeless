@@ -118,13 +118,13 @@ def test_project_skills_load_by_default_from_supported_dirs(tmp_path: Path, monk
     monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
     repo = tmp_path / "repo"
     (repo / ".git").mkdir(parents=True)
-    _write_skill(repo / ".codeless" / "skills", "oh-project")
+    _write_skill(repo / ".codeless" / "skills", "codeless-project")
     _write_skill(repo / ".agents" / "skills", "agents-project")
     _write_skill(repo / ".claude" / "skills", "claude-project")
 
     registry = load_skill_registry(repo, settings=Settings())
 
-    assert registry.get("oh-project").source == "project"  # type: ignore[union-attr]
+    assert registry.get("codeless-project").source == "project"  # type: ignore[union-attr]
     assert registry.get("agents-project").source == "project"  # type: ignore[union-attr]
     assert registry.get("claude-project").source == "project"  # type: ignore[union-attr]
 

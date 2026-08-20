@@ -30,7 +30,7 @@ def _env() -> dict[str, str]:
     return env
 
 
-def _run_oh(*args: str, timeout: int = 90) -> subprocess.CompletedProcess:
+def _run_codeless(*args: str, timeout: int = 90) -> subprocess.CompletedProcess:
     cmd = [sys.executable, "-m", "codeless", *args]
     return subprocess.run(
         cmd, capture_output=True, text=True, timeout=timeout,
@@ -63,7 +63,7 @@ async def test_api_retry_config() -> tuple[bool, str]:
 
 async def test_api_retry_real_call() -> tuple[bool, str]:
     """Test that API calls work with retry logic in place (real model call)."""
-    result = _run_oh("-p", "Say exactly: retry test ok", "--model", os.environ.get("ANTHROPIC_MODEL", "kimi-k2.5"))
+    result = _run_codeless("-p", "Say exactly: retry test ok", "--model", os.environ.get("ANTHROPIC_MODEL", "kimi-k2.5"))
     if result.returncode != 0:
         return False, f"Exit {result.returncode}: {result.stderr[:200]}"
     if "retry" in result.stdout.lower() or "test" in result.stdout.lower():
@@ -124,7 +124,7 @@ async def test_skill_tool_invocation() -> tuple[bool, str]:
 
 async def test_skill_real_model() -> tuple[bool, str]:
     """Test that the model can use skills via real API call."""
-    result = _run_oh(
+    result = _run_codeless(
         "-p", "Use the /commit skill to explain what a good commit message looks like. Be brief.",
         "--model", os.environ.get("ANTHROPIC_MODEL", "kimi-k2.5"),
     )

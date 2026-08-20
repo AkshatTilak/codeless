@@ -17,7 +17,7 @@ def test_get_dockerfile_content_returns_valid_dockerfile():
     assert "FROM python:3.11-slim" in content
     assert "ripgrep" in content
     assert "bash" in content
-    assert "ohuser" in content
+    assert "codelessuser" in content
 
 
 async def test_image_exists_returns_true_on_success(monkeypatch):

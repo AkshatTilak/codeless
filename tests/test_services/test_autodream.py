@@ -35,7 +35,7 @@ def test_consolidation_lock_acquire_and_rollback(tmp_path: Path, monkeypatch) ->
 
 def test_consolidation_lock_supports_memory_dir_override(tmp_path: Path) -> None:
     cwd = tmp_path / "repo"
-    memory_dir = tmp_path / "ohmo" / "memory"
+    memory_dir = tmp_path / "custom" / "memory"
     cwd.mkdir()
 
     prior = try_acquire_consolidation_lock(cwd, memory_dir=memory_dir)
@@ -66,12 +66,12 @@ def test_list_sessions_touched_since_excludes_current(tmp_path: Path, monkeypatc
 
 def test_list_sessions_touched_since_supports_session_dir_override(tmp_path: Path) -> None:
     cwd = tmp_path / "repo"
-    session_dir = tmp_path / "ohmo" / "sessions"
+    session_dir = tmp_path / "custom" / "sessions"
     cwd.mkdir()
     session_dir.mkdir(parents=True)
-    (session_dir / "session-ohmo.json").write_text(json.dumps({"session_id": "ohmo"}), encoding="utf-8")
+    (session_dir / "session-custom.json").write_text(json.dumps({"session_id": "custom"}), encoding="utf-8")
 
-    assert list_sessions_touched_since(cwd, 0, session_dir=session_dir) == ["ohmo"]
+    assert list_sessions_touched_since(cwd, 0, session_dir=session_dir) == ["custom"]
 
 
 def test_consolidation_prompt_contains_expected_sections(tmp_path: Path) -> None:
@@ -120,11 +120,11 @@ async def test_execute_auto_dream_skips_when_disabled(tmp_path: Path, monkeypatc
     assert await execute_auto_dream(cwd=cwd, settings=settings, model="test") is None
 
 
-async def test_start_dream_now_uses_overrides(tmp_path: Path, monkeypatch) -> None:
+async def test_consolidation_service_supports_custom_memory_and_session_dirs(tmp_path: Path, monkeypatch) -> None:
     cwd = tmp_path / "repo"
-    memory_dir = tmp_path / ".ohmo" / "memory"
-    session_dir = tmp_path / ".ohmo" / "sessions"
     cwd.mkdir()
+    memory_dir = tmp_path / ".custom" / "memory"
+    session_dir = tmp_path / ".custom" / "sessions"
     memory_dir.mkdir(parents=True)
     session_dir.mkdir(parents=True)
     (session_dir / "session-one.json").write_text(json.dumps({"session_id": "one"}), encoding="utf-8")
@@ -178,17 +178,17 @@ async def test_start_dream_now_uses_overrides(tmp_path: Path, monkeypatch) -> No
         force=True,
         memory_dir=memory_dir,
         session_dir=session_dir,
-        app_label="ohmo personal memory",
-        runner_module="ohmo",
+        app_label="codeless personal memory",
+        runner_module="codeless",
     )
 
     assert task is not None
     assert task.metadata["memory_dir"] == str(memory_dir.resolve())
     assert task.metadata["session_dir"] == str(session_dir.resolve())
-    assert task.metadata["app_label"] == "ohmo personal memory"
+    assert task.metadata["app_label"] == "codeless personal memory"
     assert task.metadata["backup_dir"]
-    assert captured["argv"][:3][-1] == "ohmo"
-    assert "--workspace" in captured["argv"]
-    assert "--dangerously-skip-permissions" not in captured["argv"]
+    assert captured["argv"][:3][-1] == "codeless"
+    assert "--workspace" not in captured["argv"]
+    assert "--dangerously-skip-permissions" in captured["argv"]
     assert "Usage-based stale candidates:" in task.prompt
     assert "old.md" in task.prompt

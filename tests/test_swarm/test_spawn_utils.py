@@ -40,16 +40,16 @@ def test_build_inherited_env_vars_forwards_codeless_config_dir(monkeypatch):
 def test_build_inherited_env_vars_includes_codeless_auth_vars(monkeypatch):
     monkeypatch.setenv("CODELESS_PROVIDER", "openai")
     monkeypatch.setenv("CODELESS_BASE_URL", "https://relay.example.com/v1")
-    monkeypatch.setenv("CODELESS_OPENAI_API_KEY", "sk-oh-openai")
-    monkeypatch.setenv("CODELESS_ANTHROPIC_API_KEY", "sk-oh-anthropic")
+    monkeypatch.setenv("CODELESS_OPENAI_API_KEY", "sk-clh-openai")
+    monkeypatch.setenv("CODELESS_ANTHROPIC_API_KEY", "sk-clh-anthropic")
 
     env = build_inherited_env_vars()
 
     assert env["CODELESS_AGENT_TEAMS"] == "1"
     assert env["CODELESS_PROVIDER"] == "openai"
     assert env["CODELESS_BASE_URL"] == "https://relay.example.com/v1"
-    assert env["CODELESS_OPENAI_API_KEY"] == "sk-oh-openai"
-    assert env["CODELESS_ANTHROPIC_API_KEY"] == "sk-oh-anthropic"
+    assert env["CODELESS_OPENAI_API_KEY"] == "sk-clh-openai"
+    assert env["CODELESS_ANTHROPIC_API_KEY"] == "sk-clh-anthropic"
 
 
 # ---------------------------------------------------------------------------

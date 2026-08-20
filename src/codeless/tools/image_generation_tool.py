@@ -146,7 +146,7 @@ class ImageGenerationTool(BaseTool):
         auth_token = str(config.get("codex_auth_token") or "").strip()
         if not auth_token:
             raise RuntimeError(
-                "Codex image generation auth is not configured. Run 'oh auth codex-login' "
+                "Codex image generation auth is not configured. Run 'codeless auth codex-login' "
                 "or use provider='openai' with CODELESS_IMAGE_GENERATION_API_KEY."
             )
         model = str(config.get("codex_model") or "gpt-5.4").strip() or "gpt-5.4"

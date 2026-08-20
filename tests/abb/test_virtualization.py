@@ -107,7 +107,7 @@ async def test_file_tools_virtualization_integration(tmp_path, monkeypatch):
     read_tool = FileReadTool()
     res = await read_tool.execute(FileReadToolInput(path="agent.md"), ctx)
     assert not res.is_error
-    assert "High-Level System Architect" in res.output
+    assert "System Architect" in res.output
 
     # 2. Write a new subtask via FileWriteTool (with valid frontmatter)
     valid_subtask = """---

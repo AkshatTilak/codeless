@@ -18,8 +18,8 @@ from codeless.config.settings import load_settings
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _spawn_oh(*, env: dict[str, str] | None = None) -> pexpect.spawn:
-    args = ["run", "oh"]
+def _spawn_codeless(*, env: dict[str, str] | None = None) -> pexpect.spawn:
+    args = ["run", "codeless"]
     child = pexpect.spawn(
         "uv",
         args,
@@ -65,7 +65,7 @@ def _run_permission_file_io() -> None:
     if path.exists():
         path.unlink()
     temp_dir, env = _isolated_env()
-    child = _spawn_oh(env=env)
+    child = _spawn_codeless(env=env)
     try:
         print("[react_tui_permission_file_io] waiting for app shell")
         child.expect("Codeless")
@@ -91,7 +91,7 @@ def _run_question_flow() -> None:
     if path.exists():
         path.unlink()
     temp_dir, env = _isolated_env()
-    child = _spawn_oh(env=env)
+    child = _spawn_codeless(env=env)
     try:
         child.expect("Codeless")
         child.expect("model: kimi-k2.5")
@@ -124,7 +124,7 @@ def _run_command_flow() -> None:
             "Reply with exactly FINAL_OK_REACT_TUI_COMMANDS.",
         ]
     )
-    child = _spawn_oh(env=env)
+    child = _spawn_codeless(env=env)
     try:
         print("[react_tui_command_flow] waiting for app shell")
         child.expect("Codeless")

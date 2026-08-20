@@ -584,9 +584,9 @@ async def test_backend_host_emits_utf8_protocol_bytes(monkeypatch):
     await host._emit(BackendEvent(type="assistant_delta", message="你好😊"))
 
     raw = fake_stdout.buffer.getvalue()
-    assert raw.startswith(b"OHJSON:")
+    assert raw.startswith(b"CLHJSON:")
     decoded = raw.decode("utf-8").strip()
-    payload = json.loads(decoded.removeprefix("OHJSON:"))
+    payload = json.loads(decoded.removeprefix("CLHJSON:"))
     assert payload["type"] == "assistant_delta"
     assert payload["message"] == "你好😊"
 

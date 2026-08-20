@@ -98,31 +98,33 @@ class ModeEngine:
         """Retrieve dynamic persona markdown for active mode."""
         abb_ws = resolve_abb_workspace(cwd, auto_init=True)
         agent_md = abb_ws / "agent.md"
+        router_md = abb_ws / "workflows" / "router.md"
         agent_text = agent_md.read_text(encoding="utf-8") if agent_md.exists() else ""
+        router_text = router_md.read_text(encoding="utf-8") if router_md.exists() else ""
+
+        core_parts = []
+        if agent_text:
+            core_parts.append(agent_text)
+        if router_text:
+            core_parts.append(router_text)
 
         if self._current_mode == TriMode.PLAN:
             planning_md = abb_ws / "workflows" / "planning" / "planning.md"
-            parts = ["# Persona: Architecture & Planning Mode"]
-            if agent_text:
-                parts.append(agent_text)
+            parts = ["# Persona: Architecture & Planning Mode", *core_parts]
             if planning_md.exists():
                 parts.append(planning_md.read_text(encoding="utf-8"))
             return "\n\n".join(parts)
 
         elif self._current_mode == TriMode.ASK:
             refs_index = abb_ws / "references" / "references.md"
-            parts = ["# Persona: Knowledge Query & Memory Bank"]
-            if agent_text:
-                parts.append(agent_text)
+            parts = ["# Persona: Knowledge Query & Memory Bank", *core_parts]
             if refs_index.exists():
                 parts.append(refs_index.read_text(encoding="utf-8"))
             return "\n\n".join(parts)
 
         else:  # AGENT mode
             work_principle = abb_ws / "workflows" / "execution" / "work_principle.md"
-            parts = ["# Persona: Deterministic Task Execution & Verification"]
-            if agent_text:
-                parts.append(agent_text)
+            parts = ["# Persona: Deterministic Task Execution & Verification", *core_parts]
             if work_principle.exists():
                 parts.append(work_principle.read_text(encoding="utf-8"))
             return "\n\n".join(parts)

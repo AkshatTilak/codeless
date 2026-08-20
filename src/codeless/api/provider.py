@@ -101,7 +101,7 @@ def auth_status(settings: Settings) -> str:
 
         auth_info = load_copilot_auth()
         if not auth_info:
-            return "missing (run 'oh auth copilot-login')"
+            return "missing (run 'codeless auth copilot-login')"
         if auth_info.enterprise_url:
             return f"configured (enterprise: {auth_info.enterprise_url})"
         return "configured"
@@ -109,7 +109,7 @@ def auth_status(settings: Settings) -> str:
         resolved = settings.resolve_auth()
     except ValueError as exc:
         if settings.provider == "openai_codex":
-            return "missing (run 'oh auth codex-login')"
+            return "missing (run 'codeless auth codex-login')"
         if settings.provider == "anthropic_claude":
             binding = load_external_binding("anthropic_claude")
             if binding is not None:
@@ -119,7 +119,7 @@ def auth_status(settings: Settings) -> str:
             message = str(exc)
             if "third-party" in message:
                 return "invalid base_url"
-            return "missing (run 'oh auth claude-login')"
+            return "missing (run 'codeless auth claude-login')"
         return "missing"
     if resolved.source.startswith("external:"):
         return f"configured ({resolved.source.removeprefix('external:')})"

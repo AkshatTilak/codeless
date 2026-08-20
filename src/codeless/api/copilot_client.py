@@ -75,7 +75,7 @@ class CopilotClient:
         token = github_token or (auth_info.github_token if auth_info else None)
         if not token:
             raise AuthenticationFailure(
-                "No GitHub Copilot token found. Run 'oh auth copilot-login' first."
+                "No GitHub Copilot token found. Run 'codeless auth copilot-login' first."
             )
 
         # Resolve enterprise_url: explicit arg > persisted auth > None (public)

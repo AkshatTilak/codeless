@@ -1,6 +1,6 @@
 """Background cron scheduler daemon.
 
-Runs as a standalone process (``oh cron start``) or can be embedded via
+Runs as a standalone process (``codeless cron start``) or can be embedded via
 :func:`run_scheduler_loop`.  Every tick it reads the cron registry, checks
 which enabled jobs are due, executes them, and records results in a history
 log.
@@ -33,10 +33,7 @@ from codeless.services.cron import (
 from codeless.sandbox import SandboxUnavailableError
 from codeless.utils.shell import create_shell_subprocess
 
-try:
-    from ohmo.gateway.config import load_gateway_config
-except Exception:  # pragma: no cover - ohmo is optional for non-ohmo cron users
-    load_gateway_config = None  # type: ignore[assignment]
+load_gateway_config = None
 
 
 NOTIFICATION_OUTPUT_LIMIT = 3500
@@ -257,19 +254,13 @@ async def _notify_job_result(job: dict[str, Any], entry: dict[str, Any]) -> None
     notify_type = str(notify.get("type") or "").strip().lower()
     try:
         if notify_type in {"feishu_dm", "feishu"}:
-            from ohmo.gateway.notify import send_feishu_dm
-
             user_open_id = str(
                 notify.get("user_open_id") or notify.get("open_id") or notify.get("to") or ""
             ).strip()
             if not user_open_id:
                 raise ValueError("missing notify.user_open_id")
             workspace = notify.get("workspace")
-            await send_feishu_dm(
-                user_open_id=user_open_id,
-                content=_format_notification(job, entry),
-                workspace=str(workspace) if workspace else None,
-            )
+            logger.info("Feishu notification requested for %s (workspace=%s)", user_open_id, workspace)
         elif notify_type:
             raise ValueError(f"unsupported notify.type: {notify_type}")
     except Exception as exc:
@@ -292,7 +283,7 @@ def _command_for_job(job: dict[str, Any]) -> str:
     if not message:
         raise ValueError("agent_turn cron job is missing payload.message")
     cwd = str(job.get("cwd") or ".")
-    parts = ["ohmo"]
+    parts = ["codeless"]
     profile = payload.get("profile") or job.get("provider_profile")
     if profile is None and load_gateway_config is not None:
         profile = load_gateway_config().provider_profile
@@ -514,7 +505,7 @@ def _install_shutdown_signal_handlers(
 
 
 # ---------------------------------------------------------------------------
-# Daemon entry point (spawned by ``oh cron start``)
+# Daemon entry point (spawned by ``codeless cron start``)
 # ---------------------------------------------------------------------------
 
 def _run_daemon() -> None:

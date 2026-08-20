@@ -47,7 +47,7 @@ class CronCreateTool(BaseTool):
     name = "cron_create"
     description = (
         "Create or replace a local cron job with a standard cron expression. "
-        "Use 'oh cron start' to run the scheduler daemon."
+        "Use 'codeless cron start' to run the scheduler daemon."
     )
     input_model = CronCreateToolInput
 

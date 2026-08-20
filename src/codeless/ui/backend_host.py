@@ -42,7 +42,7 @@ log = logging.getLogger(__name__)
 
 log = logging.getLogger(__name__)
 
-_PROTOCOL_PREFIX = "OHJSON:"
+_PROTOCOL_PREFIX = "CLHJSON:"
 
 
 @dataclass(frozen=True)

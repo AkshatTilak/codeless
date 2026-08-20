@@ -448,7 +448,7 @@ def refresh_claude_oauth_credential(
                 last_error = ValueError(
                     "Claude OAuth refresh token is invalid or expired. "
                     "Run `claude auth login` to refresh the official Claude CLI "
-                    "credentials, then run `oh auth claude-login` again."
+                    "credentials, then run `codeless auth claude-login` again."
                 )
                 continue
             detail = f"{exc.code} {exc.reason}"

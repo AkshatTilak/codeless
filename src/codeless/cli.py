@@ -343,7 +343,7 @@ def _evaluate_dry_run_readiness(
     if entrypoint.get("kind") == "unknown_slash_command":
         level = "blocked"
         reasons.append("The prompt starts with '/' but does not match any registered slash command.")
-        next_actions.append("Check the command name and run `oh --dry-run -p \"/help\"` to inspect available slash commands.")
+        next_actions.append("Check the command name and run `codeless --dry-run -p \"/help\"` to inspect available slash commands.")
 
     api_client = validation.get("api_client")
     if isinstance(api_client, dict) and api_client.get("status") == "error":
@@ -784,7 +784,7 @@ def _version_callback(value: bool) -> None:
 app = typer.Typer(
     name="codeless",
     help=(
-        "Oh my Harness! An AI-powered coding assistant.\n\n"
+        "Codeless: Agent Buildable Base coding assistant.\n\n"
         "Starts an interactive session by default, use -p/--print for non-interactive output."
     ),
     add_completion=False,
@@ -1031,7 +1031,7 @@ def cron_logs_cmd(
 
     log_path = get_logs_dir() / "cron_scheduler.log"
     if not log_path.exists():
-        print("No scheduler log found. Start the scheduler with: oh cron start")
+        print("No scheduler log found. Start the scheduler with: codeless cron start")
         return
     content = log_path.read_text(encoding="utf-8", errors="replace")
     tail = content.splitlines()[-lines:]
@@ -1097,7 +1097,7 @@ def autopilot_list_cmd(
 
 @autopilot_app.command("add")
 def autopilot_add_cmd(
-    source: str = typer.Argument("manual_idea", help="Source kind: idea, ohmo, issue, pr, claude"),
+    source: str = typer.Argument("manual_idea", help="Source kind: idea, manual, issue, pr, claude"),
     title: str = typer.Argument(..., help="Task title"),
     body: str = typer.Option("", "--body", help="Task body/details"),
     cwd: str = typer.Option(str(Path.cwd()), "--cwd", help="Repository root"),
@@ -1109,8 +1109,6 @@ def autopilot_add_cmd(
         "idea": "manual_idea",
         "manual": "manual_idea",
         "manual_idea": "manual_idea",
-        "ohmo": "ohmo_request",
-        "ohmo_request": "ohmo_request",
         "issue": "github_issue",
         "github_issue": "github_issue",
         "pr": "github_pr",
@@ -1439,7 +1437,7 @@ def _select_setup_workflow(
     *,
     default_value: str | None = None,
 ) -> str:
-    """Render the top-level `oh setup` workflow picker with richer hints."""
+    """Render the top-level `codeless setup` workflow picker with richer hints."""
     hints = {
         "claude-api": ("Claude / Kimi / GLM / MiniMax", "fg:#7aa2f7"),
         "openai-compatible": ("OpenAI / OpenRouter", "fg:#9ece6a"),
@@ -1743,7 +1741,7 @@ def _bind_external_provider(provider: str) -> None:
         "anthropic_claude": "claude-subscription",
     }[provider]
     print(f"{label} bound from {credential.source_path}.", flush=True)
-    print(f"Use `oh provider use {profile_name}` to activate it.", flush=True)
+    print(f"Use `codeless provider use {profile_name}` to activate it.", flush=True)
 
 
 def _login_provider(provider: str) -> None:
@@ -1972,12 +1970,12 @@ def _run_copilot_login() -> None:
         print(f"  Enterprise domain: {enterprise_url}", flush=True)
     print(flush=True)
     print("To use Copilot as the provider, run:", flush=True)
-    print("  oh provider use copilot", flush=True)
+    print("  codeless provider use copilot", flush=True)
 
 
 @auth_app.command("copilot-login")
 def auth_copilot_login() -> None:
-    """Authenticate with GitHub Copilot via device flow (alias for 'oh auth login copilot')."""
+    """Authenticate with GitHub Copilot via device flow (alias for 'codeless auth login copilot')."""
     _run_copilot_login()
 
 

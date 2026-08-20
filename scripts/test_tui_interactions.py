@@ -55,7 +55,7 @@ def test_command_picker_shows() -> tuple[bool, str]:
     try:
         child.expect(pexpect.EOF, timeout=25)
         output = child.before or ""
-        has_welcome = "Oh my Harness!" in output
+        has_welcome = "CODELESS" in output
         if has_welcome:
             return True, f"TUI launched with welcome banner and shortcuts. Output: {len(output)} chars"
         return True, f"TUI launched. Output: {len(output)} chars"
@@ -77,7 +77,7 @@ def test_permission_flow() -> tuple[bool, str]:
     env["CODELESS_FRONTEND_RAW_RETURN"] = "1"
     # Ask agent to create a file — should trigger permission
     env["CODELESS_FRONTEND_SCRIPT"] = json.dumps([
-        "Create a file called /tmp/oh_permission_test.txt with content 'test'",
+        "Create a file called /tmp/codeless_permission_test.txt with content 'test'",
     ])
 
     model_name = env.get("ANTHROPIC_MODEL", "kimi-k2.5")

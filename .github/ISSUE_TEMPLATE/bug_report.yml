@@ -21,7 +21,7 @@ body:
       label: Steps to reproduce
       description: Include commands, prompts, or config that reliably reproduces the issue.
       placeholder: |
-        1. Run `uv run oh ...`
+        1. Run `uv run codeless ...`
         2. Trigger ...
         3. Observe ...
     validations:

@@ -34,7 +34,7 @@ def _env() -> dict[str, str]:
     return env
 
 
-def _run_oh(*args: str, timeout: int = 90, cwd: str | None = None) -> subprocess.CompletedProcess:
+def _run_codeless(*args: str, timeout: int = 90, cwd: str | None = None) -> subprocess.CompletedProcess:
     cmd = [sys.executable, "-m", "codeless", *args]
     return subprocess.run(
         cmd, capture_output=True, text=True, timeout=timeout,
@@ -153,7 +153,7 @@ async def test_skills_in_prompt_with_real() -> tuple[bool, str]:
 
 async def test_model_uses_real_skill() -> tuple[bool, str]:
     """Ask the model about a real skill topic and see if it responds correctly."""
-    result = _run_oh(
+    result = _run_codeless(
         "-p", "How do I merge two PDF files in Python? Give me a brief code example.",
         "--model", os.environ.get("ANTHROPIC_MODEL", "kimi-k2.5"),
     )
@@ -289,7 +289,7 @@ async def test_commit_command_content() -> tuple[bool, str]:
 
 async def test_real_model_with_plugins() -> tuple[bool, str]:
     """Test model call with plugins installed (verifies no crashes from plugin loading)."""
-    result = _run_oh(
+    result = _run_codeless(
         "-p", "Say exactly: plugins test ok",
         "--model", os.environ.get("ANTHROPIC_MODEL", "kimi-k2.5"),
     )

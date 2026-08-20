@@ -725,7 +725,7 @@ class Settings(BaseModel):
         """Resolve API key with precedence: instance value > env var > empty.
 
         For ``copilot`` api_format the key is managed separately via
-        ``oh auth copilot-login`` and this method is not called.
+        ``codeless auth copilot-login`` and this method is not called.
 
         Returns the API key string. Raises ValueError if no key is found.
         """
@@ -785,7 +785,7 @@ class Settings(BaseModel):
             binding = load_external_binding(auth_source_provider_name(auth_source))
             if binding is None:
                 raise ValueError(
-                    f"No external auth binding found for {auth_source}. Run 'oh auth "
+                    f"No external auth binding found for {auth_source}. Run 'codeless auth "
                     f"{'codex-login' if auth_source == 'codex_subscription' else 'claude-login'}' first."
                 )
             credential = load_external_credential(

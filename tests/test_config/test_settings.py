@@ -46,10 +46,10 @@ class TestSettings:
         assert s.resolve_api_key() == "sk-env-456"
 
     def test_resolve_api_key_prefers_codeless_env(self, monkeypatch):
-        monkeypatch.setenv("CODELESS_ANTHROPIC_API_KEY", "sk-oh-456")
+        monkeypatch.setenv("CODELESS_ANTHROPIC_API_KEY", "sk-clh-456")
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-env-456")
         s = Settings()
-        assert s.resolve_api_key() == "sk-oh-456"
+        assert s.resolve_api_key() == "sk-clh-456"
 
     def test_resolve_api_key_instance_takes_precedence(self, monkeypatch):
         monkeypatch.delenv("CODELESS_ANTHROPIC_API_KEY", raising=False)
@@ -111,13 +111,13 @@ class TestSettings:
         assert "OPENAI" in auth.source
 
     def test_resolve_auth_prefers_codeless_env_for_openai(self, monkeypatch):
-        monkeypatch.setenv("CODELESS_OPENAI_API_KEY", "sk-oh-openai")
+        monkeypatch.setenv("CODELESS_OPENAI_API_KEY", "sk-clh-openai")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-correct")
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         s = Settings(api_key="sk-ant-wrong-provider", api_format="openai")
         s = s.sync_active_profile_from_flat_fields()
         auth = s.resolve_auth()
-        assert auth.value == "sk-oh-openai"
+        assert auth.value == "sk-clh-openai"
         assert auth.source == "env:CODELESS_OPENAI_API_KEY"
 
     def test_resolve_auth_falls_back_to_flat_api_key(self, monkeypatch):
@@ -147,7 +147,7 @@ class TestSettings:
 
     def test_load_settings_uses_profile_specific_codeless_env_key(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-wrong")
-        monkeypatch.setenv("CODELESS_OPENAI_API_KEY", "sk-oh-openai")
+        monkeypatch.setenv("CODELESS_OPENAI_API_KEY", "sk-clh-openai")
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         path = tmp_path / "settings.json"
         path.write_text(
@@ -156,7 +156,7 @@ class TestSettings:
         )
         s = load_settings(path)
         assert s.active_profile == "openai-compatible"
-        assert s.api_key == "sk-oh-openai"
+        assert s.api_key == "sk-clh-openai"
 
     def test_load_settings_ignores_wrong_provider_native_env_key(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-wrong")

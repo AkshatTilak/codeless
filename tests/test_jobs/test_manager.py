@@ -103,13 +103,13 @@ async def test_create_shell_task_stores_env_on_record(tmp_path: Path, monkeypatc
         command="printf 'noop'",
         description="env test",
         cwd=tmp_path,
-        env={"MY_OH_TEST_VAR": "hello-230"},
+        env={"MY_CLH_TEST_VAR": "hello-230"},
     )
     await asyncio.wait_for(manager._waiters[task.id], timeout=5)  # type: ignore[attr-defined]
 
     stored = manager.get_task(task.id)
     assert stored is not None
-    assert stored.env == {"MY_OH_TEST_VAR": "hello-230"}
+    assert stored.env == {"MY_CLH_TEST_VAR": "hello-230"}
 
 
 @pytest.mark.asyncio
@@ -171,10 +171,10 @@ async def test_start_process_forwards_env_to_subprocess(tmp_path: Path, monkeypa
     manager = BackgroundTaskManager()
 
     task = await manager.create_shell_task(
-        command='printf "value=%s" "$MY_OH_TEST_VAR"',
+        command='printf "value=%s" "$MY_CLH_TEST_VAR"',
         description="env passthrough",
         cwd=tmp_path,
-        env={"MY_OH_TEST_VAR": "spawn-230"},
+        env={"MY_CLH_TEST_VAR": "spawn-230"},
     )
     await asyncio.wait_for(manager._waiters[task.id], timeout=5)  # type: ignore[attr-defined]
 

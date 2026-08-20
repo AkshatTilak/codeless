@@ -44,6 +44,6 @@ async def test_build_runtime_reports_subscription_auth_setup(monkeypatch, tmp_pa
 
     captured = capsys.readouterr()
     assert "subscription auth, not an API key" in captured.err
-    assert "oh auth claude-login" in captured.err
-    assert "oh provider use claude-subscription" in captured.err
+    assert "codeless auth claude-login" in captured.err
+    assert "codeless provider use claude-subscription" in captured.err
     assert "No API key configured" not in captured.err

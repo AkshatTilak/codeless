@@ -55,12 +55,12 @@ done
 # Banner
 # ---------------------------------------------------------------------------
 echo ""
-echo -e "${BOLD}${CYAN}  ██████╗ ██╗  ██╗${RESET}"
-echo -e "${BOLD}${CYAN} ██╔═══██╗██║  ██║${RESET}"
-echo -e "${BOLD}${CYAN} ██║   ██║███████║${RESET}   Codeless Installer"
-echo -e "${BOLD}${CYAN} ██║   ██║██╔══██║${RESET}   Open Agent Harness"
-echo -e "${BOLD}${CYAN} ╚██████╔╝██║  ██║${RESET}"
-echo -e "${BOLD}${CYAN}  ╚═════╝ ╚═╝  ╚═╝${RESET}"
+echo -e "${BOLD}${CYAN}  ██████╗  ██████╗ ██████╗ ███████╗██╗     ███████╗███████╗███████╗${RESET}"
+echo -e "${BOLD}${CYAN} ██╔════╝ ██╔═══██╗██╔══██╗██╔════╝██║     ██╔════╝██╔════╝██╔════╝${RESET}"
+echo -e "${BOLD}${CYAN} ██║      ██║   ██║██║  ██║█████╗  ██║     █████╗  ███████╗███████╗${RESET}   Codeless Installer"
+echo -e "${BOLD}${CYAN} ██║      ██║   ██║██║  ██║██╔══╝  ██║     ██╔══╝  ╚════██║╚════██║${RESET}   Agent Buildable Base"
+echo -e "${BOLD}${CYAN} ╚██████╗ ╚██████╔╝██████╔╝███████╗███████╗███████╗███████║███████║${RESET}"
+echo -e "${BOLD}${CYAN}  ╚═════╝  ╚═════╝ ╚═════╝ ╚══════╝╚══════╝╚══════╝╚══════╝╚══════╝${RESET}"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -283,31 +283,29 @@ success "Config directory ready: ~/.codeless/"
 step "Registering global commands"
 
 mkdir -p "$BIN_DIR"
-ln -snf "$VENV_DIR/bin/oh" "$BIN_DIR/oh"
-ln -snf "$VENV_DIR/bin/ohmo" "$BIN_DIR/ohmo"
 ln -snf "$VENV_DIR/bin/codeless" "$BIN_DIR/codeless"
-success "Linked oh/ohmo into ${BIN_DIR}"
+ln -snf "$VENV_DIR/bin/clh" "$BIN_DIR/clh"
+success "Linked codeless/clh into ${BIN_DIR}"
 
 # ---------------------------------------------------------------------------
 # Step 9: Verify installation
 # ---------------------------------------------------------------------------
 step "Verifying installation"
 
-if [ -x "$BIN_DIR/oh" ] && [ -x "$BIN_DIR/ohmo" ]; then
-    OH_VERSION=$("$BIN_DIR/oh" --version 2>&1 || echo "(version check failed)")
-    OHMO_VERSION=$("$BIN_DIR/ohmo" --help >/dev/null 2>&1 && echo "available" || echo "not available")
+if [ -x "$BIN_DIR/codeless" ]; then
+    CODELESS_VER=$("$BIN_DIR/codeless" --version 2>&1 || echo "(version check failed)")
     success "Installation successful!"
     echo ""
-    echo -e "  ${BOLD}oh${RESET} is ready: ${GREEN}${OH_VERSION}${RESET}"
-    echo -e "  ${BOLD}ohmo${RESET} is ready: ${GREEN}${OHMO_VERSION}${RESET}"
+    echo -e "  ${BOLD}codeless${RESET} is ready: ${GREEN}${CODELESS_VER}${RESET}"
+    echo -e "  ${BOLD}clh${RESET} is ready: ${GREEN}${CODELESS_VER}${RESET}"
 elif "$PYTHON_CMD" -m codeless --version &>/dev/null 2>&1; then
-    OH_VERSION=$("$PYTHON_CMD" -m codeless --version 2>&1)
-    warn "'oh'/'ohmo' command links are not executable yet. Run via: python -m codeless or python -m ohmo"
-    echo "  Version: ${OH_VERSION}"
+    CODELESS_VER=$("$PYTHON_CMD" -m codeless --version 2>&1)
+    warn "'codeless'/'clh' command links are not executable yet. Run via: python -m codeless"
+    echo "  Version: ${CODELESS_VER}"
     echo "  To add them to PATH, ensure ${BIN_DIR} is in PATH:"
     echo "    export PATH=\"${BIN_DIR}:\$PATH\""
 else
-    warn "Could not verify 'oh'/'ohmo' commands. The package may need a PATH update."
+    warn "Could not verify 'codeless'/'clh' commands. The package may need a PATH update."
     echo "  Try: $PYTHON_CMD -m codeless --version"
     echo "  Or add ${BIN_DIR} to PATH and restart your shell."
 fi
@@ -377,9 +375,8 @@ echo "    1. Restart shell, or reload your shell config:"
 echo "         bash/zsh: source ~/.bashrc  (or ~/.zshrc)"
 echo "         fish:     source ~/.config/fish/config.fish"
 echo "    2. Set your API key:        export ANTHROPIC_API_KEY=your_key"
-echo "    3. Launch:                  oh"
-echo "    4. Launch ohmo:             ohmo"
-echo "    5. Docs:                    https://github.com/HKUDS/Codeless"
+echo "    3. Launch:                  codeless (or clh)"
+echo "    4. Docs:                    https://github.com/HKUDS/Codeless"
 echo ""
 echo "  Notes:"
 echo "    - Commands are linked into: ${BIN_DIR}"
