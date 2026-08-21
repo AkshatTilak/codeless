@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from codeless.api.client import ApiMessageCompleteEvent, ApiMessageRequest, SupportsStreamingMessages
+from codeless.api.client import (
+    ApiMessageCompleteEvent,
+    ApiMessageRequest,
+    SupportsStreamingMessages,
+)
 from codeless.engine.messages import ConversationMessage, ToolUseBlock
 from codeless.memory.manager import add_memory_entry
 from codeless.memory.paths import get_project_memory_dir
@@ -117,7 +121,9 @@ async def extract_memories_from_turn(
     return apply_extraction_records(cwd, records)
 
 
-def build_extraction_prompt(cwd: str | Path, messages: list[ConversationMessage], *, max_records: int) -> str:
+def build_extraction_prompt(
+    cwd: str | Path, messages: list[ConversationMessage], *, max_records: int
+) -> str:
     """Build the extraction request from recent messages and manifest."""
 
     manifest = build_memory_manifest(scan_memory_files(cwd, max_files=80))
@@ -128,8 +134,8 @@ def build_extraction_prompt(cwd: str | Path, messages: list[ConversationMessage]
         f"{manifest or '(empty)'}\n\n"
         "Recent conversation:\n"
         f"{transcript}\n\n"
-        "JSON schema: {\"memories\":[{\"title\":\"...\",\"type\":\"user|feedback|project|reference\","
-        "\"scope\":\"private|project|team\",\"description\":\"...\",\"body\":\"...\",\"tags\":[\"...\"]}]}"
+        'JSON schema: {"memories":[{"title":"...","type":"user|feedback|project|reference",'
+        '"scope":"private|project|team","description":"...","body":"...","tags":["..."]}]}'
     )
 
 
@@ -159,10 +165,19 @@ def parse_extraction_records(text: str, *, max_records: int = 3) -> tuple[Extrac
         body = str(item.get("body") or "").strip()
         if not title or not body:
             continue
-        memory_type = parse_memory_type(item.get("type"), default=DEFAULT_MEMORY_TYPE) or DEFAULT_MEMORY_TYPE
-        scope = parse_memory_scope(item.get("scope"), default=DEFAULT_MEMORY_SCOPE) or DEFAULT_MEMORY_SCOPE
+        memory_type = (
+            parse_memory_type(item.get("type"), default=DEFAULT_MEMORY_TYPE) or DEFAULT_MEMORY_TYPE
+        )
+        scope = (
+            parse_memory_scope(item.get("scope"), default=DEFAULT_MEMORY_SCOPE)
+            or DEFAULT_MEMORY_SCOPE
+        )
         tags_raw = item.get("tags") or ()
-        tags = tuple(str(tag).strip() for tag in tags_raw if str(tag).strip()) if isinstance(tags_raw, list) else ()
+        tags = (
+            tuple(str(tag).strip() for tag in tags_raw if str(tag).strip())
+            if isinstance(tags_raw, list)
+            else ()
+        )
         records.append(
             ExtractionRecord(
                 title=title,
@@ -176,7 +191,9 @@ def parse_extraction_records(text: str, *, max_records: int = 3) -> tuple[Extrac
     return tuple(records)
 
 
-def apply_extraction_records(cwd: str | Path, records: tuple[ExtractionRecord, ...]) -> ExtractionResult:
+def apply_extraction_records(
+    cwd: str | Path, records: tuple[ExtractionRecord, ...]
+) -> ExtractionResult:
     """Write accepted records to durable memory."""
 
     written: list[Path] = []
@@ -184,7 +201,9 @@ def apply_extraction_records(cwd: str | Path, records: tuple[ExtractionRecord, .
         if record.scope == "team":
             secret_error = check_team_memory_secrets(record.body)
             if secret_error:
-                log.warning("memory extraction skipped team record %r: %s", record.title, secret_error)
+                log.warning(
+                    "memory extraction skipped team record %r: %s", record.title, secret_error
+                )
                 continue
             path, error = validate_team_memory_write_path(cwd, f"{record.title}.md")
             if error or path is None:
@@ -201,10 +220,17 @@ def apply_extraction_records(cwd: str | Path, records: tuple[ExtractionRecord, .
                 tags=record.tags,
             )
         )
-    return ExtractionResult(skipped=not bool(written), reason="" if written else "all records rejected", records=records, written_paths=tuple(written))
+    return ExtractionResult(
+        skipped=not bool(written),
+        reason="" if written else "all records rejected",
+        records=records,
+        written_paths=tuple(written),
+    )
 
 
-def validate_extraction_tool_request(tool_name: str, tool_input: dict[str, Any], memory_dir: str | Path) -> tuple[bool, str]:
+def validate_extraction_tool_request(
+    tool_name: str, tool_input: dict[str, Any], memory_dir: str | Path
+) -> tuple[bool, str]:
     """Permission guard for extraction-like agents."""
 
     if tool_name in {"read_file", "grep", "glob"}:
@@ -246,7 +272,9 @@ def _summarize_message(message: ConversationMessage) -> str:
     if text:
         return f"{message.role}: {text[:1200]}"
     if message.tool_uses:
-        return f"{message.role}: tool calls -> {', '.join(block.name for block in message.tool_uses)}"
+        return (
+            f"{message.role}: tool calls -> {', '.join(block.name for block in message.tool_uses)}"
+        )
     return f"{message.role}: [non-text content]"
 
 
@@ -258,4 +286,18 @@ def _is_read_only_shell(command: str) -> bool:
     if any(marker in f" {lowered} " for marker in denied):
         return False
     first = lowered.split(maxsplit=1)[0]
-    return first in {"ls", "pwd", "cat", "head", "tail", "rg", "grep", "find", "git", "wc", "sed", "awk", "stat"}
+    return first in {
+        "ls",
+        "pwd",
+        "cat",
+        "head",
+        "tail",
+        "rg",
+        "grep",
+        "find",
+        "git",
+        "wc",
+        "sed",
+        "awk",
+        "stat",
+    }

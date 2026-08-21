@@ -21,7 +21,6 @@ from codeless.api.errors import AuthenticationFailure
 from codeless.api.usage import UsageSnapshot
 from codeless.engine.messages import ConversationMessage, TextBlock
 
-
 # ---------------------------------------------------------------------------
 # Fake helpers
 # ---------------------------------------------------------------------------

@@ -207,7 +207,7 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 
 		// /plan → toggle plan mode
 		if (trimmed === '/plan') {
-			const currentMode = String(session.status.permission_mode ?? 'agent');
+			const currentMode = String(session.status.permission_mode ?? 'plan');
 			if (currentMode === 'plan') {
 				session.sendRequest({type: 'submit_line', line: '/plan off'});
 			} else {

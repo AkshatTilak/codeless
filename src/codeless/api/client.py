@@ -17,13 +17,13 @@ from codeless.api.errors import (
     RateLimitFailure,
     RequestFailure,
 )
+from codeless.api.usage import UsageSnapshot
 from codeless.auth.external import (
     claude_attribution_header,
     claude_oauth_betas,
     claude_oauth_headers,
     get_claude_code_session_id,
 )
-from codeless.api.usage import UsageSnapshot
 from codeless.engine.messages import ConversationMessage, assistant_message_from_api
 
 log = logging.getLogger(__name__)
@@ -110,7 +110,7 @@ def _get_retry_delay(attempt: int, exc: Exception | None = None) -> float:
                 except (ValueError, TypeError):
                     pass
 
-    delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+    delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
     jitter = random.uniform(0, delay * 0.25)
     return delay + jitter
 
@@ -185,7 +185,11 @@ class AnthropicApiClient:
                 status = getattr(exc, "status_code", "?")
                 log.warning(
                     "API request failed (attempt %d/%d, status=%s), retrying in %.1fs: %s",
-                    attempt + 1, MAX_RETRIES + 1, status, delay, exc,
+                    attempt + 1,
+                    MAX_RETRIES + 1,
+                    status,
+                    delay,
+                    exc,
                 )
                 yield ApiRetryEvent(
                     message=str(exc),
@@ -212,9 +216,7 @@ class AnthropicApiClient:
         if self._claude_oauth:
             attribution = claude_attribution_header()
             params["system"] = (
-                f"{attribution}\n{params['system']}"
-                if params.get("system")
-                else attribution
+                f"{attribution}\n{params['system']}" if params.get("system") else attribution
             )
         if request.tools:
             params["tools"] = request.tools

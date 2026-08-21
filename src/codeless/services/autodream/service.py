@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 
 from codeless.config.settings import Settings
+from codeless.jobs.manager import get_task_manager
+from codeless.jobs.types import TaskRecord
 from codeless.memory.paths import get_project_memory_dir
 from codeless.memory.usage import find_stale_memory_candidates
 from codeless.services.autodream.backup import create_memory_backup, diff_memory_dirs
@@ -20,8 +22,6 @@ from codeless.services.autodream.lock import (
 )
 from codeless.services.autodream.prompt import build_consolidation_prompt
 from codeless.services.session_storage import get_project_session_dir
-from codeless.jobs.manager import get_task_manager
-from codeless.jobs.types import TaskRecord
 
 SESSION_SCAN_INTERVAL_SECONDS = 10 * 60
 _CHILD_ENV = "CODELESS_AUTODREAM_CHILD"
@@ -87,11 +87,19 @@ def _ensure_listener_registered() -> None:
 
 
 def _resolve_memory_dir(cwd: str | Path, memory_dir: str | Path | None) -> Path:
-    return Path(memory_dir).expanduser().resolve() if memory_dir is not None else get_project_memory_dir(cwd)
+    return (
+        Path(memory_dir).expanduser().resolve()
+        if memory_dir is not None
+        else get_project_memory_dir(cwd)
+    )
 
 
 def _resolve_session_dir(cwd: str | Path, session_dir: str | Path | None) -> Path:
-    return Path(session_dir).expanduser().resolve() if session_dir is not None else get_project_session_dir(cwd)
+    return (
+        Path(session_dir).expanduser().resolve()
+        if session_dir is not None
+        else get_project_session_dir(cwd)
+    )
 
 
 async def start_dream_now(
@@ -141,13 +149,18 @@ async def start_dream_now(
     resolved_memory_dir.mkdir(parents=True, exist_ok=True)
     resolved_session_dir.mkdir(parents=True, exist_ok=True)
     before = _memory_files_mtime_snapshot(resolved_memory_dir)
-    backup_dir = create_memory_backup(resolved_memory_dir, app_label=app_label) if not preview else None
+    backup_dir = (
+        create_memory_backup(resolved_memory_dir, app_label=app_label) if not preview else None
+    )
     stale_candidates = find_stale_memory_candidates(cwd, memory_dir=resolved_memory_dir)
-    stale_section = "\n".join(
-        f"- {header.id or header.path.name}: {header.path.name} "
-        f"(importance={header.importance}, updated_at={header.updated_at or 'unknown'})"
-        for header in stale_candidates[:20]
-    ) or "- (none)"
+    stale_section = (
+        "\n".join(
+            f"- {header.id or header.path.name}: {header.path.name} "
+            f"(importance={header.importance}, updated_at={header.updated_at or 'unknown'})"
+            for header in stale_candidates[:20]
+        )
+        or "- (none)"
+    )
     extra = (
         f"Application context: `{app_label}`.\n"
         "Tool constraints for this run: only modify files under the memory directory. "
@@ -157,7 +170,9 @@ async def start_dream_now(
         + "\n\nUsage-based stale candidates:\n"
         + stale_section
     )
-    prompt = build_consolidation_prompt(resolved_memory_dir, resolved_session_dir, extra, preview=preview)
+    prompt = build_consolidation_prompt(
+        resolved_memory_dir, resolved_session_dir, extra, preview=preview
+    )
     src_root = Path(__file__).resolve().parents[3]
     existing_pythonpath = os.environ.get("PYTHONPATH", "")
     env = {
@@ -165,7 +180,8 @@ async def start_dream_now(
         "CODELESS_AUTODREAM_MEMORY_DIR": str(resolved_memory_dir),
         "CODELESS_CONFIG_DIR": str(Path.home() / ".codeless"),
         "CODELESS_PROFILE": settings.active_profile,
-        "PYTHONPATH": str(src_root) + ((os.pathsep + existing_pythonpath) if existing_pythonpath else ""),
+        "PYTHONPATH": str(src_root)
+        + ((os.pathsep + existing_pythonpath) if existing_pythonpath else ""),
     }
     try:
         argv = [

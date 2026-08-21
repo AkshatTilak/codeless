@@ -45,7 +45,11 @@ def migrate_memory(
 ) -> MigrationSummary:
     """Backfill schema-v1 frontmatter for top-level memory markdown files."""
 
-    root = Path(memory_dir).expanduser().resolve() if memory_dir is not None else get_project_memory_dir(cwd)
+    root = (
+        Path(memory_dir).expanduser().resolve()
+        if memory_dir is not None
+        else get_project_memory_dir(cwd)
+    )
     root.mkdir(parents=True, exist_ok=True)
     files = sorted(path for path in root.glob("*.md") if path.name != "MEMORY.md")
     changed_payloads: list[tuple[Path, str]] = []
@@ -97,12 +101,20 @@ def main(argv: list[str] | None = None) -> int:
     """Command-line entrypoint for one-off memory migrations."""
 
     parser = argparse.ArgumentParser(description="Backfill Codeless memory schema metadata.")
-    parser.add_argument("--cwd", default=".", help="Project cwd whose memory store should be migrated.")
+    parser.add_argument(
+        "--cwd", default=".", help="Project cwd whose memory store should be migrated."
+    )
     parser.add_argument("--memory-dir", default=None, help="Explicit memory directory to migrate.")
-    parser.add_argument("--default-type", default="project", help="Type for legacy files without one.")
-    parser.add_argument("--default-category", default="knowledge", help="Category for legacy files without one.")
+    parser.add_argument(
+        "--default-type", default="project", help="Type for legacy files without one."
+    )
+    parser.add_argument(
+        "--default-category", default="knowledge", help="Category for legacy files without one."
+    )
     parser.add_argument("--dry-run", action="store_true", help="Report files that would change.")
-    parser.add_argument("--apply", action="store_true", help="Write migrated files and create a backup.")
+    parser.add_argument(
+        "--apply", action="store_true", help="Write migrated files and create a backup."
+    )
     args = parser.parse_args(argv)
     if args.dry_run == args.apply:
         parser.error("pass exactly one of --dry-run or --apply")

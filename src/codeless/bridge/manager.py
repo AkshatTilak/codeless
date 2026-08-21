@@ -6,8 +6,8 @@ import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 
-from codeless.config.paths import get_data_dir
 from codeless.bridge.session_runner import SessionHandle, spawn_session
+from codeless.config.paths import get_data_dir
 
 
 @dataclass(frozen=True)
@@ -103,4 +103,3 @@ def get_bridge_manager() -> BridgeSessionManager:
     if _DEFAULT_MANAGER is None:
         _DEFAULT_MANAGER = BridgeSessionManager()
     return _DEFAULT_MANAGER
-

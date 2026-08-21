@@ -34,22 +34,23 @@ class AbbTaskTool(BaseTool):
     )
     input_model = AbbTaskToolInput
 
-
     async def execute(
         self,
+        arguments: AbbTaskToolInput,
         context: ToolExecutionContext,
-        action: str,
-        target: str | None = None,
     ) -> ToolResult:
+        action = arguments.action
+        target = arguments.target
         cwd = Path(context.cwd).resolve()
         try:
             abb_ws = resolve_abb_workspace(cwd, auto_init=False)
             if not abb_ws.exists() or not (abb_ws / "agent.md").exists():
                 return ToolResult(
-                    error="No ABB workspace found for this project. Initialize with ABB template first."
+                    output="No ABB workspace found for this project. Initialize with ABB template first.",
+                    is_error=True,
                 )
         except Exception as exc:
-            return ToolResult(error=f"Failed to resolve ABB workspace: {exc}")
+            return ToolResult(output=f"Failed to resolve ABB workspace: {exc}", is_error=True)
 
         tasks_dir = abb_ws / "tasks"
         raw_index = index_tasks(tasks_dir)
@@ -83,12 +84,17 @@ class AbbTaskTool(BaseTool):
                 version = tinfo.get("version", "1.0.0")
                 deps = tinfo.get("depends_on", [])
                 deps_str = f" [depends_on: {', '.join(deps)}]" if deps else ""
-                lines.append(f"  • {tid} (v{version}) - {status}{deps_str} -> {tinfo.get('rel_path')}")
+                lines.append(
+                    f"  • {tid} (v{version}) - {status}{deps_str} -> {tinfo.get('rel_path')}"
+                )
             return ToolResult(output="\n".join(lines))
 
         elif act == "show":
             if not target:
-                return ToolResult(error="Action 'show' requires 'target' (task ID, e.g. 'sub_001').")
+                return ToolResult(
+                    output="Action 'show' requires 'target' (task ID, e.g. 'sub_001').",
+                    is_error=True,
+                )
             clean_target = target.strip()
             # Lookup by ID
             tinfo = tasks_index.get(clean_target)
@@ -100,11 +106,13 @@ class AbbTaskTool(BaseTool):
                         break
 
             if not tinfo:
-                return ToolResult(error=f"Task '{clean_target}' not found in ABB index.")
+                return ToolResult(
+                    output=f"Task '{clean_target}' not found in ABB index.", is_error=True
+                )
 
             full_path: Path = tinfo["path"]
             if not full_path.exists():
-                return ToolResult(error=f"Task file '{full_path}' does not exist.")
+                return ToolResult(output=f"Task file '{full_path}' does not exist.", is_error=True)
 
             content = full_path.read_text(encoding="utf-8")
             return ToolResult(output=f"# Task: {tinfo['id']} ({tinfo['rel_path']})\n\n{content}")
@@ -116,8 +124,7 @@ class AbbTaskTool(BaseTool):
                 if tid.startswith("sub_") and tinfo.get("status") != "done":
                     deps = tinfo.get("depends_on", [])
                     deps_satisfied = all(
-                        tasks_index.get(dep, {}).get("status") == "done"
-                        for dep in deps
+                        tasks_index.get(dep, {}).get("status") == "done" for dep in deps
                     )
                     if deps_satisfied:
                         ready_tasks.append((tid, tinfo))
@@ -130,18 +137,23 @@ class AbbTaskTool(BaseTool):
                 lines.append(f"  • {tid} ({tinfo.get('rel_path')}) - status: {tinfo.get('status')}")
             return ToolResult(output="\n".join(lines))
 
-
         elif act in {"blocked-by", "blocked_by"}:
             if not target:
-                return ToolResult(error="Action 'blocked-by' requires 'target' (task ID).")
+                return ToolResult(
+                    output="Action 'blocked-by' requires 'target' (task ID).", is_error=True
+                )
             clean_target = target.strip()
             tinfo = tasks_index.get(clean_target)
             if not tinfo:
-                return ToolResult(error=f"Task '{clean_target}' not found in ABB index.")
+                return ToolResult(
+                    output=f"Task '{clean_target}' not found in ABB index.", is_error=True
+                )
 
             deps = tinfo.get("depends_on", [])
             if not deps:
-                return ToolResult(output=f"Task '{clean_target}' has no dependencies (not blocked).")
+                return ToolResult(
+                    output=f"Task '{clean_target}' has no dependencies (not blocked)."
+                )
 
             unmet = []
             for dep in deps:
@@ -152,7 +164,9 @@ class AbbTaskTool(BaseTool):
                     unmet.append(f"{dep} (current status: {dep_info.get('status')})")
 
             if not unmet:
-                return ToolResult(output=f"Task '{clean_target}' dependencies are all satisfied (not blocked).")
+                return ToolResult(
+                    output=f"Task '{clean_target}' dependencies are all satisfied (not blocked)."
+                )
 
             lines = [f"Task '{clean_target}' is blocked by:"]
             for u in unmet:
@@ -161,5 +175,6 @@ class AbbTaskTool(BaseTool):
 
         else:
             return ToolResult(
-                error=f"Unknown action '{action}'. Supported actions: 'list', 'show', 'ready', 'blocked-by'"
+                output=f"Unknown action '{action}'. Supported actions: 'list', 'show', 'ready', 'blocked-by'",
+                is_error=True,
             )

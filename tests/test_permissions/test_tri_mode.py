@@ -1,10 +1,9 @@
 """Tests for Tri-Mode permissions controller, path rules, and persona injection."""
 
 from pathlib import Path
-import pytest
 
-from codeless.abb.permissions import ModeEngine, TriMode, get_mode_engine
 from codeless.abb.hooks.bridge import pre_tool_use_abb_guard
+from codeless.abb.permissions import ModeEngine, TriMode, get_mode_engine
 from codeless.permissions.modes import PermissionMode
 
 
@@ -16,7 +15,7 @@ def test_mode_engine_initial_state():
 
 def test_mode_engine_mode_switch():
     engine = ModeEngine()
-    
+
     engine.set_mode("plan")
     assert engine.current_mode == TriMode.PLAN
     assert engine.get_upstream_permission_mode() == PermissionMode.PLAN
@@ -58,7 +57,6 @@ def test_plan_mode_path_rules(tmp_path: Path):
     assert not allowed
 
 
-
 def test_ask_mode_path_rules(tmp_path: Path):
     engine = ModeEngine(default_mode=TriMode.ASK)
 
@@ -87,12 +85,14 @@ def test_persona_instructions_loading(tmp_path: Path):
     abb_ws.mkdir(parents=True)
     (abb_ws / "agent.md").write_text("# Base Agent Persona", encoding="utf-8")
     (abb_ws / "workflows" / "planning").mkdir(parents=True)
-    (abb_ws / "workflows" / "planning" / "planning.md").write_text("# Planning Workflow", encoding="utf-8")
+    (abb_ws / "workflows" / "planning" / "planning.md").write_text(
+        "# Planning Workflow", encoding="utf-8"
+    )
     (abb_ws / "references").mkdir(parents=True)
     (abb_ws / "references" / "references.md").write_text("# Reference Index", encoding="utf-8")
 
     engine = ModeEngine()
-    
+
     engine.set_mode(TriMode.PLAN)
     plan_persona = engine.get_persona_instructions(tmp_path)
     assert "Architecture & Planning Mode" in plan_persona
@@ -106,21 +106,27 @@ def test_persona_instructions_loading(tmp_path: Path):
 
 def test_pre_tool_use_abb_guard_mode_enforcement(tmp_path: Path):
     global_engine = get_mode_engine()
-    
+
     # 1. Switch to PLAN mode
     global_engine.set_mode(TriMode.PLAN)
-    allowed, reason = pre_tool_use_abb_guard("write_file", {"path": "src/app.py", "content": "print()"}, tmp_path)
+    allowed, reason = pre_tool_use_abb_guard(
+        "write_file", {"path": "src/app.py", "content": "print()"}, tmp_path
+    )
     assert not allowed
     assert "Plan Mode blocks project code modifications" in reason
 
     # 2. Switch to AGENT mode
     global_engine.set_mode(TriMode.AGENT)
-    allowed, _ = pre_tool_use_abb_guard("write_file", {"path": "src/app.py", "content": "print()"}, tmp_path)
+    allowed, _ = pre_tool_use_abb_guard(
+        "write_file", {"path": "src/app.py", "content": "print()"}, tmp_path
+    )
     assert allowed
 
     # 3. Switch to ASK mode
     global_engine.set_mode(TriMode.ASK)
-    allowed, reason = pre_tool_use_abb_guard("write_file", {"path": "src/app.py", "content": "print()"}, tmp_path)
+    allowed, reason = pre_tool_use_abb_guard(
+        "write_file", {"path": "src/app.py", "content": "print()"}, tmp_path
+    )
     assert not allowed
     assert "strictly read-only" in reason
 

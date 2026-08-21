@@ -27,7 +27,9 @@ def get_session_memory_dir(cwd: str | Path) -> Path:
 def get_session_memory_path(cwd: str | Path, session_id: str | None = None) -> Path:
     """Return the markdown session-memory path."""
 
-    safe_session = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in (session_id or "default"))
+    safe_session = "".join(
+        ch if ch.isalnum() or ch in "._-" else "_" for ch in (session_id or "default")
+    )
     return get_session_memory_dir(cwd) / f"{safe_session or 'default'}.md"
 
 
@@ -89,8 +91,12 @@ def build_session_memory_document(
     if isinstance(state, dict):
         goal = str(state.get("goal") or "").strip()
         next_step = str(state.get("next_step") or "").strip()
-        verified = [str(item).strip() for item in state.get("verified_state", []) if str(item).strip()]
-        artifacts = [str(item).strip() for item in state.get("active_artifacts", []) if str(item).strip()]
+        verified = [
+            str(item).strip() for item in state.get("verified_state", []) if str(item).strip()
+        ]
+        artifacts = [
+            str(item).strip() for item in state.get("active_artifacts", []) if str(item).strip()
+        ]
 
     lines = ["# Session Memory", ""]
     lines.extend(["## Current State", goal or "(no current goal recorded)", ""])

@@ -21,7 +21,11 @@ def build_consolidation_prompt(
     memory_root = Path(memory_root)
     session_dir = Path(session_dir)
     extra_section = f"\n\n## Additional context\n\n{extra.strip()}" if extra.strip() else ""
-    write_mode = "PREVIEW MODE: do not write files; propose a concise patch plan only." if preview else "APPLY MODE: update memory files directly when changes are clearly warranted."
+    write_mode = (
+        "PREVIEW MODE: do not write files; propose a concise patch plan only."
+        if preview
+        else "APPLY MODE: update memory files directly when changes are clearly warranted."
+    )
     return f"""# Dream: Memory Consolidation
 
 You are performing a dream — a reflective pass over Codeless memory files. Synthesize recent signal into durable, well-organized memories so future sessions can orient quickly.

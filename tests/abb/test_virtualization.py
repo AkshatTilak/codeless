@@ -1,25 +1,21 @@
 """Tests for shadow path virtualization."""
 
-from pathlib import Path
 import pytest
 
 from codeless.abb.shadow import (
-    bootstrap_shadow_workspace,
     resolve_abb_workspace,
 )
 from codeless.abb.virtualization import (
-    find_project_root,
-    get_search_roots,
     is_abb_path,
     resolve_virtual_path,
     unvirtualize_path,
 )
+from codeless.tools.base import ToolExecutionContext
+from codeless.tools.file_edit_tool import FileEditTool, FileEditToolInput
 from codeless.tools.file_read_tool import FileReadTool, FileReadToolInput
 from codeless.tools.file_write_tool import FileWriteTool, FileWriteToolInput
-from codeless.tools.file_edit_tool import FileEditTool, FileEditToolInput
 from codeless.tools.glob_tool import GlobTool, GlobToolInput
 from codeless.tools.grep_tool import GrepTool, GrepToolInput
-from codeless.tools.base import ToolExecutionContext
 
 
 def test_is_abb_path():

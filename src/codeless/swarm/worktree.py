@@ -43,9 +43,7 @@ def validate_worktree_slug(slug: str) -> str:
 
     for segment in slug.split("/"):
         if segment in (".", ".."):
-            raise ValueError(
-                f'Worktree slug {slug!r}: must not contain "." or ".." path segments'
-            )
+            raise ValueError(f'Worktree slug {slug!r}: must not contain "." or ".." path segments')
         if not _VALID_SEGMENT.match(segment):
             raise ValueError(
                 f"Worktree slug {slug!r}: each segment must be non-empty and contain only "
@@ -58,6 +56,7 @@ def validate_worktree_slug(slug: str) -> str:
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class WorktreeInfo:
@@ -74,6 +73,7 @@ class WorktreeInfo:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _flatten_slug(slug: str) -> str:
     """Replace '/' with '+' to avoid nested directory/branch issues."""
@@ -132,6 +132,7 @@ async def _remove_symlinks(worktree_path: Path) -> None:
 # WorktreeManager
 # ---------------------------------------------------------------------------
 
+
 class WorktreeManager:
     """Manage git worktrees for isolated agent execution.
 
@@ -178,9 +179,7 @@ class WorktreeManager:
 
         # Fast resume: check whether the worktree is already registered
         if worktree_path.exists():
-            code, _, _ = await _run_git(
-                "rev-parse", "--git-dir", cwd=worktree_path
-            )
+            code, _, _ = await _run_git("rev-parse", "--git-dir", cwd=worktree_path)
             if code == 0:
                 return WorktreeInfo(
                     slug=slug,
@@ -193,7 +192,12 @@ class WorktreeManager:
 
         # New worktree: -B resets an orphan branch left by a prior remove
         code, _, stderr = await _run_git(
-            "worktree", "add", "-B", worktree_branch, str(worktree_path), "HEAD",
+            "worktree",
+            "add",
+            "-B",
+            worktree_branch,
+            str(worktree_path),
+            "HEAD",
             cwd=repo_path,
         )
         if code != 0:
@@ -229,15 +233,16 @@ class WorktreeManager:
         await _remove_symlinks(worktree_path)
 
         # Determine repo root from the worktree's git metadata
-        code, git_common, _ = await _run_git(
-            "rev-parse", "--git-common-dir", cwd=worktree_path
-        )
+        code, git_common, _ = await _run_git("rev-parse", "--git-common-dir", cwd=worktree_path)
         if code == 0 and git_common:
             # git_common points to .git inside the main repo
             repo_path = Path(git_common).resolve().parent
             if repo_path.exists():
                 await _run_git(
-                    "worktree", "remove", "--force", str(worktree_path),
+                    "worktree",
+                    "remove",
+                    "--force",
+                    str(worktree_path),
                     cwd=repo_path,
                 )
                 return True
@@ -245,7 +250,10 @@ class WorktreeManager:
         # Fallback: try to remove via absolute path from any working directory
         # If repo_path detection failed, attempt removal with cwd=base_dir
         code, _, _ = await _run_git(
-            "worktree", "remove", "--force", str(worktree_path),
+            "worktree",
+            "remove",
+            "--force",
+            str(worktree_path),
             cwd=self.base_dir,
         )
         return code == 0
@@ -264,15 +272,11 @@ class WorktreeManager:
                 continue
 
             # Recover branch name from HEAD
-            rc, branch_out, _ = await _run_git(
-                "rev-parse", "--abbrev-ref", "HEAD", cwd=child
-            )
+            rc, branch_out, _ = await _run_git("rev-parse", "--abbrev-ref", "HEAD", cwd=child)
             branch = branch_out if rc == 0 else "unknown"
 
             # Recover original repo path from git-common-dir
-            rc2, common_dir, _ = await _run_git(
-                "rev-parse", "--git-common-dir", cwd=child
-            )
+            rc2, common_dir, _ = await _run_git("rev-parse", "--git-common-dir", cwd=child)
             if rc2 == 0 and common_dir:
                 original_path = Path(common_dir).resolve().parent
             else:

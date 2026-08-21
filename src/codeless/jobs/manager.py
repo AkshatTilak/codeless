@@ -17,7 +17,9 @@ from codeless.jobs.types import TaskRecord, TaskStatus, TaskType
 from codeless.utils.shell import create_shell_subprocess
 
 log = logging.getLogger(__name__)
-_TASK_RESTART_NOTICE = "[Codeless] Agent task restarted; prior interactive context was not preserved.\n"
+_TASK_RESTART_NOTICE = (
+    "[Codeless] Agent task restarted; prior interactive context was not preserved.\n"
+)
 
 
 def _encode_task_worker_payload(data: str) -> bytes:
@@ -42,6 +44,7 @@ def _encode_task_worker_payload(data: str) -> bytes:
     else:
         framed = json.dumps({"text": stripped}, ensure_ascii=False)
     return (framed + "\n").encode("utf-8")
+
 
 CompletionListener = Callable[[TaskRecord], Awaitable[None] | None]
 
@@ -353,7 +356,9 @@ class BackgroundTaskManager:
 
         restart_count = int(task.metadata.get("restart_count", "0")) + 1
         task.metadata["restart_count"] = str(restart_count)
-        task.metadata["status_note"] = "Task restarted; prior interactive context was not preserved."
+        task.metadata["status_note"] = (
+            "Task restarted; prior interactive context was not preserved."
+        )
         task.status = "running"
         task.started_at = time.time()
         task.ended_at = None
@@ -370,7 +375,9 @@ class BackgroundTaskManager:
                 if maybe_awaitable is not None:
                     await maybe_awaitable
             except Exception:
-                log.exception("Task completion listener %s failed for task %s", listener_id, task.id)
+                log.exception(
+                    "Task completion listener %s failed for task %s", listener_id, task.id
+                )
 
     def close(self) -> None:
         """Best-effort cleanup for any tracked subprocesses and watcher tasks."""

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from codeless.abb.virtualization import resolve_virtual_path
 from codeless.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
@@ -57,15 +58,11 @@ class FileReadTool(BaseTool):
         lines = text.splitlines()
         selected = lines[arguments.offset : arguments.offset + arguments.limit]
         numbered = [
-            f"{arguments.offset + index + 1:>6}\t{line}"
-            for index, line in enumerate(selected)
+            f"{arguments.offset + index + 1:>6}\t{line}" for index, line in enumerate(selected)
         ]
         if not numbered:
             return ToolResult(output=f"(no content in selected range for {path})")
         return ToolResult(output="\n".join(numbered))
-
-
-from codeless.abb.virtualization import resolve_virtual_path
 
 
 def _resolve_path(base: Path, candidate: str) -> Path:

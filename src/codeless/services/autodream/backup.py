@@ -20,7 +20,9 @@ def default_backup_root(memory_dir: str | Path, *, app_label: str = "codeless") 
             return Path(*memory_dir.parts[: idx + 1]) / "backups"
         except ValueError:
             pass
-    safe_label = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "-" for ch in app_label).strip("-")
+    safe_label = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "-" for ch in app_label).strip(
+        "-"
+    )
     return get_data_dir() / "memory-backups" / (safe_label or "codeless")
 
 
@@ -33,7 +35,11 @@ def create_memory_backup(
     """Create a timestamped copy of ``memory_dir`` and return the backup path."""
 
     memory_dir = Path(memory_dir).expanduser().resolve()
-    root = Path(backup_root).expanduser().resolve() if backup_root is not None else default_backup_root(memory_dir, app_label=app_label)
+    root = (
+        Path(backup_root).expanduser().resolve()
+        if backup_root is not None
+        else default_backup_root(memory_dir, app_label=app_label)
+    )
     root.mkdir(parents=True, exist_ok=True)
     timestamp = time.strftime("memory-%Y%m%d-%H%M%S")
     backup = root / timestamp

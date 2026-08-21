@@ -335,7 +335,9 @@ class RepoAutopilotStore:
         queued = [card for card in self._load_registry().cards if card.status == "queued"]
         if not queued:
             return None
-        return sorted(queued, key=lambda card: (-card.score, -card.updated_at, card.title.lower()))[0]
+        return sorted(queued, key=lambda card: (-card.score, -card.updated_at, card.title.lower()))[
+            0
+        ]
 
     def update_status(
         self,
@@ -404,7 +406,11 @@ class RepoAutopilotStore:
 
     def rebuild_active_context(self) -> str:
         cards = self._load_registry().cards
-        running = [card for card in cards if card.status in {"preparing", "running", "verifying", "waiting_ci", "repairing"}]
+        running = [
+            card
+            for card in cards
+            if card.status in {"preparing", "running", "verifying", "waiting_ci", "repairing"}
+        ]
         accepted = [card for card in cards if card.status in {"accepted", "pr_open"}]
         queued = [card for card in cards if card.status == "queued"]
         completed = [card for card in cards if card.status in {"completed", "merged"}]
@@ -435,7 +441,9 @@ class RepoAutopilotStore:
                 lines.append(f"- Detail: {_shorten(focus.body, limit=220)}")
 
         lines.extend(["", "## In Progress"])
-        for card in sorted(running + accepted, key=lambda item: (-item.score, -item.updated_at))[:6]:
+        for card in sorted(running + accepted, key=lambda item: (-item.score, -item.updated_at))[
+            :6
+        ]:
             lines.append(f"- [{card.status}] {card.id} {card.title} ({card.source_kind})")
         if not running and not accepted:
             lines.append("- None.")
@@ -491,12 +499,16 @@ class RepoAutopilotStore:
 
     def load_policies(self) -> dict[str, Any]:
         return {
-            "autopilot": self._read_yaml(get_project_autopilot_policy_path(self._cwd), _DEFAULT_AUTOPILOT_POLICY),
+            "autopilot": self._read_yaml(
+                get_project_autopilot_policy_path(self._cwd), _DEFAULT_AUTOPILOT_POLICY
+            ),
             "verification": self._read_yaml(
                 get_project_verification_policy_path(self._cwd),
                 _DEFAULT_VERIFICATION_POLICY,
             ),
-            "release": self._read_yaml(get_project_release_policy_path(self._cwd), _DEFAULT_RELEASE_POLICY),
+            "release": self._read_yaml(
+                get_project_release_policy_path(self._cwd), _DEFAULT_RELEASE_POLICY
+            ),
         }
 
     def scan_github_issues(self, *, limit: int = 10) -> list[RepoTaskCard]:
@@ -658,7 +670,9 @@ class RepoAutopilotStore:
         policies = self.load_policies()
         execution = dict(policies.get("autopilot", {}).get("execution", {}))
         effective_model = model or _safe_text(execution.get("default_model")) or None
-        effective_max_turns = max_turns if max_turns is not None else int(execution.get("max_turns", 12))
+        effective_max_turns = (
+            max_turns if max_turns is not None else int(execution.get("max_turns", 12))
+        )
         effective_permission_mode = permission_mode or _safe_text(
             execution.get("permission_mode", "full_auto")
         )
@@ -669,7 +683,11 @@ class RepoAutopilotStore:
         linked_pr_number = self._linked_pr_number(card)
         use_worktree = bool(execution.get("use_worktree", True)) and self._is_git_repo(self._cwd)
 
-        if card.source_kind == "github_pr" and linked_pr_number is not None and not card.metadata.get("autopilot_managed"):
+        if (
+            card.source_kind == "github_pr"
+            and linked_pr_number is not None
+            and not card.metadata.get("autopilot_managed")
+        ):
             return await self._process_existing_pr_card(card, linked_pr_number, policies)
 
         worktree_manager = WorktreeManager()
@@ -711,7 +729,9 @@ class RepoAutopilotStore:
 
         for attempt_count in range(existing_attempts + 1, max_attempts + 1):
             attempt_run_report = self._runs_dir / f"{card.id}-attempt-{attempt_count:02d}-run.md"
-            attempt_verification_report = self._runs_dir / f"{card.id}-attempt-{attempt_count:02d}-verification.md"
+            attempt_verification_report = (
+                self._runs_dir / f"{card.id}-attempt-{attempt_count:02d}-verification.md"
+            )
             is_first_attempt = attempt_count == 1 and existing_attempts == 0
             if use_worktree:
                 try:
@@ -727,7 +747,10 @@ class RepoAutopilotStore:
                         card.id,
                         status="failed",
                         note=summary,
-                        metadata_updates={"last_failure_stage": "git_prepare_failed", "last_failure_summary": summary},
+                        metadata_updates={
+                            "last_failure_stage": "git_prepare_failed",
+                            "last_failure_summary": summary,
+                        },
                     )
                     self.append_journal(kind="run_failed", summary=summary, task_id=card.id)
                     return RepoRunResult(
@@ -812,14 +835,19 @@ class RepoAutopilotStore:
                 kind="run_finished",
                 summary=f"Agent run finished for {card.title}",
                 task_id=card.id,
-                metadata={"run_report_path": str(attempt_run_report), "attempt_count": attempt_count},
+                metadata={
+                    "run_report_path": str(attempt_run_report),
+                    "attempt_count": attempt_count,
+                },
             )
 
             self.update_status(
                 card.id,
                 status="verifying",
                 note="running verification gates",
-                metadata_updates={"assistant_summary_preview": _shorten(assistant_summary, limit=300)},
+                metadata_updates={
+                    "assistant_summary_preview": _shorten(assistant_summary, limit=300)
+                },
             )
             verification_steps = self._run_verification_steps(policies, cwd=working_cwd)
             verification_text = self._render_verification_report(card, verification_steps)
@@ -841,7 +869,9 @@ class RepoAutopilotStore:
                 summary = "; ".join(f"{step.command} rc={step.returncode}" for step in failing[:3])
                 metadata_updates = {
                     "verification_failed": True,
-                    "verification_steps": [step.model_dump(mode="json") for step in verification_steps],
+                    "verification_steps": [
+                        step.model_dump(mode="json") for step in verification_steps
+                    ],
                     "last_failure_stage": "local_verification_failed",
                     "last_failure_summary": summary,
                 }
@@ -859,7 +889,9 @@ class RepoAutopilotStore:
                         metadata={"attempt_count": attempt_count},
                     )
                     if issue_number is not None:
-                        self._comment_on_issue(issue_number, self._comment_local_failed(attempt_count, summary))
+                        self._comment_on_issue(
+                            issue_number, self._comment_local_failed(attempt_count, summary)
+                        )
                     prior_failure_stage = "local_verification_failed"
                     prior_failure_summary = summary
                     continue
@@ -895,7 +927,9 @@ class RepoAutopilotStore:
                     note="local verification passed; repository is not a git repo so GitHub automation was skipped",
                     metadata_updates={
                         "verification_failed": False,
-                        "verification_steps": [step.model_dump(mode="json") for step in verification_steps],
+                        "verification_steps": [
+                            step.model_dump(mode="json") for step in verification_steps
+                        ],
                         "human_gate_pending": True,
                     },
                 )
@@ -975,7 +1009,10 @@ class RepoAutopilotStore:
                     card.id,
                     status="failed",
                     note=summary,
-                    metadata_updates={"last_failure_stage": "github_pr_open_failed", "last_failure_summary": summary},
+                    metadata_updates={
+                        "last_failure_stage": "github_pr_open_failed",
+                        "last_failure_summary": summary,
+                    },
                 )
                 if issue_number is not None:
                     self._comment_on_issue(issue_number, self._comment_terminal_failure(summary))
@@ -1002,12 +1039,16 @@ class RepoAutopilotStore:
                     "linked_issue_numbers": [issue_number] if issue_number is not None else [],
                     "autopilot_managed": True,
                     "verification_failed": False,
-                    "verification_steps": [step.model_dump(mode="json") for step in verification_steps],
+                    "verification_steps": [
+                        step.model_dump(mode="json") for step in verification_steps
+                    ],
                 },
             )
             self._comment_on_pr(linked_pr_number, self._comment_pr_opened(linked_pr_number, pr_url))
 
-            ci_state, ci_summary, pr_snapshot, checks = await self._wait_for_pr_ci(linked_pr_number, policies)
+            ci_state, ci_summary, pr_snapshot, checks = await self._wait_for_pr_ci(
+                linked_pr_number, policies
+            )
             self.update_status(
                 card.id,
                 status="waiting_ci" if ci_state == "pending" else "waiting_ci",
@@ -1037,7 +1078,9 @@ class RepoAutopilotStore:
                         task_id=card.id,
                         metadata={"pr_number": linked_pr_number, "attempt_count": attempt_count},
                     )
-                    self._comment_on_pr(linked_pr_number, self._comment_ci_failed(attempt_count, ci_summary))
+                    self._comment_on_pr(
+                        linked_pr_number, self._comment_ci_failed(attempt_count, ci_summary)
+                    )
                     prior_failure_stage = "remote_ci_failed"
                     prior_failure_summary = ci_summary
                     continue
@@ -1138,7 +1181,10 @@ class RepoAutopilotStore:
             card.id,
             status="failed",
             note=exhausted,
-            metadata_updates={"last_failure_stage": "repair_exhausted", "last_failure_summary": exhausted},
+            metadata_updates={
+                "last_failure_stage": "repair_exhausted",
+                "last_failure_summary": exhausted,
+            },
         )
         return RepoRunResult(
             card_id=card.id,
@@ -1159,8 +1205,13 @@ class RepoAutopilotStore:
         pr_limit: int = 10,
     ) -> RepoRunResult | None:
         self.scan_all_sources(issue_limit=issue_limit, pr_limit=pr_limit)
-        if any(card.status in {"preparing", "running", "verifying", "waiting_ci", "repairing"} for card in self.list_cards()):
-            self.append_journal(kind="tick_skip", summary="Skipped run-next because another card is active")
+        if any(
+            card.status in {"preparing", "running", "verifying", "waiting_ci", "repairing"}
+            for card in self.list_cards()
+        ):
+            self.append_journal(
+                kind="tick_skip", summary="Skipped run-next because another card is active"
+            )
             return None
         if self.pick_next_card() is None:
             self.append_journal(kind="tick_idle", summary="Tick completed with no queued work")
@@ -1193,7 +1244,9 @@ class RepoAutopilotStore:
         return [job["name"] for job in jobs]
 
     def export_dashboard(self, output_dir: str | Path | None = None) -> Path:
-        target_dir = Path(output_dir) if output_dir is not None else self._cwd / "docs" / "autopilot"
+        target_dir = (
+            Path(output_dir) if output_dir is not None else self._cwd / "docs" / "autopilot"
+        )
         target_dir = target_dir.resolve()
         target_dir.mkdir(parents=True, exist_ok=True)
         snapshot = self._build_dashboard_snapshot()
@@ -1248,10 +1301,14 @@ class RepoAutopilotStore:
             raise RuntimeError(output)
         return completed
 
-    def _run_git(self, args: list[str], *, cwd: Path | None = None, check: bool = False) -> subprocess.CompletedProcess[str]:
+    def _run_git(
+        self, args: list[str], *, cwd: Path | None = None, check: bool = False
+    ) -> subprocess.CompletedProcess[str]:
         return self._run_command(["git", *args], cwd=cwd, check=check)
 
-    def _run_gh(self, args: list[str], *, cwd: Path | None = None, check: bool = False) -> subprocess.CompletedProcess[str]:
+    def _run_gh(
+        self, args: list[str], *, cwd: Path | None = None, check: bool = False
+    ) -> subprocess.CompletedProcess[str]:
         return self._run_command(["gh", *args], cwd=cwd, check=check)
 
     def _gh_json(self, args: list[str], *, cwd: Path | None = None) -> Any:
@@ -1291,10 +1348,14 @@ class RepoAutopilotStore:
         except ValueError:
             return False
 
-    def _sync_worktree_to_base(self, cwd: Path, *, base_branch: str, head_branch: str, reset: bool) -> None:
+    def _sync_worktree_to_base(
+        self, cwd: Path, *, base_branch: str, head_branch: str, reset: bool
+    ) -> None:
         self._run_git(["fetch", "origin", base_branch], cwd=cwd, check=True)
         if reset:
-            self._run_git(["checkout", "-B", head_branch, f"origin/{base_branch}"], cwd=cwd, check=True)
+            self._run_git(
+                ["checkout", "-B", head_branch, f"origin/{base_branch}"], cwd=cwd, check=True
+            )
             return
         self._run_git(["checkout", head_branch], cwd=cwd, check=True)
 
@@ -1346,7 +1407,15 @@ class RepoAutopilotStore:
         if not normalized:
             return
         try:
-            self._run_gh(["pr", "edit", str(pr_number), *sum([["--add-label", label] for label in normalized], [])], cwd=self._cwd)
+            self._run_gh(
+                [
+                    "pr",
+                    "edit",
+                    str(pr_number),
+                    *sum([["--add-label", label] for label in normalized], []),
+                ],
+                cwd=self._cwd,
+            )
         except Exception:
             self.append_journal(
                 kind="github_warning",
@@ -1403,7 +1472,9 @@ class RepoAutopilotStore:
             run_report_path=run_report_path,
             verification_report_path=verification_report_path,
         )
-        with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8", suffix=".md") as handle:
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, encoding="utf-8", suffix=".md"
+        ) as handle:
             handle.write(body)
             body_path = Path(handle.name)
         try:
@@ -1428,13 +1499,19 @@ class RepoAutopilotStore:
 
         created = self._find_open_pr_for_branch(head_branch)
         if created is None:
-            raise RuntimeError(f"PR creation succeeded but PR for branch {head_branch} was not discoverable.")
+            raise RuntimeError(
+                f"PR creation succeeded but PR for branch {head_branch} was not discoverable."
+            )
         self._best_effort_add_labels(created.get("number"), ["autopilot"])
         return created
 
     def _comment_on_issue(self, issue_number: int, comment: str) -> None:
         try:
-            self._run_gh(["issue", "comment", str(issue_number), "--body", comment], cwd=self._cwd, check=True)
+            self._run_gh(
+                ["issue", "comment", str(issue_number), "--body", comment],
+                cwd=self._cwd,
+                check=True,
+            )
         except Exception as exc:
             self.append_journal(
                 kind="github_warning",
@@ -1444,7 +1521,9 @@ class RepoAutopilotStore:
 
     def _comment_on_pr(self, pr_number: int, comment: str) -> None:
         try:
-            self._run_gh(["pr", "comment", str(pr_number), "--body", comment], cwd=self._cwd, check=True)
+            self._run_gh(
+                ["pr", "comment", str(pr_number), "--body", comment], cwd=self._cwd, check=True
+            )
         except Exception as exc:
             self.append_journal(
                 kind="github_warning",
@@ -1495,16 +1574,19 @@ class RepoAutopilotStore:
         )
 
     def _pr_status_snapshot(self, pr_number: int) -> dict[str, Any]:
-        payload = self._gh_json(
-            [
-                "pr",
-                "view",
-                str(pr_number),
-                "--json",
-                "number,url,isDraft,labels,headRefName,baseRefName,mergeStateStatus,reviewDecision,statusCheckRollup",
-            ],
-            cwd=self._cwd,
-        ) or {}
+        payload = (
+            self._gh_json(
+                [
+                    "pr",
+                    "view",
+                    str(pr_number),
+                    "--json",
+                    "number,url,isDraft,labels,headRefName,baseRefName,mergeStateStatus,reviewDecision,statusCheckRollup",
+                ],
+                cwd=self._cwd,
+            )
+            or {}
+        )
         payload["labels"] = [
             _safe_text(label.get("name"))
             for label in payload.get("labels", [])
@@ -1520,7 +1602,9 @@ class RepoAutopilotStore:
         for item in checks:
             if not isinstance(item, dict):
                 continue
-            name = _safe_text(item.get("name") or item.get("context") or item.get("__typename") or "check")
+            name = _safe_text(
+                item.get("name") or item.get("context") or item.get("__typename") or "check"
+            )
             status = _safe_text(item.get("status")).upper()
             conclusion = _safe_text(item.get("conclusion")).upper()
             details_url = _safe_text(item.get("detailsUrl") or item.get("targetUrl"))
@@ -1534,10 +1618,15 @@ class RepoAutopilotStore:
             )
         if not normalized:
             return "pending", "Remote CI checks have not appeared yet.", normalized
-        if any(item["status"] in {"QUEUED", "IN_PROGRESS", "PENDING", "WAITING"} or (not item["conclusion"] and item["status"] != "COMPLETED") for item in normalized):
+        if any(
+            item["status"] in {"QUEUED", "IN_PROGRESS", "PENDING", "WAITING"}
+            or (not item["conclusion"] and item["status"] != "COMPLETED")
+            for item in normalized
+        ):
             return "pending", "Remote CI is still running.", normalized
         failing = [
-            item for item in normalized
+            item
+            for item in normalized
             if item["conclusion"] and item["conclusion"] not in {"SUCCESS", "SKIPPED", "NEUTRAL"}
         ]
         if failing:
@@ -1545,7 +1634,9 @@ class RepoAutopilotStore:
             return "failed", summary, normalized
         return "success", "All reported remote checks passed.", normalized
 
-    async def _wait_for_pr_ci(self, pr_number: int, policies: dict[str, Any]) -> tuple[str, str, dict[str, Any], list[dict[str, Any]]]:
+    async def _wait_for_pr_ci(
+        self, pr_number: int, policies: dict[str, Any]
+    ) -> tuple[str, str, dict[str, Any], list[dict[str, Any]]]:
         github_policy = dict(policies.get("autopilot", {}).get("github", {}))
         timeout_seconds = int(github_policy.get("ci_timeout_seconds", 1800) or 1800)
         poll_interval = int(github_policy.get("ci_poll_interval_seconds", 20) or 20)
@@ -1561,8 +1652,18 @@ class RepoAutopilotStore:
             if checks and checks_seen_at is None:
                 checks_seen_at = now
             if not checks and time.time() >= no_checks_deadline:
-                return "success", "No remote checks were reported after the grace period.", snapshot, checks
-            if state == "success" and checks and checks_seen_at is not None and now < checks_seen_at + max(checks_settle_seconds, 0):
+                return (
+                    "success",
+                    "No remote checks were reported after the grace period.",
+                    snapshot,
+                    checks,
+                )
+            if (
+                state == "success"
+                and checks
+                and checks_seen_at is not None
+                and now < checks_seen_at + max(checks_settle_seconds, 0)
+            ):
                 await asyncio.sleep(max(poll_interval, 5))
                 continue
             if state in {"success", "failed"}:
@@ -1732,7 +1833,15 @@ class RepoAutopilotStore:
             columns.setdefault(card.status, []).append(self._serialize_card(card))
 
         focus = None
-        for status in ("repairing", "waiting_ci", "running", "verifying", "preparing", "accepted", "queued"):
+        for status in (
+            "repairing",
+            "waiting_ci",
+            "running",
+            "verifying",
+            "preparing",
+            "accepted",
+            "queued",
+        ):
             bucket = columns.get(status) or []
             if bucket:
                 focus = bucket[0]
@@ -1792,7 +1901,9 @@ class RepoAutopilotStore:
                 "last_note": _safe_text(card.metadata.get("last_note")),
                 "url": _safe_text(card.metadata.get("url")),
                 "execution_model": _safe_text(card.metadata.get("execution_model")),
-                "assistant_summary_preview": _safe_text(card.metadata.get("assistant_summary_preview")),
+                "assistant_summary_preview": _safe_text(
+                    card.metadata.get("assistant_summary_preview")
+                ),
                 "human_gate_pending": bool(card.metadata.get("human_gate_pending")),
                 "verification_failed": bool(card.metadata.get("verification_failed")),
                 "attempt_count": int(card.metadata.get("attempt_count", 0) or 0),
@@ -2091,7 +2202,9 @@ class RepoAutopilotStore:
                 selected.append(cmd)
         return selected
 
-    def _run_verification_steps(self, policies: dict[str, Any], *, cwd: Path | None = None) -> list[RepoVerificationStep]:
+    def _run_verification_steps(
+        self, policies: dict[str, Any], *, cwd: Path | None = None
+    ) -> list[RepoVerificationStep]:
         steps: list[RepoVerificationStep] = []
         for cmd in self._verification_commands(policies):
             if cmd.error is not None:
@@ -2230,9 +2343,7 @@ class RepoAutopilotStore:
             lines.append(f"- Verification status: {overall}.")
             if verification_steps:
                 for step in verification_steps:
-                    lines.append(
-                        f"- [{step.status}] `{step.command}` (rc={step.returncode})"
-                    )
+                    lines.append(f"- [{step.status}] `{step.command}` (rc={step.returncode})")
             else:
                 lines.append("- No verification commands were applicable.")
 

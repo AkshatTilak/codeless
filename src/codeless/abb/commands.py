@@ -19,7 +19,7 @@ async def _plan_handler(args: str, context: CommandContext) -> CommandResult:
     """Handle /plan: Enter Plan Mode and load planning context."""
     from codeless.config.settings import load_settings, save_settings
     from codeless.permissions import PermissionChecker, PermissionMode
-    
+
     mode_arg = args.strip().lower()
     if mode_arg in {"off", "exit"}:
         get_mode_engine().set_mode(TriMode.AGENT)
@@ -29,7 +29,9 @@ async def _plan_handler(args: str, context: CommandContext) -> CommandResult:
         context.engine.set_permission_checker(PermissionChecker(settings.permission))
         if context.app_state is not None:
             context.app_state.set(permission_mode="AGENT")
-        return CommandResult(message="Plan mode disabled. Operational mode switched to AGENT.", refresh_runtime=True)
+        return CommandResult(
+            message="Plan mode disabled. Operational mode switched to AGENT.", refresh_runtime=True
+        )
 
     # Entering or updating plan mode
     get_mode_engine().set_mode(TriMode.PLAN)
@@ -40,11 +42,10 @@ async def _plan_handler(args: str, context: CommandContext) -> CommandResult:
     if context.app_state is not None:
         context.app_state.set(permission_mode="PLAN")
 
-
     cwd = Path(context.cwd).resolve()
     abb_ws = resolve_abb_workspace(cwd, auto_init=True)
     planning_workflow = abb_ws / "workflows" / "planning" / "planning.md"
-    
+
     if mode_arg in {"on", "enter"} or not mode_arg:
         status_msg = "Plan mode enabled.\n📐 Mode: Plan Mode Active.\n"
         if planning_workflow.exists():
@@ -83,7 +84,11 @@ async def _skills_handler(args: str, context: CommandContext) -> CommandResult:
         source = f" [{skill.source}]"
         path = f" {skill.path}" if skill.path else ""
         command_name = _skill_command_name(skill)
-        slash = f" /{command_name}" if skill.user_invocable and _is_valid_skill_command_name(command_name) else ""
+        slash = (
+            f" /{command_name}"
+            if skill.user_invocable and _is_valid_skill_command_name(command_name)
+            else ""
+        )
         display = f" ({skill.display_name})" if skill.display_name else ""
         lines.append(f"- {command_name}{display}{source}{path}{slash}: {skill.description}")
 
@@ -95,12 +100,12 @@ async def _skills_handler(args: str, context: CommandContext) -> CommandResult:
             rel_path = skill_file.relative_to(skills_dir)
             fm, _ = parse_frontmatter(skill_file.read_text(encoding="utf-8"))
             skill_id = fm.get("id", skill_file.parent.name)
-            if not any(skill_id in l for l in lines):
+            if not any(skill_id in line for line in lines):
                 lines.append(f"  - {skill_id:<32} ({rel_path})")
 
     query = args.strip().lower()
     if query:
-        filtered = [l for l in lines[1:] if query in l.lower()]
+        filtered = [line for line in lines[1:] if query in line.lower()]
         if filtered:
             return CommandResult(message="Matching Skills:\n" + "\n".join(filtered))
         return CommandResult(message=f"No skills found matching '{args}'.")
@@ -209,7 +214,7 @@ async def _goal_handler(args: str, context: CommandContext) -> CommandResult:
 
     content = goal_file.read_text(encoding="utf-8")
     fm, body = parse_frontmatter(content)
-    
+
     # Extract title
     title = "System SRS"
     for line in body.splitlines():
@@ -267,7 +272,11 @@ async def _task_handler(args: str, context: CommandContext) -> CommandResult:
                     if sfm.get("parent") == bid:
                         sid = sfm.get("id", sfile.name)
                         sstatus = sfm.get("status", "pending")
-                        s_badge = " [x]" if sstatus == "done" else (" [/]" if sstatus == "in_progress" else " [ ]")
+                        s_badge = (
+                            " [x]"
+                            if sstatus == "done"
+                            else (" [/]" if sstatus == "in_progress" else " [ ]")
+                        )
                         deps = sfm.get("depends_on", [])
                         dep_str = f" (depends: {', '.join(deps)})" if deps else ""
                         lines.append(f"   {s_badge} {sid}: {sfile.name}{dep_str}")
@@ -308,7 +317,7 @@ async def _drift_handler(args: str, context: CommandContext) -> CommandResult:
 
     if tasks_dir.exists():
         for task_file in sorted(tasks_dir.glob("**/*.md")):
-            if "_templates" in str(task_file):
+            if "_templates" in str(task_file) or task_file.name == "tasks.md":
                 continue
             task_count += 1
             fm, _ = parse_frontmatter(task_file.read_text(encoding="utf-8"))
@@ -318,7 +327,8 @@ async def _drift_handler(args: str, context: CommandContext) -> CommandResult:
 
     if errors:
         return CommandResult(
-            message=f"⚠️ Drift Audit: Found {len(errors)} frontmatter issue(s) across {task_count} task(s):\n" + "\n".join(f"  - {e}" for e in errors)
+            message=f"⚠️ Drift Audit: Found {len(errors)} frontmatter issue(s) across {task_count} task(s):\n"
+            + "\n".join(f"  - {e}" for e in errors)
         )
     return CommandResult(
         message=f"✅ Drift Audit Clean: {task_count} task files validated with 0 schema errors."
@@ -345,7 +355,9 @@ async def _feature_handler(args: str, context: CommandContext) -> CommandResult:
         for rel, fid, status, spec_file in features:
             if query in rel.lower() or query in fid.lower():
                 content = spec_file.read_text(encoding="utf-8")
-                return CommandResult(message=f"Feature: {rel} ({fid}) [{status}]\n\n{content[:1200]}")
+                return CommandResult(
+                    message=f"Feature: {rel} ({fid}) [{status}]\n\n{content[:1200]}"
+                )
         return CommandResult(message=f"No feature found matching '{args}'.")
 
     lines = ["📦 Registered Features:"]
@@ -360,7 +372,19 @@ async def _references_handler(args: str, context: CommandContext) -> CommandResu
     abb_ws = resolve_abb_workspace(cwd, auto_init=True)
     ref_dir = abb_ws / "references"
 
-    domains = ["code", "db", "deployment", "issues", "logic", "logs", "resource", "structure", "tests", "tooling", "user"]
+    domains = [
+        "code",
+        "db",
+        "deployment",
+        "issues",
+        "logic",
+        "logs",
+        "resource",
+        "structure",
+        "tests",
+        "tooling",
+        "user",
+    ]
     lines = ["📚 References Memory Bank (11 Domains):"]
 
     for d in domains:
@@ -389,7 +413,9 @@ async def _mode_handler(args: str, context: CommandContext) -> CommandResult:
         mode_engine.set_mode(target)
 
         settings = load_settings()
-        settings.permission.mode = PermissionMode.DEFAULT if target == "agent" else PermissionMode.PLAN
+        settings.permission.mode = (
+            PermissionMode.DEFAULT if target == "agent" else PermissionMode.PLAN
+        )
         save_settings(settings)
         context.engine.set_permission_checker(PermissionChecker(settings.permission))
 
@@ -411,8 +437,6 @@ async def _mode_handler(args: str, context: CommandContext) -> CommandResult:
             "Usage: `/mode <agent|plan|ask|codebase|governance>`"
         )
     )
-
-
 
 
 async def _stack_handler(args: str, context: CommandContext) -> CommandResult:
@@ -440,20 +464,72 @@ async def _prefs_handler(args: str, context: CommandContext) -> CommandResult:
 def register_abb_slash_commands(registry: CommandRegistry) -> None:
     """Register all 14 ABB slash commands with alias resolution."""
     commands = [
-        SlashCommand("plan", "Enter Plan Mode and load planning context", _plan_handler, aliases=("p",)),
-        SlashCommand("skills", "Search and query built-in and ABB skill catalog", _skills_handler, aliases=("s",)),
-        SlashCommand("init", "Project initialization and stack verification wizard", _init_handler, aliases=("i",)),
-        SlashCommand("route", "Classify prompt against router decision tree", _route_handler, aliases=("r",)),
-        SlashCommand("goal", "Inspect system North Star goal and milestones", _goal_handler, aliases=("g",)),
-        SlashCommand("task", "Inspect ABB task hierarchy, dependencies, and readiness", _task_handler, aliases=("t",)),
-        SlashCommand("verify", "Execute Track 1 and Track 2 verification manifests", _verify_handler, aliases=("v",)),
-        SlashCommand("drift", "Audit task frontmatter schemas and codebase consistency", _drift_handler, aliases=("d",)),
-        SlashCommand("feature", "Inspect and list system feature specifications", _feature_handler, aliases=("f",)),
-        SlashCommand("references", "Query the 11-domain memory bank", _references_handler, aliases=("ref",)),
-        SlashCommand("checkpoint", "Snapshot save and restore safety tracking", _checkpoint_handler, aliases=("cp",)),
-        SlashCommand("mode", "Switch operational mode (plan | agent | ask)", _mode_handler, aliases=("m",)),
-        SlashCommand("stack", "View project stack, tooling, and verification manifest", _stack_handler, aliases=("st",)),
-        SlashCommand("prefs", "View user preferences and conventions", _prefs_handler, aliases=("pr",)),
+        SlashCommand(
+            "plan", "Enter Plan Mode and load planning context", _plan_handler, aliases=("p",)
+        ),
+        SlashCommand(
+            "skills",
+            "Search and query built-in and ABB skill catalog",
+            _skills_handler,
+            aliases=("s",),
+        ),
+        SlashCommand(
+            "init",
+            "Project initialization and stack verification wizard",
+            _init_handler,
+            aliases=("i",),
+        ),
+        SlashCommand(
+            "route", "Classify prompt against router decision tree", _route_handler, aliases=("r",)
+        ),
+        SlashCommand(
+            "goal", "Inspect system North Star goal and milestones", _goal_handler, aliases=("g",)
+        ),
+        SlashCommand(
+            "task",
+            "Inspect ABB task hierarchy, dependencies, and readiness",
+            _task_handler,
+            aliases=("t",),
+        ),
+        SlashCommand(
+            "verify",
+            "Execute Track 1 and Track 2 verification manifests",
+            _verify_handler,
+            aliases=("v",),
+        ),
+        SlashCommand(
+            "drift",
+            "Audit task frontmatter schemas and codebase consistency",
+            _drift_handler,
+            aliases=("d",),
+        ),
+        SlashCommand(
+            "feature",
+            "Inspect and list system feature specifications",
+            _feature_handler,
+            aliases=("f",),
+        ),
+        SlashCommand(
+            "references", "Query the 11-domain memory bank", _references_handler, aliases=("ref",)
+        ),
+        SlashCommand(
+            "checkpoint",
+            "Snapshot save and restore safety tracking",
+            _checkpoint_handler,
+            aliases=("cp",),
+        ),
+        SlashCommand(
+            "mode", "Switch operational mode (plan | agent | ask)", _mode_handler, aliases=("m",)
+        ),
+        SlashCommand(
+            "stack",
+            "View project stack, tooling, and verification manifest",
+            _stack_handler,
+            aliases=("st",),
+        ),
+        SlashCommand(
+            "prefs", "View user preferences and conventions", _prefs_handler, aliases=("pr",)
+        ),
     ]
 
     for cmd in commands:

@@ -15,7 +15,6 @@ from codeless.swarm.mailbox import (
     create_user_message,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -90,6 +89,7 @@ async def test_read_all_unread_only_filters(mailbox):
     inbox = mailbox.get_mailbox_dir()
     for path in inbox.glob("*.json"):
         import json as _json
+
         data = _json.loads(path.read_text())
         data["read"] = True
         path.write_text(_json.dumps(data))

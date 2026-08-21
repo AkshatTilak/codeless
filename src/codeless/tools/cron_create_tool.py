@@ -22,7 +22,9 @@ class CronCreateToolInput(BaseModel):
     )
     command: str | None = Field(default=None, description="Shell command to run when triggered")
     message: str | None = Field(default=None, description="Instruction for an agent_turn cron job")
-    timezone: str | None = Field(default=None, description="IANA timezone for interpreting cron schedule")
+    timezone: str | None = Field(
+        default=None, description="IANA timezone for interpreting cron schedule"
+    )
     cwd: str | None = Field(default=None, description="Optional working directory override")
     enabled: bool = Field(default=True, description="Whether the job is active")
     payload: dict[str, Any] | None = Field(
@@ -76,10 +78,14 @@ class CronCreateTool(BaseTool):
             payload.setdefault("deliver", True)
             if str(arguments.notify.get("type") or "").strip().lower() == "feishu_dm":
                 payload.setdefault("channel", "feishu")
-                payload.setdefault("to", arguments.notify.get("user_open_id") or arguments.notify.get("open_id"))
+                payload.setdefault(
+                    "to", arguments.notify.get("user_open_id") or arguments.notify.get("open_id")
+                )
 
         if payload and not payload.get("message") and not arguments.command:
-            return ToolResult(output="Cron job requires payload.message, message, or command.", is_error=True)
+            return ToolResult(
+                output="Cron job requires payload.message, message, or command.", is_error=True
+            )
         if not payload and not arguments.command:
             return ToolResult(output="Cron job requires command or message.", is_error=True)
 

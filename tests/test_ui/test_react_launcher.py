@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import pytest
 from types import SimpleNamespace
 
-from codeless.ui.app import run_print_mode, run_repl, run_task_worker
-from codeless.engine.stream_events import AssistantTurnComplete
+import pytest
+
 from codeless.engine.messages import ConversationMessage, TextBlock
+from codeless.engine.stream_events import AssistantTurnComplete
+from codeless.ui.app import run_print_mode, run_repl, run_task_worker
 from codeless.ui.react_launcher import build_backend_command
 
 
@@ -90,9 +91,11 @@ async def test_run_task_worker_reads_one_shot_json_line(monkeypatch):
 
     class _FakeStdin:
         def __init__(self):
-            self._lines = iter([
-                '{"text":"follow up from coordinator","from":"coordinator"}\n',
-            ])
+            self._lines = iter(
+                [
+                    '{"text":"follow up from coordinator","from":"coordinator"}\n',
+                ]
+            )
 
         def readline(self):
             return next(self._lines, "")
@@ -111,7 +114,9 @@ async def test_run_task_worker_reads_one_shot_json_line(monkeypatch):
             mcp_summary=lambda: "",
             app_state=SimpleNamespace(set=lambda **_kwargs: None),
             mcp_manager=SimpleNamespace(close=lambda: None, list_statuses=lambda: []),
-            hook_executor=SimpleNamespace(execute=lambda *_args, **_kwargs: None, update_registry=lambda *_a, **_k: None),
+            hook_executor=SimpleNamespace(
+                execute=lambda *_args, **_kwargs: None, update_registry=lambda *_a, **_k: None
+            ),
             commands=SimpleNamespace(lookup=lambda _line: None),
             session_backend=SimpleNamespace(save_snapshot=lambda **_kwargs: None),
             enforce_max_turns=False,
@@ -146,9 +151,11 @@ async def test_run_task_worker_decodes_multiline_json_payload(monkeypatch):
 
     class _FakeStdin:
         def __init__(self):
-            self._lines = iter([
-                '{"text":"line 1\\nline 2\\nline 3","from":"coordinator"}\n',
-            ])
+            self._lines = iter(
+                [
+                    '{"text":"line 1\\nline 2\\nline 3","from":"coordinator"}\n',
+                ]
+            )
 
         def readline(self):
             return next(self._lines, "")
@@ -167,7 +174,9 @@ async def test_run_task_worker_decodes_multiline_json_payload(monkeypatch):
             mcp_summary=lambda: "",
             app_state=SimpleNamespace(set=lambda **_kwargs: None),
             mcp_manager=SimpleNamespace(close=lambda: None, list_statuses=lambda: []),
-            hook_executor=SimpleNamespace(execute=lambda *_args, **_kwargs: None, update_registry=lambda *_a, **_k: None),
+            hook_executor=SimpleNamespace(
+                execute=lambda *_args, **_kwargs: None, update_registry=lambda *_a, **_k: None
+            ),
             commands=SimpleNamespace(lookup=lambda _line: None),
             session_backend=SimpleNamespace(save_snapshot=lambda **_kwargs: None),
             enforce_max_turns=False,
@@ -229,7 +238,9 @@ async def test_run_print_mode_waits_for_coordinator_async_agents(monkeypatch):
         async def submit_message(self, message):
             self.messages.append(ConversationMessage.from_user_text(message))
             yield AssistantTurnComplete(
-                message=ConversationMessage(role="assistant", content=[TextBlock(text="final synthesis")]),
+                message=ConversationMessage(
+                    role="assistant", content=[TextBlock(text="final synthesis")]
+                ),
                 usage=None,
             )
 
@@ -250,9 +261,13 @@ async def test_run_print_mode_waits_for_coordinator_async_agents(monkeypatch):
             mcp_summary=lambda: "",
             app_state=SimpleNamespace(set=lambda **_kwargs: None),
             mcp_manager=SimpleNamespace(close=lambda: None, list_statuses=lambda: []),
-            hook_executor=SimpleNamespace(execute=lambda *_args, **_kwargs: None, update_registry=lambda *_a, **_k: None),
+            hook_executor=SimpleNamespace(
+                execute=lambda *_args, **_kwargs: None, update_registry=lambda *_a, **_k: None
+            ),
             commands=SimpleNamespace(lookup=lambda _line: None),
-            session_backend=SimpleNamespace(save_snapshot=lambda **kwargs: saved_snapshots.append(kwargs)),
+            session_backend=SimpleNamespace(
+                save_snapshot=lambda **kwargs: saved_snapshots.append(kwargs)
+            ),
             enforce_max_turns=True,
             session_id="s1",
         )

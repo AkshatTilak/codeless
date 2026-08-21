@@ -47,4 +47,3 @@ async def test_plan_command_refreshes_engine_system_prompt(tmp_path: Path, monke
         assert "tasks/" in bundle.engine.system_prompt
     finally:
         await close_runtime(bundle)
-

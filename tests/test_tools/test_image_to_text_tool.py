@@ -11,10 +11,10 @@ from codeless.config.settings import VisionModelConfig
 from codeless.tools.base import ToolExecutionContext
 from codeless.tools.image_to_text_tool import ImageToTextTool, ImageToTextToolInput
 
-
 # ---------------------------------------------------------------------------
 # is_model_multimodal tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     ("model", "expected"),
@@ -76,6 +76,7 @@ def test_is_model_multimodal(model: str, expected: bool) -> None:
 # ImageToTextTool input validation tests
 # ---------------------------------------------------------------------------
 
+
 class TestImageToTextToolInput:
     """Validate the tool's input model."""
 
@@ -126,6 +127,7 @@ class TestImageToTextToolInput:
 # ImageToTextTool execution tests (no real API calls)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_execute_no_input(tmp_path: Path) -> None:
     """Tool returns error when neither image_data nor image_path is provided."""
@@ -174,17 +176,78 @@ async def test_execute_with_image_path(tmp_path: Path) -> None:
     # Create a minimal valid PNG file
     png_path = tmp_path / "test_image.png"
     # Minimal valid PNG (1x1 pixel, white)
-    minimal_png = bytes([
-        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,  # PNG signature
-        0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,  # IHDR chunk
-        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-        0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
-        0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,  # IDAT chunk
-        0x54, 0x08, 0xD7, 0x63, 0x60, 0x60, 0x00, 0x00,
-        0x00, 0x04, 0x00, 0x01, 0x27, 0x34, 0x27, 0x0A,
-        0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44,  # IEND chunk
-        0xAE, 0x42, 0x60, 0x82,
-    ])
+    minimal_png = bytes(
+        [
+            0x89,
+            0x50,
+            0x4E,
+            0x47,
+            0x0D,
+            0x0A,
+            0x1A,
+            0x0A,  # PNG signature
+            0x00,
+            0x00,
+            0x00,
+            0x0D,
+            0x49,
+            0x48,
+            0x44,
+            0x52,  # IHDR chunk
+            0x00,
+            0x00,
+            0x00,
+            0x01,
+            0x00,
+            0x00,
+            0x00,
+            0x01,
+            0x08,
+            0x02,
+            0x00,
+            0x00,
+            0x00,
+            0x90,
+            0x77,
+            0x53,
+            0xDE,
+            0x00,
+            0x00,
+            0x00,
+            0x0C,
+            0x49,
+            0x44,
+            0x41,  # IDAT chunk
+            0x54,
+            0x08,
+            0xD7,
+            0x63,
+            0x60,
+            0x60,
+            0x00,
+            0x00,
+            0x00,
+            0x04,
+            0x00,
+            0x01,
+            0x27,
+            0x34,
+            0x27,
+            0x0A,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x49,
+            0x45,
+            0x4E,
+            0x44,  # IEND chunk
+            0xAE,
+            0x42,
+            0x60,
+            0x82,
+        ]
+    )
     png_path.write_bytes(minimal_png)
 
     tool = ImageToTextTool()
@@ -217,6 +280,7 @@ async def test_is_read_only() -> None:
 # ---------------------------------------------------------------------------
 # VisionModelConfig tests
 # ---------------------------------------------------------------------------
+
 
 class TestVisionModelConfig:
     """Validate the VisionModelConfig model."""
@@ -264,6 +328,7 @@ class TestVisionModelConfig:
 # ---------------------------------------------------------------------------
 # Tool registry integration test
 # ---------------------------------------------------------------------------
+
 
 def test_tool_registered() -> None:
     """image_to_text tool is registered in the default registry."""

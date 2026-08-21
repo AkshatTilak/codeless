@@ -51,7 +51,12 @@ class CronListTool(BaseTool):
             notify_line = ""
             if isinstance(notify, dict):
                 notify_type = notify.get("type", "?")
-                target = notify.get("user_open_id") or notify.get("open_id") or notify.get("chat_id") or "?"
+                target = (
+                    notify.get("user_open_id")
+                    or notify.get("open_id")
+                    or notify.get("chat_id")
+                    or "?"
+                )
                 notify_line = f"\n     notify: {notify_type} -> {target}"
             timezone = f" ({job['timezone']})" if job.get("timezone") else ""
             payload = job.get("payload")

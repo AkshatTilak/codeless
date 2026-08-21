@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import pytest
 
 from codeless.abb.hooks.bridge import pre_tool_use_abb_guard
 from codeless.abb.permissions import TriMode, get_mode_engine
-from codeless.tools.bash_tool import BashTool, BashToolInput
 from codeless.tools.base import ToolExecutionContext
+from codeless.tools.bash_tool import BashTool, BashToolInput
 
 
 @pytest.mark.asyncio

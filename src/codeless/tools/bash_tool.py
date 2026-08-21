@@ -12,7 +12,6 @@ from codeless.sandbox import SandboxUnavailableError
 from codeless.tools.base import BaseTool, ToolExecutionContext, ToolResult
 from codeless.utils.shell import create_shell_subprocess
 
-
 _READ_REMAINING_OUTPUT_TIMEOUT_SECONDS = 2.0
 
 

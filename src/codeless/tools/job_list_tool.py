@@ -25,11 +25,15 @@ class JobListTool(BaseTool):
         del arguments
         return True
 
-    async def execute(self, arguments: JobListToolInput, context: ToolExecutionContext) -> ToolResult:
+    async def execute(
+        self, arguments: JobListToolInput, context: ToolExecutionContext
+    ) -> ToolResult:
         del context
         tasks = get_task_manager().list_tasks(status=arguments.status)  # type: ignore[arg-type]
         if not tasks:
             return ToolResult(output="(no tasks)")
         return ToolResult(
-            output="\n".join(f"{task.id} {task.type} {task.status} {task.description}" for task in tasks)
+            output="\n".join(
+                f"{task.id} {task.type} {task.status} {task.description}" for task in tasks
+            )
         )

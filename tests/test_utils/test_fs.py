@@ -13,7 +13,6 @@ import pytest
 
 from codeless.utils.fs import atomic_write_bytes, atomic_write_text
 
-
 # ---------------------------------------------------------------------------
 # Core behaviour
 # ---------------------------------------------------------------------------
@@ -161,7 +160,9 @@ def test_concurrent_writers_all_survive(tmp_path: Path) -> None:
 
     ctx = mp.get_context("fork")
     writers = [
-        ctx.Process(target=_concurrent_writer, args=(str(target), str(lock), f"key_{i}", f"value_{i}"))
+        ctx.Process(
+            target=_concurrent_writer, args=(str(target), str(lock), f"key_{i}", f"value_{i}")
+        )
         for i in range(8)
     ]
     for w in writers:

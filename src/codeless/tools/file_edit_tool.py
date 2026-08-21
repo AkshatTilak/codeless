@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from codeless.abb.virtualization import resolve_virtual_path
 from codeless.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
@@ -79,9 +80,6 @@ class FileEditTool(BaseTool):
         result = ToolResult(output=f"Updated {path}")
         post_tool_use_abb_handler("edit_file", arguments.model_dump(), result, context.cwd)
         return result
-
-
-from codeless.abb.virtualization import resolve_virtual_path
 
 
 def _resolve_path(base: Path, candidate: str) -> Path:

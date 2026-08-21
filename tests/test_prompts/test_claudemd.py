@@ -9,11 +9,15 @@ from codeless.config.paths import (
     get_project_issue_file,
     get_project_pr_comments_file,
 )
+from codeless.config.settings import Settings
 from codeless.engine.messages import ConversationMessage, TextBlock
 from codeless.personalization import rules as personalization_rules
 from codeless.personalization.session_hook import update_rules_from_session
-from codeless.prompts import build_runtime_system_prompt, discover_claude_md_files, load_claude_md_prompt
-from codeless.config.settings import Settings
+from codeless.prompts import (
+    build_runtime_system_prompt,
+    discover_claude_md_files,
+    load_claude_md_prompt,
+)
 
 
 def test_discover_claude_md_files(tmp_path: Path):
@@ -72,7 +76,9 @@ def test_build_runtime_system_prompt_includes_plan_mode_guidance(tmp_path: Path,
     assert "Active Mode & Tool Policy" in prompt or "Active Mode" in prompt
 
 
-def test_build_runtime_system_prompt_includes_project_context_and_fast_mode(tmp_path: Path, monkeypatch):
+def test_build_runtime_system_prompt_includes_project_context_and_fast_mode(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -82,7 +88,9 @@ def test_build_runtime_system_prompt_includes_project_context_and_fast_mode(tmp_
         encoding="utf-8",
     )
 
-    prompt = build_runtime_system_prompt(Settings(fast_mode=True), cwd=repo, latest_user_prompt="fix it")
+    prompt = build_runtime_system_prompt(
+        Settings(fast_mode=True), cwd=repo, latest_user_prompt="fix it"
+    )
 
     assert "Fast mode is enabled" in prompt
     assert "Issue Context" in prompt
@@ -106,7 +114,9 @@ def test_build_runtime_system_prompt_includes_active_repo_context(tmp_path: Path
     assert "fix issue #98" in prompt
 
 
-def test_build_runtime_system_prompt_uses_coordinator_prompt_when_enabled(tmp_path: Path, monkeypatch):
+def test_build_runtime_system_prompt_uses_coordinator_prompt_when_enabled(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("CLAUDE_CODE_COORDINATOR_MODE", "1")
     repo = tmp_path / "repo"
@@ -119,8 +129,9 @@ def test_build_runtime_system_prompt_uses_coordinator_prompt_when_enabled(tmp_pa
     assert "Workers spawned via the agent tool have access to these tools" not in prompt
 
 
-
-def test_build_runtime_system_prompt_skips_coordinator_context_when_disabled(tmp_path: Path, monkeypatch):
+def test_build_runtime_system_prompt_skips_coordinator_context_when_disabled(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.delenv("CLAUDE_CODE_COORDINATOR_MODE", raising=False)
     repo = tmp_path / "repo"
@@ -136,7 +147,9 @@ def test_build_runtime_system_prompt_skips_coordinator_context_when_disabled(tmp
     assert "Environment" in prompt
 
 
-def test_build_runtime_system_prompt_does_not_reinject_exported_secret_values(tmp_path: Path, monkeypatch):
+def test_build_runtime_system_prompt_does_not_reinject_exported_secret_values(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.delenv("CLAUDE_CODE_COORDINATOR_MODE", raising=False)
     repo = tmp_path / "repo"

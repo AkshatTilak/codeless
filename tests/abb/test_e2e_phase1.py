@@ -11,29 +11,21 @@ Validates all 6 core Phase 1 requirements:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
+
 import pytest
 
 from codeless.abb.commands import (
-    _goal_handler,
     _init_handler,
-    _mode_handler,
-    _plan_handler,
-    _task_handler,
-    _verify_handler,
 )
 from codeless.abb.dry_run import audit_abb_readiness
-from codeless.abb.hooks.dag_guard import check_dag_dependencies, index_tasks
+from codeless.abb.hooks.dag_guard import check_dag_dependencies
 from codeless.abb.hooks.rollup import rollup_task_completion
 from codeless.abb.permissions import TriMode, get_mode_engine
 from codeless.abb.shadow import (
-    bootstrap_shadow_workspace,
     resolve_abb_workspace,
 )
 from codeless.abb.verification import (
-    execute_verification_manifest_sync,
-    parse_verification_manifest,
     verify_subtask_gate,
 )
 from codeless.abb.virtualization import resolve_virtual_path
@@ -61,6 +53,7 @@ async def test_e2e_step1_shadow_workspace_auto_init(tmp_path: Path):
 async def test_e2e_step2_init_command_creates_governance(tmp_path: Path):
     """Step 2: /init initializes project memory, CLAUDE.md, and ABB structure."""
     from unittest.mock import MagicMock
+
     ctx = CommandContext(engine=MagicMock(), cwd=str(tmp_path))
     res = await _init_handler(args="", context=ctx)
     assert "Initialized project" in res.message or "Project already initialized" in res.message
@@ -111,7 +104,7 @@ def test_e2e_step4_two_track_verification_gate(tmp_path: Path):
 
     # 1. Failing manifest
     (ws / "STACK.md").write_text(
-        "---\nverification:\n  track_1:\n    - python -c \"import sys; sys.exit(1)\"\n---\n# STACK\n",
+        '---\nverification:\n  track_1:\n    - python -c "import sys; sys.exit(1)"\n---\n# STACK\n',
         encoding="utf-8",
     )
     subtask_path = ws / "sub_001.md"
@@ -126,7 +119,7 @@ def test_e2e_step4_two_track_verification_gate(tmp_path: Path):
 
     # 2. Passing manifest
     (ws / "STACK.md").write_text(
-        "---\nverification:\n  track_1:\n    - python -c \"import sys; sys.exit(0)\"\n---\n# STACK\n",
+        '---\nverification:\n  track_1:\n    - python -c "import sys; sys.exit(0)"\n---\n# STACK\n',
         encoding="utf-8",
     )
     allowed_green, reason_green, report_green = verify_subtask_gate("sub_001", tmp_path, ws)

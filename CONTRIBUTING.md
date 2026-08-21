@@ -1,6 +1,6 @@
-# Contributing to OpenHarness
+# Contributing to Codeless
 
-OpenHarness is an open-source agent harness focused on clarity, hackability, and compatibility with Claude-style workflows.
+Codeless is an open-source autonomous agent execution harness engineered for the Agent Buildable Base (ABB) governance paradigm.
 
 ## Ways to contribute
 
@@ -13,17 +13,10 @@ OpenHarness is an open-source agent harness focused on clarity, hackability, and
 ## Development setup
 
 ```bash
-git clone https://github.com/HKUDS/OpenHarness.git
-cd OpenHarness
+git clone https://github.com/AkshatTilak/codeless.git
+cd codeless
 uv sync --extra dev
-```
-
-If you want to work on the React terminal UI as well:
-
-```bash
-cd frontend/terminal
-npm ci
-cd ../..
+cd frontend/terminal && npm install && cd ../..
 ```
 
 ## Local checks
@@ -32,6 +25,7 @@ Run the same core checks that CI runs before opening a PR:
 
 ```bash
 uv run ruff check src tests scripts
+uv run ruff format --check src tests scripts
 uv run pytest -q
 ```
 
@@ -49,7 +43,7 @@ npx tsc --noEmit
 - Add or update tests when behavior changes.
 - Update docs when CLI flags, workflows, or compatibility claims change.
 - Add a short entry under `Unreleased` in [`CHANGELOG.md`](CHANGELOG.md) for user-visible changes.
-- If you are improving type coverage, feel free to run `uv run mypy src/openharness`, but it is not yet a required green check for the whole repo.
+- If you are improving type coverage, feel free to run `uv run mypy src`, but it is not yet a required green check for the whole repo.
 
 ## Documentation and community contributions
 

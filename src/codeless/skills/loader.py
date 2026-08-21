@@ -36,7 +36,10 @@ def get_user_skills_dir() -> Path:
 
 def get_user_skill_dirs() -> list[Path]:
     """Return user-level skill directories loaded by default."""
-    return [get_user_skills_dir(), *(Path.home().joinpath(*parts) for parts in _USER_COMPAT_SKILL_DIRS)]
+    return [
+        get_user_skills_dir(),
+        *(Path.home().joinpath(*parts) for parts in _USER_COMPAT_SKILL_DIRS),
+    ]
 
 
 def load_skill_registry(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+
 from codeless.hooks.events import HookEvent
 from codeless.hooks.schemas import HookDefinition
 
@@ -36,7 +37,12 @@ class HookRegistry:
             lines.append(f"{event.value}:")
             for hook in hooks:
                 matcher = getattr(hook, "matcher", None)
-                detail = getattr(hook, "command", None) or getattr(hook, "prompt", None) or getattr(hook, "url", None) or ""
+                detail = (
+                    getattr(hook, "command", None)
+                    or getattr(hook, "prompt", None)
+                    or getattr(hook, "url", None)
+                    or ""
+                )
                 suffix = f" matcher={matcher}" if matcher else ""
                 priority = getattr(hook, "priority", 0)
                 if priority:

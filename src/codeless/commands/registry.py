@@ -8,15 +8,19 @@ import os
 import re
 import shutil
 import subprocess
-from datetime import datetime, timezone
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Awaitable, Callable, Literal, get_args, Iterable
+from typing import TYPE_CHECKING, Awaitable, Callable, Iterable, Literal, get_args
 
 import pyperclip
 
-from codeless.autopilot import RepoAutopilotStore
+from codeless.api.provider import auth_status, detect_provider
 from codeless.auth.manager import AuthManager
+from codeless.autopilot import RepoAutopilotStore
+from codeless.bridge import get_bridge_manager
+from codeless.bridge.types import WorkSecret
+from codeless.bridge.work_secret import build_sdk_url, decode_work_secret, encode_work_secret
 from codeless.config.paths import (
     get_config_dir,
     get_data_dir,
@@ -25,13 +29,10 @@ from codeless.config.paths import (
     get_project_issue_file,
     get_project_pr_comments_file,
 )
-from codeless.bridge import get_bridge_manager
-from codeless.bridge.types import WorkSecret
-from codeless.bridge.work_secret import build_sdk_url, decode_work_secret, encode_work_secret
-from codeless.api.provider import auth_status, detect_provider
 from codeless.config.settings import Settings, display_model_setting, load_settings, save_settings
 from codeless.engine.messages import ConversationMessage, sanitize_conversation_messages
 from codeless.engine.query_engine import QueryEngine
+from codeless.jobs import get_task_manager
 from codeless.memory import (
     add_memory_entry,
     get_memory_entrypoint,
@@ -64,8 +65,9 @@ from codeless.memory.team import (
 from codeless.output_styles import load_output_styles
 from codeless.permissions import PermissionChecker, PermissionMode
 from codeless.plugins import load_plugins
-from codeless.prompts import build_runtime_system_prompt
 from codeless.plugins.installer import install_plugin_from_path, uninstall_plugin
+from codeless.plugins.types import PluginCommandDefinition
+from codeless.prompts import build_runtime_system_prompt
 from codeless.services import (
     build_post_compact_messages,
     compact_conversation,
@@ -82,16 +84,14 @@ from codeless.services.autodream import (
     start_dream_now,
 )
 from codeless.services.memory_extract import extract_memories_from_turn
+from codeless.services.session_backend import DEFAULT_SESSION_BACKEND, SessionBackend
 from codeless.services.session_memory import (
     get_session_memory_content,
     get_session_memory_path,
     update_session_memory_file,
 )
-from codeless.services.session_backend import DEFAULT_SESSION_BACKEND, SessionBackend
 from codeless.skills import load_skill_registry
 from codeless.skills.types import SkillDefinition
-from codeless.jobs import get_task_manager
-from codeless.plugins.types import PluginCommandDefinition
 
 if TYPE_CHECKING:
     from codeless.config.settings import ProviderProfile
@@ -225,7 +225,12 @@ def _copy_to_clipboard(text: str) -> tuple[bool, str]:
         pyperclip.copy(text)
         return True, "clipboard"
     except Exception:
-        for command in (["pbcopy"], ["wl-copy"], ["xclip", "-selection", "clipboard"], ["xsel", "--clipboard"]):
+        for command in (
+            ["pbcopy"],
+            ["wl-copy"],
+            ["xclip", "-selection", "clipboard"],
+            ["xsel", "--clipboard"],
+        ):
             try:
                 subprocess.run(command, input=text, text=True, check=True, capture_output=True)
                 return True, "clipboard"
@@ -262,7 +267,6 @@ def _rewind_turns(messages: list[ConversationMessage], turns: int) -> list[Conve
     return updated
 
 
-
 _SECRET_KEY_PARTS = (
     "api_key",
     "apikey",
@@ -289,7 +293,10 @@ def _redact_config_value(value: object, *, key: object | None = None) -> object:
     if key is not None and _is_secret_key(key):
         return _REDACTED
     if isinstance(value, dict):
-        return {item_key: _redact_config_value(item_value, key=item_key) for item_key, item_value in value.items()}
+        return {
+            item_key: _redact_config_value(item_value, key=item_key)
+            for item_key, item_value in value.items()
+        }
     if isinstance(value, list):
         return [_redact_config_value(item) for item in value]
     if isinstance(value, tuple):
@@ -327,7 +334,9 @@ def _coerce_setting_value(settings: Settings, key: str, raw: str):
     return raw
 
 
-def _render_plugin_command_prompt(command: PluginCommandDefinition, args: str, session_id: str | None = None) -> str:
+def _render_plugin_command_prompt(
+    command: PluginCommandDefinition, args: str, session_id: str | None = None
+) -> str:
     prompt = command.content
     raw_args = args.strip()
     if command.is_skill and command.base_dir:
@@ -341,7 +350,9 @@ def _render_plugin_command_prompt(command: PluginCommandDefinition, args: str, s
     return prompt
 
 
-def _render_skill_command_prompt(skill: SkillDefinition, args: str, session_id: str | None = None) -> str:
+def _render_skill_command_prompt(
+    skill: SkillDefinition, args: str, session_id: str | None = None
+) -> str:
     prompt = skill.content
     raw_args = args.strip()
     if skill.base_dir:
@@ -363,7 +374,9 @@ def _is_valid_skill_command_name(name: str) -> bool:
     return bool(name) and not any(char.isspace() for char in name)
 
 
-async def _skill_command_handler(args: str, context: CommandContext, *, skill_name: str) -> CommandResult:
+async def _skill_command_handler(
+    args: str, context: CommandContext, *, skill_name: str
+) -> CommandResult:
     skill_registry = load_skill_registry(
         context.cwd,
         extra_skill_dirs=context.extra_skill_dirs,
@@ -395,7 +408,9 @@ def _make_skill_slash_command(skill_name: str, description: str) -> SlashCommand
     )
 
 
-def lookup_skill_slash_command(raw_input: str, context: CommandContext) -> tuple[SlashCommand, str] | None:
+def lookup_skill_slash_command(
+    raw_input: str, context: CommandContext
+) -> tuple[SlashCommand, str] | None:
     """Resolve a user-invocable skill slash command for the active context.
 
     This is a runtime fallback for skills that are only visible after the
@@ -477,9 +492,14 @@ def create_default_command_registry(
     async def _version_handler(_: str, context: CommandContext) -> CommandResult:
         del context
         try:
-            version = importlib.metadata.version("codeless")
+            version = importlib.metadata.version("codeless-ai")
         except importlib.metadata.PackageNotFoundError:
-            version = "0.1.7"
+            try:
+                version = importlib.metadata.version("codeless")
+            except importlib.metadata.PackageNotFoundError:
+                from codeless import __version__
+
+                version = __version__
         return CommandResult(message=f"Codeless {version}")
 
     async def _context_handler(_: str, context: CommandContext) -> CommandResult:
@@ -539,7 +559,11 @@ def create_default_command_registry(
 
     async def _cost_handler(_: str, context: CommandContext) -> CommandResult:
         usage = context.engine.total_usage
-        model = context.app_state.get().model if context.app_state is not None else load_settings().model
+        model = (
+            context.app_state.get().model
+            if context.app_state is not None
+            else load_settings().model
+        )
         estimated_cost = "unavailable"
         if model.startswith("claude-3-5-sonnet"):
             estimated = (usage.input_tokens * 3.0 + usage.output_tokens * 15.0) / 1_000_000
@@ -565,7 +589,9 @@ def create_default_command_registry(
         memory_backend = _memory_backend_for_context(context)
         memory_count = len(memory_backend.list_files())
         task_count = len(get_task_manager().list_tasks())
-        tool_count = len(context.tool_registry.list_tools()) if context.tool_registry is not None else 0
+        tool_count = (
+            len(context.tool_registry.list_tools()) if context.tool_registry is not None else 0
+        )
         style = settings.output_style
         if context.app_state is not None:
             state = context.app_state.get()
@@ -583,17 +609,26 @@ def create_default_command_registry(
         )
 
     async def _dream_handler(args: str, context: CommandContext) -> CommandResult:
-        settings = getattr(context.engine, "_settings", None) or load_settings().materialize_active_profile()
+        settings = (
+            getattr(context.engine, "_settings", None)
+            or load_settings().materialize_active_profile()
+        )
         parts = args.split()
         action = parts[0] if parts else "run"
         backend = context.memory_backend if context.memory_backend is not None else None
-        memory_dir = backend.get_memory_dir() if backend is not None else get_project_memory_dir(context.cwd)
+        memory_dir = (
+            backend.get_memory_dir() if backend is not None else get_project_memory_dir(context.cwd)
+        )
         session_dir = context.session_backend.get_session_dir(context.cwd)
         app_label = backend.label if backend is not None else "codeless project memory"
         runner_module = "codeless"
         if action == "status":
             last_at = read_last_consolidated_at(context.cwd, memory_dir=memory_dir)
-            last = "never" if last_at <= 0 else datetime.fromtimestamp(last_at).isoformat(timespec="seconds")
+            last = (
+                "never"
+                if last_at <= 0
+                else datetime.fromtimestamp(last_at).isoformat(timespec="seconds")
+            )
             return CommandResult(
                 message=(
                     f"Auto-dream: {'on' if settings.memory.auto_dream_enabled else 'off'}\n"
@@ -647,9 +682,13 @@ def create_default_command_registry(
             if not backup_dir:
                 return CommandResult(message=f"No dream backup found for {target}.")
             restore_memory_backup(backup_dir, task_memory_dir)
-            return CommandResult(message=f"Rolled back memory from backup for {label}: {backup_dir}")
+            return CommandResult(
+                message=f"Rolled back memory from backup for {label}: {backup_dir}"
+            )
         if action not in {"run", "now", "preview"}:
-            return CommandResult(message="Usage: /dream [run|now|preview|status|diff [task_id]|rollback [task_id]]")
+            return CommandResult(
+                message="Usage: /dream [run|now|preview|status|diff [task_id]|rollback [task_id]]"
+            )
         task = await start_dream_now(
             cwd=context.cwd,
             settings=settings,
@@ -663,7 +702,9 @@ def create_default_command_registry(
             preview=action == "preview",
         )
         if task is None:
-            return CommandResult(message="Dream did not start. Memory may be disabled or another dream is running.")
+            return CommandResult(
+                message="Dream did not start. Memory may be disabled or another dream is running."
+            )
         return CommandResult(
             message=(
                 f"Started {'preview ' if action == 'preview' else ''}memory consolidation task {task.id}.\n"
@@ -729,7 +770,9 @@ def create_default_command_registry(
             memory_dir = backend.get_memory_dir()
             path, invalid = _resolve_memory_entry_path(memory_dir, rest)
             if invalid:
-                return CommandResult(message="Memory entry path must stay within the configured memory directory.")
+                return CommandResult(
+                    message="Memory entry path must stay within the configured memory directory."
+                )
             if path is None:
                 return CommandResult(message=f"Memory entry not found: {rest}")
             if not path.exists():
@@ -743,7 +786,9 @@ def create_default_command_registry(
             memory_type, scope, cleaned_rest = _parse_memory_add_flags(rest)
             title, separator, content = cleaned_rest.partition("::")
             if not separator or not title.strip() or not content.strip():
-                return CommandResult(message="Usage: /memory add [--type TYPE] [--scope SCOPE] TITLE :: CONTENT")
+                return CommandResult(
+                    message="Usage: /memory add [--type TYPE] [--scope SCOPE] TITLE :: CONTENT"
+                )
             if context.memory_backend is None:
                 path = add_memory_entry(
                     context.cwd,
@@ -765,7 +810,9 @@ def create_default_command_registry(
             return _handle_memory_validate_command(context)
         if action == "extract":
             if context.memory_backend is not None:
-                return CommandResult(message="Memory extraction is only supported for Codeless project memory.")
+                return CommandResult(
+                    message="Memory extraction is only supported for Codeless project memory."
+                )
             result = await extract_memories_from_turn(
                 cwd=context.cwd,
                 api_client=context.engine.api_client,
@@ -776,7 +823,8 @@ def create_default_command_registry(
             if result.skipped:
                 return CommandResult(message=f"Memory extraction skipped: {result.reason}")
             return CommandResult(
-                message="Memory extraction wrote:\n" + "\n".join(f"- {path}" for path in result.written_paths)
+                message="Memory extraction wrote:\n"
+                + "\n".join(f"- {path}" for path in result.written_paths)
             )
         if action == "session":
             return _handle_memory_session_command(rest, context)
@@ -834,6 +882,7 @@ def create_default_command_registry(
 
         # Format session list for display / picker
         import time
+
         lines = ["Saved sessions:"]
         for s in sessions:
             ts = time.strftime("%m/%d %H:%M", time.localtime(s["created_at"]))
@@ -844,11 +893,15 @@ def create_default_command_registry(
         return CommandResult(message="\n".join(lines))
 
     async def _export_handler(_: str, context: CommandContext) -> CommandResult:
-        path = context.session_backend.export_markdown(cwd=context.cwd, messages=context.engine.messages)
+        path = context.session_backend.export_markdown(
+            cwd=context.cwd, messages=context.engine.messages
+        )
         return CommandResult(message=f"Exported transcript to {path}")
 
     async def _share_handler(_: str, context: CommandContext) -> CommandResult:
-        path = context.session_backend.export_markdown(cwd=context.cwd, messages=context.engine.messages)
+        path = context.session_backend.export_markdown(
+            cwd=context.cwd, messages=context.engine.messages
+        )
         return CommandResult(message=f"Created shareable transcript snapshot at {path}")
 
     async def _copy_handler(args: str, context: CommandContext) -> CommandResult:
@@ -880,12 +933,18 @@ def create_default_command_registry(
         if tokens[0] == "path":
             return CommandResult(message=str(session_dir))
         if tokens[0] == "tag" and len(tokens) == 2:
-            safe_name = "".join(character for character in tokens[1] if character.isalnum() or character in {"-", "_"})
+            safe_name = "".join(
+                character
+                for character in tokens[1]
+                if character.isalnum() or character in {"-", "_"}
+            )
             if not safe_name:
                 return CommandResult(message="Usage: /session tag NAME")
             snapshot_path = context.session_backend.save_snapshot(
                 cwd=context.cwd,
-                model=context.app_state.get().model if context.app_state is not None else load_settings().model,
+                model=context.app_state.get().model
+                if context.app_state is not None
+                else load_settings().model,
                 system_prompt=build_runtime_system_prompt(
                     load_settings(),
                     cwd=context.cwd,
@@ -894,12 +953,16 @@ def create_default_command_registry(
                 messages=context.engine.messages,
                 usage=context.engine.total_usage,
             )
-            export_path = context.session_backend.export_markdown(cwd=context.cwd, messages=context.engine.messages)
+            export_path = context.session_backend.export_markdown(
+                cwd=context.cwd, messages=context.engine.messages
+            )
             tagged_json = session_dir / f"{safe_name}.json"
             tagged_md = session_dir / f"{safe_name}.md"
             shutil.copy2(snapshot_path, tagged_json)
             shutil.copy2(export_path, tagged_md)
-            return CommandResult(message=f"Tagged session as {safe_name}:\n- {tagged_json}\n- {tagged_md}")
+            return CommandResult(
+                message=f"Tagged session as {safe_name}:\n- {tagged_json}\n- {tagged_md}"
+            )
         if tokens[0] == "clear":
             if session_dir.exists():
                 shutil.rmtree(session_dir)
@@ -955,9 +1018,7 @@ def create_default_command_registry(
         lines = [str(path.relative_to(root)) for path in files[:max_items]]
         if len(files) > max_items:
             lines.append(f"... {len(files) - max_items} more")
-        return CommandResult(
-            message="\n".join(lines) if lines else "(no matching files)"
-        )
+        return CommandResult(message="\n".join(lines) if lines else "(no matching files)")
 
     async def _agents_handler(args: str, context: CommandContext) -> CommandResult:
         tokens = args.split(maxsplit=1)
@@ -971,12 +1032,14 @@ def create_default_command_registry(
             "- task_output(task_id=...) reads the worker's latest output."
         )
         if tokens and tokens[0] in {"help", "usage"}:
-            return CommandResult(
-                message=guide
-            )
+            return CommandResult(message=guide)
         if tokens and tokens[0] == "show" and len(tokens) == 2:
             task = get_task_manager().get_task(tokens[1])
-            if task is None or task.type not in {"local_agent", "remote_agent", "in_process_teammate"}:
+            if task is None or task.type not in {
+                "local_agent",
+                "remote_agent",
+                "in_process_teammate",
+            }:
                 return CommandResult(message=f"No agent found with ID: {tokens[1]}")
             output = get_task_manager().read_task_output(task.id)
             return CommandResult(
@@ -995,10 +1058,7 @@ def create_default_command_registry(
             return CommandResult(
                 message=f"No active or recorded agents. Run /agents help for usage.\n\n{guide}"
             )
-        lines = [
-            f"{task.id} {task.type} {task.status} {task.description}"
-            for task in tasks
-        ]
+        lines = [f"{task.id} {task.type} {task.status} {task.description}" for task in tasks]
         return CommandResult(message="\n".join(lines))
 
     async def _init_handler(args: str, context: CommandContext) -> CommandResult:
@@ -1041,7 +1101,9 @@ def create_default_command_registry(
 
         if not created:
             return CommandResult(message="Project already initialized for Codeless.")
-        return CommandResult(message="Initialized project files:\n" + "\n".join(f"- {item}" for item in created))
+        return CommandResult(
+            message="Initialized project files:\n" + "\n".join(f"- {item}" for item in created)
+        )
 
     async def _bridge_handler(args: str, context: CommandContext) -> CommandResult:
         tokens = args.split()
@@ -1086,7 +1148,9 @@ def create_default_command_registry(
                 )
             )
         if tokens[0] == "output" and len(tokens) == 2:
-            return CommandResult(message=get_bridge_manager().read_output(tokens[1]) or "(no output)")
+            return CommandResult(
+                message=get_bridge_manager().read_output(tokens[1]) or "(no output)"
+            )
         if tokens[0] == "stop" and len(tokens) == 2:
             try:
                 await get_bridge_manager().stop(tokens[1])
@@ -1127,7 +1191,11 @@ def create_default_command_registry(
             source = f" [{skill.source}]"
             path = f" {skill.path}" if skill.path else ""
             command_name = _skill_command_name(skill)
-            slash = f" /{command_name}" if skill.user_invocable and _is_valid_skill_command_name(command_name) else ""
+            slash = (
+                f" /{command_name}"
+                if skill.user_invocable and _is_valid_skill_command_name(command_name)
+                else ""
+            )
             display = f" ({skill.display_name})" if skill.display_name else ""
             lines.append(f"- {command_name}{display}{source}{path}{slash}: {skill.description}")
         return CommandResult(message="\n".join(lines))
@@ -1231,7 +1299,9 @@ def create_default_command_registry(
 
     async def _effort_handler(args: str, context: CommandContext) -> CommandResult:
         settings = load_settings()
-        current = context.app_state.get().effort if context.app_state is not None else settings.effort
+        current = (
+            context.app_state.get().effort if context.app_state is not None else settings.effort
+        )
         value = args.strip() or "show"
         if value == "show":
             return CommandResult(message=f"Reasoning effort: {current}")
@@ -1255,7 +1325,9 @@ def create_default_command_registry(
 
     async def _passes_handler(args: str, context: CommandContext) -> CommandResult:
         settings = load_settings()
-        current = context.app_state.get().passes if context.app_state is not None else settings.passes
+        current = (
+            context.app_state.get().passes if context.app_state is not None else settings.passes
+        )
         value = args.strip() or "show"
         if value == "show":
             return CommandResult(message=f"Passes: {current}")
@@ -1278,7 +1350,9 @@ def create_default_command_registry(
 
     async def _turns_handler(args: str, context: CommandContext) -> CommandResult:
         settings = load_settings()
-        engine_turns = "unlimited" if context.engine.max_turns is None else str(context.engine.max_turns)
+        engine_turns = (
+            "unlimited" if context.engine.max_turns is None else str(context.engine.max_turns)
+        )
         tokens = args.split()
         if not tokens or tokens[0] == "show":
             return CommandResult(
@@ -1421,10 +1495,14 @@ def create_default_command_registry(
 
             if hasattr(config, "headers"):
                 if mode not in {"bearer", "header"}:
-                    return CommandResult(message="HTTP/WS MCP auth supports bearer or header modes.")
+                    return CommandResult(
+                        message="HTTP/WS MCP auth supports bearer or header modes."
+                    )
                 header_key = key or "Authorization"
                 header_value = (
-                    f"Bearer {value}" if mode == "bearer" and header_key == "Authorization" else value
+                    f"Bearer {value}"
+                    if mode == "bearer" and header_key == "Authorization"
+                    else value
                 )
                 headers = dict(getattr(config, "headers", {}) or {})
                 headers[header_key] = header_value
@@ -1440,7 +1518,9 @@ def create_default_command_registry(
             else:
                 return CommandResult(message=f"Server {server_name} does not support auth updates")
             save_settings(settings)
-            return CommandResult(message=f"Saved MCP auth for {server_name}. Restart session to reconnect.")
+            return CommandResult(
+                message=f"Saved MCP auth for {server_name}. Restart session to reconnect."
+            )
         return CommandResult(message=context.mcp_summary or "No MCP servers configured.")
 
     async def _plugin_handler(args: str, context: CommandContext) -> CommandResult:
@@ -1451,11 +1531,15 @@ def create_default_command_registry(
         if tokens[0] == "enable" and len(tokens) == 2:
             settings.enabled_plugins[tokens[1]] = True
             save_settings(settings)
-            return CommandResult(message=f"Enabled plugin '{tokens[1]}'. Restart session to reload.")
+            return CommandResult(
+                message=f"Enabled plugin '{tokens[1]}'. Restart session to reload."
+            )
         if tokens[0] == "disable" and len(tokens) == 2:
             settings.enabled_plugins[tokens[1]] = False
             save_settings(settings)
-            return CommandResult(message=f"Disabled plugin '{tokens[1]}'. Restart session to reload.")
+            return CommandResult(
+                message=f"Disabled plugin '{tokens[1]}'. Restart session to reload."
+            )
         if tokens[0] == "install" and len(tokens) == 2:
             path = install_plugin_from_path(tokens[1])
             return CommandResult(message=f"Installed plugin to {path}")
@@ -1470,7 +1554,9 @@ def create_default_command_registry(
         plugins = load_plugins(settings, context.cwd, extra_roots=context.extra_plugin_roots)
         if plugins:
             return CommandResult(message=context.plugin_summary)
-        return CommandResult(message="Usage: /plugin [list|enable NAME|disable NAME|install PATH|uninstall NAME]")
+        return CommandResult(
+            message="Usage: /plugin [list|enable NAME|disable NAME|install PATH|uninstall NAME]"
+        )
 
     _MODE_LABELS = {"default": "Default", "plan": "Plan Mode", "full_auto": "Auto"}
 
@@ -1587,9 +1673,15 @@ def create_default_command_registry(
             return CommandResult(message="Usage: /model add MODEL")
         if tokens[0] in {"remove", "rm"} and len(tokens) == 2:
             model_name = tokens[1].strip()
-            models = [model for model in _dedupe_model_values(profile.allowed_models) if model != model_name]
+            models = [
+                model
+                for model in _dedupe_model_values(profile.allowed_models)
+                if model != model_name
+            ]
             if len(models) == len(_dedupe_model_values(profile.allowed_models)):
-                return CommandResult(message=f"Model '{model_name}' is not pinned for profile '{active_profile}'.")
+                return CommandResult(
+                    message=f"Model '{model_name}' is not pinned for profile '{active_profile}'."
+                )
             reset_current = (profile.last_model or "").strip() == model_name
             manager.update_profile(
                 active_profile,
@@ -1621,9 +1713,15 @@ def create_default_command_registry(
         else:
             model_name = None
         if model_name:
-            if profile.allowed_models and model_name.lower() != "default" and model_name not in profile.allowed_models:
+            if (
+                profile.allowed_models
+                and model_name.lower() != "default"
+                and model_name not in profile.allowed_models
+            ):
                 allowed = ", ".join(profile.allowed_models)
-                return CommandResult(message=f"Model '{model_name}' is not allowed for profile '{active_profile}'. Allowed models: {allowed}")
+                return CommandResult(
+                    message=f"Model '{model_name}' is not allowed for profile '{active_profile}'. Allowed models: {allowed}"
+                )
             if model_name.lower() == "default":
                 manager.update_profile(active_profile, last_model="")
                 message = "Model reset to default."
@@ -1662,7 +1760,11 @@ def create_default_command_registry(
                 configured = "configured" if info["configured"] else "missing auth"
                 lines.append(f"{marker} {name} [{configured}] {info['label']} -> {info['model']}")
             return CommandResult(message="\n".join(lines))
-        target = tokens[1] if tokens[0] == "use" and len(tokens) == 2 else (tokens[0] if len(tokens) == 1 else None)
+        target = (
+            tokens[1]
+            if tokens[0] == "use" and len(tokens) == 2
+            else (tokens[0] if len(tokens) == 1 else None)
+        )
         if target is None:
             return CommandResult(message="Usage: /provider [show|list|PROFILE]")
         manager.use_profile(target)
@@ -1908,7 +2010,11 @@ def create_default_command_registry(
 
     async def _rate_limit_options_handler(_: str, context: CommandContext) -> CommandResult:
         settings = load_settings()
-        provider = "moonshot-compatible" if (settings.base_url and "moonshot" in settings.base_url) else "anthropic-compatible"
+        provider = (
+            "moonshot-compatible"
+            if (settings.base_url and "moonshot" in settings.base_url)
+            else "anthropic-compatible"
+        )
         lines = [
             "Rate limit options:",
             f"- provider: {provider}",
@@ -1935,9 +2041,14 @@ def create_default_command_registry(
     async def _upgrade_handler(_: str, context: CommandContext) -> CommandResult:
         del context
         try:
-            version = importlib.metadata.version("codeless")
+            version = importlib.metadata.version("codeless-ai")
         except importlib.metadata.PackageNotFoundError:
-            version = "0.1.7"
+            try:
+                version = importlib.metadata.version("codeless")
+            except importlib.metadata.PackageNotFoundError:
+                from codeless import __version__
+
+                version = __version__
         return CommandResult(
             message=(
                 f"Current version: {version}\n"
@@ -1993,7 +2104,9 @@ def create_default_command_registry(
             if not tasks:
                 return CommandResult(message="No background tasks.")
             return CommandResult(
-                message="\n".join(f"{task.id} {task.type} {task.status} {task.description}" for task in tasks)
+                message="\n".join(
+                    f"{task.id} {task.type} {task.status} {task.description}" for task in tasks
+                )
             )
         if tokens[0] == "run" and len(tokens) >= 2:
             command = args[len("run ") :]
@@ -2027,7 +2140,9 @@ def create_default_command_registry(
                     try:
                         progress = int(value)
                     except ValueError:
-                        return CommandResult(message="Progress must be an integer between 0 and 100.")
+                        return CommandResult(
+                            message="Progress must be an integer between 0 and 100."
+                        )
                     task = manager.update_task(task_id, progress=progress)
                     return CommandResult(message=f"Updated task {task.id} progress to {progress}%")
                 if field == "note":
@@ -2154,10 +2269,7 @@ def create_default_command_registry(
             raw = args[len("add") :].strip()
             if not raw:
                 return CommandResult(
-                    message=(
-                        "Usage: /autopilot add "
-                        "[idea|manual|issue|pr|claude] TITLE :: DETAILS"
-                    )
+                    message=("Usage: /autopilot add [idea|manual|issue|pr|claude] TITLE :: DETAILS")
                 )
             source_kind = "manual_idea"
             source_map = {
@@ -2176,10 +2288,7 @@ def create_default_command_registry(
             title, _, body = raw.partition("::")
             if not title.strip():
                 return CommandResult(
-                    message=(
-                        "Usage: /autopilot add "
-                        "[idea|manual|issue|pr|claude] TITLE :: DETAILS"
-                    )
+                    message=("Usage: /autopilot add [idea|manual|issue|pr|claude] TITLE :: DETAILS")
                 )
             card, created = store.enqueue_card(
                 source_kind=source_kind,
@@ -2262,7 +2371,9 @@ def create_default_command_registry(
             try:
                 if target == "issues":
                     cards = store.scan_github_issues(limit=limit)
-                    return CommandResult(message=f"Scanned {len(cards)} GitHub issues into autopilot.")
+                    return CommandResult(
+                        message=f"Scanned {len(cards)} GitHub issues into autopilot."
+                    )
                 if target == "prs":
                     cards = store.scan_github_prs(limit=limit)
                     return CommandResult(message=f"Scanned {len(cards)} GitHub PRs into autopilot.")
@@ -2317,13 +2428,15 @@ def create_default_command_registry(
         )
 
     registry.register(SlashCommand("help", "Show available commands", _help_handler))
-    registry.register(
-        SlashCommand("exit", "Exit Codeless", _exit_handler, aliases=("quit",))
-    )
+    registry.register(SlashCommand("exit", "Exit Codeless", _exit_handler, aliases=("quit",)))
     registry.register(SlashCommand("clear", "Clear conversation history", _clear_handler))
-    registry.register(SlashCommand("version", "Show the installed Codeless version", _version_handler))
+    registry.register(
+        SlashCommand("version", "Show the installed Codeless version", _version_handler)
+    )
     registry.register(SlashCommand("status", "Show session status", _status_handler))
-    registry.register(SlashCommand("context", "Show the active runtime system prompt", _context_handler))
+    registry.register(
+        SlashCommand("context", "Show the active runtime system prompt", _context_handler)
+    )
     registry.register(
         SlashCommand(
             "summary",
@@ -2333,7 +2446,9 @@ def create_default_command_registry(
             remote_admin_opt_in=True,
         )
     )
-    registry.register(SlashCommand("compact", "Compact older conversation history", _compact_handler))
+    registry.register(
+        SlashCommand("compact", "Compact older conversation history", _compact_handler)
+    )
     registry.register(SlashCommand("cost", "Show token usage and estimated cost", _cost_handler))
     registry.register(SlashCommand("usage", "Show usage and token estimates", _usage_handler))
     registry.register(SlashCommand("stats", "Show session statistics", _stats_handler))
@@ -2349,12 +2464,22 @@ def create_default_command_registry(
             remote_admin_opt_in=True,
         )
     )
-    registry.register(SlashCommand("session", "Inspect the current session storage", _session_handler))
+    registry.register(
+        SlashCommand("session", "Inspect the current session storage", _session_handler)
+    )
     registry.register(SlashCommand("export", "Export the current transcript", _export_handler))
-    registry.register(SlashCommand("share", "Create a shareable transcript snapshot", _share_handler))
-    registry.register(SlashCommand("copy", "Copy the latest response or provided text", _copy_handler))
-    registry.register(SlashCommand("tag", "Create a named snapshot of the current session", _tag_handler))
-    registry.register(SlashCommand("rewind", "Remove the latest conversation turn(s)", _rewind_handler))
+    registry.register(
+        SlashCommand("share", "Create a shareable transcript snapshot", _share_handler)
+    )
+    registry.register(
+        SlashCommand("copy", "Copy the latest response or provided text", _copy_handler)
+    )
+    registry.register(
+        SlashCommand("tag", "Create a named snapshot of the current session", _tag_handler)
+    )
+    registry.register(
+        SlashCommand("rewind", "Remove the latest conversation turn(s)", _rewind_handler)
+    )
     registry.register(SlashCommand("files", "List files in the current workspace", _files_handler))
     registry.register(SlashCommand("init", "Initialize project Codeless files", _init_handler))
     registry.register(
@@ -2384,7 +2509,9 @@ def create_default_command_registry(
             remote_admin_opt_in=True,
         )
     )
-    registry.register(SlashCommand("feedback", "Save CLI feedback to the local feedback log", _feedback_handler))
+    registry.register(
+        SlashCommand("feedback", "Save CLI feedback to the local feedback log", _feedback_handler)
+    )
     registry.register(SlashCommand("onboarding", "Show the quickstart guide", _onboarding_handler))
     registry.register(SlashCommand("skills", "List or show available skills", _skills_handler))
     _register_user_invocable_skill_commands(registry)
@@ -2444,9 +2571,17 @@ def create_default_command_registry(
     )
     registry.register(SlashCommand("fast", "Show or update fast mode", _fast_handler))
     registry.register(SlashCommand("effort", "Show or update reasoning effort", _effort_handler))
-    registry.register(SlashCommand("passes", "Show or update reasoning pass count", _passes_handler))
-    registry.register(SlashCommand("turns", "Show or update maximum agentic turn count", _turns_handler))
-    registry.register(SlashCommand("continue", "Continue the previous tool loop if it was interrupted", _continue_handler))
+    registry.register(
+        SlashCommand("passes", "Show or update reasoning pass count", _passes_handler)
+    )
+    registry.register(
+        SlashCommand("turns", "Show or update maximum agentic turn count", _turns_handler)
+    )
+    registry.register(
+        SlashCommand(
+            "continue", "Continue the previous tool loop if it was interrupted", _continue_handler
+        )
+    )
     registry.register(SlashCommand("stop", "Interrupt the running turn", _stop_handler))
     registry.register(
         SlashCommand(
@@ -2466,9 +2601,15 @@ def create_default_command_registry(
             remote_admin_opt_in=True,
         )
     )
-    registry.register(SlashCommand("theme", "List, set, show or preview TUI themes", _theme_handler))
-    registry.register(SlashCommand("output-style", "Show or update output style", _output_style_handler))
-    registry.register(SlashCommand("keybindings", "Show resolved keybindings", _keybindings_handler))
+    registry.register(
+        SlashCommand("theme", "List, set, show or preview TUI themes", _theme_handler)
+    )
+    registry.register(
+        SlashCommand("output-style", "Show or update output style", _output_style_handler)
+    )
+    registry.register(
+        SlashCommand("keybindings", "Show resolved keybindings", _keybindings_handler)
+    )
     registry.register(SlashCommand("vim", "Show or update Vim mode", _vim_handler))
     registry.register(SlashCommand("voice", "Show or update voice mode", _voice_handler))
     registry.register(SlashCommand("doctor", "Show environment diagnostics", _doctor_handler))
@@ -2509,12 +2650,28 @@ def create_default_command_registry(
             remote_admin_opt_in=True,
         )
     )
-    registry.register(SlashCommand("privacy-settings", "Show local privacy and storage settings", _privacy_settings_handler))
-    registry.register(SlashCommand("rate-limit-options", "Show ways to reduce provider rate pressure", _rate_limit_options_handler))
-    registry.register(SlashCommand("release-notes", "Show recent Codeless release notes", _release_notes_handler))
+    registry.register(
+        SlashCommand(
+            "privacy-settings", "Show local privacy and storage settings", _privacy_settings_handler
+        )
+    )
+    registry.register(
+        SlashCommand(
+            "rate-limit-options",
+            "Show ways to reduce provider rate pressure",
+            _rate_limit_options_handler,
+        )
+    )
+    registry.register(
+        SlashCommand("release-notes", "Show recent Codeless release notes", _release_notes_handler)
+    )
     registry.register(SlashCommand("upgrade", "Show upgrade instructions", _upgrade_handler))
-    registry.register(SlashCommand("agents", "List or inspect agent and teammate tasks", _agents_handler))
-    registry.register(SlashCommand("subagents", "Show subagent usage and inspect worker tasks", _agents_handler))
+    registry.register(
+        SlashCommand("agents", "List or inspect agent and teammate tasks", _agents_handler)
+    )
+    registry.register(
+        SlashCommand("subagents", "Show subagent usage and inspect worker tasks", _agents_handler)
+    )
     registry.register(
         SlashCommand(
             "tasks",
@@ -2575,6 +2732,7 @@ def create_default_command_registry(
 
     # Register ABB Slash Command Pack (C4 collision-resolved)
     from codeless.abb.commands import register_abb_slash_commands
+
     register_abb_slash_commands(registry)
 
     return registry
@@ -2590,7 +2748,9 @@ def _handle_memory_edit_command(
     if args.strip():
         path, invalid = _resolve_memory_entry_path(memory_dir, args.strip())
         if invalid:
-            return CommandResult(message="Memory entry path must stay within the configured memory directory.")
+            return CommandResult(
+                message="Memory entry path must stay within the configured memory directory."
+            )
         if path is None:
             return CommandResult(message=f"Memory entry not found: {args.strip()}")
         target = path
@@ -2598,7 +2758,9 @@ def _handle_memory_edit_command(
     target.touch(exist_ok=True)
     editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
     if not editor:
-        return CommandResult(message=f"Memory file ready: {target}\nSet $VISUAL or $EDITOR to open it from /memory edit.")
+        return CommandResult(
+            message=f"Memory file ready: {target}\nSet $VISUAL or $EDITOR to open it from /memory edit."
+        )
     result = subprocess.run([editor, str(target)], cwd=context.cwd, check=False)
     if result.returncode != 0:
         return CommandResult(message=f"Editor exited with status {result.returncode}: {editor}")
@@ -2652,9 +2814,7 @@ def _handle_memory_validate_command(context: CommandContext) -> CommandResult:
     if not issues:
         return CommandResult(
             message=(
-                "Memory validation passed.\n"
-                f"- files: {len(headers)}\n"
-                f"- memory_dir: {memory_dir}"
+                f"Memory validation passed.\n- files: {len(headers)}\n- memory_dir: {memory_dir}"
             )
         )
     return CommandResult(message="Memory validation issues:\n" + "\n".join(issues))
@@ -2689,7 +2849,10 @@ def _handle_memory_team_command(args: str, context: CommandContext) -> CommandRe
     team_dir = ensure_team_memory_vault(context.cwd)
     if action == "list":
         files = sorted(path for path in team_dir.rglob("*.md") if path.name != "MEMORY.md")
-        return CommandResult(message="\n".join(str(path.relative_to(team_dir)) for path in files) or "No team memory files.")
+        return CommandResult(
+            message="\n".join(str(path.relative_to(team_dir)) for path in files)
+            or "No team memory files."
+        )
     if action == "validate":
         issues: list[str] = []
         for path in sorted(team_dir.rglob("*.md")):
@@ -2699,7 +2862,9 @@ def _handle_memory_team_command(args: str, context: CommandContext) -> CommandRe
             secret_error = check_team_memory_secrets(text)
             if secret_error:
                 issues.append(f"- {path.relative_to(team_dir)}: {secret_error}")
-        return CommandResult(message="Team memory validation passed." if not issues else "\n".join(issues))
+        return CommandResult(
+            message="Team memory validation passed." if not issues else "\n".join(issues)
+        )
     return CommandResult(
         message=(
             "Team memory:\n"
@@ -2719,7 +2884,11 @@ def _handle_memory_agent_command(args: str, context: CommandContext) -> CommandR
         return CommandResult(message="Agent memory scope must be one of: user, project, local")
     if action == "snapshot":
         target = initialize_agent_memory_from_snapshot(context.cwd, agent_type, scope)  # type: ignore[arg-type]
-        return CommandResult(message=f"Initialized agent memory from snapshot: {target}" if target else "No snapshot found.")
+        return CommandResult(
+            message=f"Initialized agent memory from snapshot: {target}"
+            if target
+            else "No snapshot found."
+        )
     vault = ensure_agent_memory_vault(context.cwd, agent_type, scope)  # type: ignore[arg-type]
     return CommandResult(
         message=(

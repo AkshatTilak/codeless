@@ -18,9 +18,8 @@ from codeless.coordinator.coordinator_mode import (
     format_task_notification,
 )
 from codeless.engine.query import MaxTurnsExceeded
-from codeless.prompts.context import build_runtime_system_prompt
 from codeless.jobs.manager import get_task_manager
-
+from codeless.prompts.context import build_runtime_system_prompt
 
 _TERMINAL_TASK_STATUSES = frozenset({"completed", "failed", "killed"})
 
@@ -49,7 +48,9 @@ def pending_async_agent_entries(tool_metadata: dict[str, object] | None) -> list
 def _build_async_task_summary(
     entry: dict[str, object], *, task_status: str, return_code: int | None
 ) -> str:
-    description = str(entry.get("description") or entry.get("agent_id") or "background task").strip()
+    description = str(
+        entry.get("description") or entry.get("agent_id") or "background task"
+    ).strip()
     if task_status == "completed":
         return f'Agent "{description}" completed'
     if task_status == "killed":
@@ -180,9 +181,7 @@ async def drain_coordinator_async_agents(
         if not pending:
             return
         if announce_waiting:
-            await print_system(
-                f"Waiting for {len(pending)} background agent task(s) to finish..."
-            )
+            await print_system(f"Waiting for {len(pending)} background agent task(s) to finish...")
         completed = await wait_for_completed_async_agent_entries(
             getattr(engine, "tool_metadata", None)
         )

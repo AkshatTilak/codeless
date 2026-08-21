@@ -60,24 +60,75 @@ class ModeEngine:
         """Return allowed tool names for active mode."""
         if self._current_mode in {TriMode.ASK, TriMode.CODEBASE}:
             return {
-                "read_file", "glob", "grep", "lsp",
-                "image_to_text", "ask_user_question",
-                "skill", "abb_task",
+                "read_file",
+                "glob",
+                "grep",
+                "lsp",
+                "image_to_text",
+                "ask_user_question",
+                "skill",
+                "abb_task",
+                "cron",
+                "task",
+                "worktree",
+                "mcp_resource",
+                "web",
+                "web_search",
+                "web_fetch",
+                "web_crawl",
             }
         elif self._current_mode in {TriMode.PLAN, TriMode.GOVERNANCE}:
             return {
-                "read_file", "write_file", "edit_file", "glob", "grep", "lsp",
-                "image_to_text", "ask_user_question", "todo_write",
-                "skill", "abb_task", "abb_verify",
+                "read_file",
+                "write_file",
+                "edit_file",
+                "glob",
+                "grep",
+                "lsp",
+                "image_to_text",
+                "ask_user_question",
+                "todo_write",
+                "skill",
+                "abb_task",
+                "abb_verify",
+                "cron",
+                "task",
+                "worktree",
+                "mcp_resource",
+                "web",
+                "web_search",
+                "web_fetch",
+                "web_crawl",
             }
         # AGENT mode
         if all_tools:
             return set(all_tools)
         return {
-            "bash", "read_file", "write_file", "edit_file", "glob", "grep", "lsp",
-            "image_to_text", "ask_user_question", "todo_write", "skill",
-            "agent", "send_message", "task_stop", "task_output",
-            "abb_task", "abb_verify",
+            "bash",
+            "read_file",
+            "write_file",
+            "edit_file",
+            "glob",
+            "grep",
+            "lsp",
+            "image_to_text",
+            "ask_user_question",
+            "todo_write",
+            "skill",
+            "agent",
+            "send_message",
+            "task",
+            "task_stop",
+            "task_output",
+            "cron",
+            "worktree",
+            "mcp_resource",
+            "web",
+            "web_search",
+            "web_fetch",
+            "web_crawl",
+            "abb_task",
+            "abb_verify",
         }
 
     def evaluate_write_permission(
@@ -95,7 +146,10 @@ class ModeEngine:
         # 1. ASK & CODEBASE: Strictly read-only everywhere
         if self._current_mode in {TriMode.ASK, TriMode.CODEBASE}:
             mode_name = self._current_mode.value.capitalize()
-            return False, f"{mode_name} Mode is strictly read-only; all file writes to '{norm_path}' are blocked."
+            return (
+                False,
+                f"{mode_name} Mode is strictly read-only; all file writes to '{norm_path}' are blocked.",
+            )
 
         # 2. PLAN Mode: Write allowed ONLY to tasks/, design/, and features/
         if self._current_mode == TriMode.PLAN:
@@ -103,27 +157,53 @@ class ModeEngine:
                 norm_lower = norm_path.lower()
                 plan_prefixes = ("tasks/", "tasks", "design/", "design", "features/", "features")
                 if any(norm_lower.startswith(p) or f"/{p}" in norm_lower for p in plan_prefixes):
-                    return True, "Plan mode permitted write to architecture, design & task workspace."
-                return False, f"Plan Mode blocks meta-spec writes to '{norm_path}'. Use Governance mode (`/mode governance`) for meta specs."
-            return False, f"Plan Mode blocks project code modifications to '{norm_path}'. Switch to Agent mode (`/mode agent`) to execute changes."
+                    return (
+                        True,
+                        "Plan mode permitted write to architecture, design & task workspace.",
+                    )
+                return (
+                    False,
+                    f"Plan Mode blocks meta-spec writes to '{norm_path}'. Use Governance mode (`/mode governance`) for meta specs.",
+                )
+            return (
+                False,
+                f"Plan Mode blocks project code modifications to '{norm_path}'. Switch to Agent mode (`/mode agent`) to execute changes.",
+            )
 
         # 3. GOVERNANCE Mode: Write allowed ONLY to meta-specs (STACK, agent, references, skills, workflows, conventions)
         if self._current_mode == TriMode.GOVERNANCE:
             if is_abb:
                 norm_lower = norm_path.lower()
                 gov_prefixes = (
-                    "references/", "references",
-                    "skills/", "skills", "workflows/", "workflows",
-                    "stack.md", "user_preferences.md", "agent.md", "conventions.md",
-                    "coding_philosophy.md", "changelog.md", "readme.md"
+                    "references/",
+                    "references",
+                    "skills/",
+                    "skills",
+                    "workflows/",
+                    "workflows",
+                    "stack.md",
+                    "user_preferences.md",
+                    "agent.md",
+                    "conventions.md",
+                    "coding_philosophy.md",
+                    "changelog.md",
+                    "readme.md",
                 )
-                if any(norm_lower.startswith(p) or f"/{p}" in norm_lower or norm_lower.endswith(p) for p in gov_prefixes):
+                if any(
+                    norm_lower.startswith(p) or f"/{p}" in norm_lower or norm_lower.endswith(p)
+                    for p in gov_prefixes
+                ):
                     return True, "Governance mode permitted write to ABB meta-specifications."
                 plan_prefixes = ("tasks/", "tasks", "design/", "design", "features/", "features")
                 if any(norm_lower.startswith(p) or f"/{p}" in norm_lower for p in plan_prefixes):
-                    return False, f"Governance Mode blocks task/design writes to '{norm_path}'. Switch to Plan mode (`/mode plan`) to update tasks."
-            return False, f"Governance Mode blocks project code modifications to '{norm_path}'. Switch to Agent mode (`/mode agent`) to execute changes."
-
+                    return (
+                        False,
+                        f"Governance Mode blocks task/design writes to '{norm_path}'. Switch to Plan mode (`/mode plan`) to update tasks.",
+                    )
+            return (
+                False,
+                f"Governance Mode blocks project code modifications to '{norm_path}'. Switch to Agent mode (`/mode agent`) to execute changes.",
+            )
 
         # 4. AGENT Mode: Write allowed everywhere
         if self._current_mode == TriMode.AGENT:
@@ -182,10 +262,9 @@ class ModeEngine:
 
 
 # Global instance for runtime session
-_ACTIVE_MODE_ENGINE = ModeEngine(default_mode=TriMode.AGENT)
+_ACTIVE_MODE_ENGINE = ModeEngine(default_mode=TriMode.PLAN)
 
 
 def get_mode_engine() -> ModeEngine:
     """Get singleton ModeEngine instance."""
     return _ACTIVE_MODE_ENGINE
-

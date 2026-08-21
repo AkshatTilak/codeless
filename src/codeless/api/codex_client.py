@@ -16,9 +16,20 @@ from codeless.api.client import (
     ApiStreamEvent,
     ApiTextDeltaEvent,
 )
-from codeless.api.errors import AuthenticationFailure, CodelessApiError, RateLimitFailure, RequestFailure
+from codeless.api.errors import (
+    AuthenticationFailure,
+    CodelessApiError,
+    RateLimitFailure,
+    RequestFailure,
+)
 from codeless.api.usage import UsageSnapshot
-from codeless.engine.messages import ConversationMessage, ImageBlock, TextBlock, ToolResultBlock, ToolUseBlock
+from codeless.engine.messages import (
+    ConversationMessage,
+    ImageBlock,
+    TextBlock,
+    ToolResultBlock,
+    ToolUseBlock,
+)
 
 DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api"
 JWT_CLAIM_PATH = "https://api.openai.com/auth"
@@ -84,40 +95,50 @@ def _convert_messages_to_codex(messages: list[ConversationMessage]) -> list[dict
             # every prior function_call immediately satisfied.
             for block in msg.content:
                 if isinstance(block, ToolResultBlock):
-                    result.append({
-                        "type": "function_call_output",
-                        "call_id": block.tool_use_id,
-                        "output": block.content,
-                    })
+                    result.append(
+                        {
+                            "type": "function_call_output",
+                            "call_id": block.tool_use_id,
+                            "output": block.content,
+                        }
+                    )
             user_content: list[dict[str, Any]] = []
             for block in msg.content:
                 if isinstance(block, TextBlock) and block.text.strip():
                     user_content.append({"type": "input_text", "text": block.text})
                 elif isinstance(block, ImageBlock):
-                    user_content.append({
-                        "type": "input_image",
-                        "image_url": f"data:{block.media_type};base64,{block.data}",
-                    })
+                    user_content.append(
+                        {
+                            "type": "input_image",
+                            "image_url": f"data:{block.media_type};base64,{block.data}",
+                        }
+                    )
             if user_content:
                 result.append({"role": "user", "content": user_content})
             continue
 
-        assistant_text = "".join(block.text for block in msg.content if isinstance(block, TextBlock))
+        assistant_text = "".join(
+            block.text for block in msg.content if isinstance(block, TextBlock)
+        )
         if assistant_text:
-            result.append({
-                "type": "message",
-                "role": "assistant",
-                "content": [{"type": "output_text", "text": assistant_text, "annotations": []}],
-            })
+            result.append(
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "output_text", "text": assistant_text, "annotations": []}],
+                }
+            )
         for block in msg.content:
             if isinstance(block, ToolUseBlock):
-                result.append({
-                    "type": "function_call",
-                    "id": f"fc_{block.id[:58]}",
-                    "call_id": block.id,
-                    "name": block.name,
-                    "arguments": json.dumps(block.input, separators=(",", ":")),
-                })
+                result.append(
+                    {
+                        "type": "function_call",
+                        "id": f"fc_{block.id[:58]}",
+                        "call_id": block.id,
+                        "name": block.name,
+                        "arguments": json.dumps(block.input, separators=(",", ":")),
+                    }
+                )
     return result
 
 
@@ -190,9 +211,8 @@ def _format_codex_stream_error(event: dict[str, Any], *, fallback: str) -> str:
     payload = error if isinstance(error, dict) else event
     message = payload.get("message") if isinstance(payload, dict) else None
     code = payload.get("code") if isinstance(payload, dict) else None
-    request_id = (
-        (payload.get("request_id") if isinstance(payload, dict) else None)
-        or event.get("request_id")
+    request_id = (payload.get("request_id") if isinstance(payload, dict) else None) or event.get(
+        "request_id"
     )
 
     parts: list[str] = []
@@ -237,7 +257,7 @@ class CodexApiClient:
                 last_error = exc
                 if attempt >= MAX_RETRIES or not self._is_retryable(exc):
                     raise self._translate_error(exc) from exc
-                delay = min(BASE_DELAY_SECONDS * (2 ** attempt), MAX_DELAY_SECONDS)
+                delay = min(BASE_DELAY_SECONDS * (2**attempt), MAX_DELAY_SECONDS)
                 import asyncio
 
                 yield ApiRetryEvent(
@@ -277,8 +297,12 @@ class CodexApiClient:
             async with client.stream("POST", self._url, headers=headers, json=body) as response:
                 if response.status_code >= 400:
                     payload = await response.aread()
-                    message = _format_error_message(response.status_code, payload.decode("utf-8", "replace"))
-                    raise httpx.HTTPStatusError(message, request=response.request, response=response)
+                    message = _format_error_message(
+                        response.status_code, payload.decode("utf-8", "replace")
+                    )
+                    raise httpx.HTTPStatusError(
+                        message, request=response.request, response=response
+                    )
 
                 async for event in self._iter_sse_events(response):
                     event_type = event.get("type")
@@ -319,8 +343,15 @@ class CodexApiClient:
                             parsed_arguments = loaded if isinstance(loaded, dict) else {}
                             call_id = item.get("call_id")
                             name = item.get("name")
-                            if isinstance(call_id, str) and call_id and isinstance(name, str) and name:
-                                content.append(ToolUseBlock(id=call_id, name=name, input=parsed_arguments))
+                            if (
+                                isinstance(call_id, str)
+                                and call_id
+                                and isinstance(name, str)
+                                and name
+                            ):
+                                content.append(
+                                    ToolUseBlock(id=call_id, name=name, input=parsed_arguments)
+                                )
                     elif event_type == "response.completed":
                         response_payload = event.get("response")
                         if isinstance(response_payload, dict):
@@ -390,7 +421,9 @@ class CodexApiClient:
             return True
         if isinstance(exc, RequestFailure):
             message = str(exc).lower()
-            return any(term in message for term in ["timeout", "connect", "network", "rate", "overloaded"])
+            return any(
+                term in message for term in ["timeout", "connect", "network", "rate", "overloaded"]
+            )
         if isinstance(exc, (httpx.TimeoutException, httpx.NetworkError)):
             return True
         return False

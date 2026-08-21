@@ -12,24 +12,28 @@ from pathlib import Path
 from codeless.abb.shadow import resolve_abb_workspace
 
 # Set of top-level ABB files
-ABB_TOP_LEVEL_FILES = frozenset({
-    "agent.md",
-    "stack.md",
-    "user_preferences.md",
-    "conventions.md",
-    "coding_philosophy.md",
-    "version",
-})
+ABB_TOP_LEVEL_FILES = frozenset(
+    {
+        "agent.md",
+        "stack.md",
+        "user_preferences.md",
+        "conventions.md",
+        "coding_philosophy.md",
+        "version",
+    }
+)
 
 # Set of ABB domain directories
-ABB_DOMAINS = frozenset({
-    "workflows",
-    "design",
-    "features",
-    "tasks",
-    "references",
-    "skills",
-})
+ABB_DOMAINS = frozenset(
+    {
+        "workflows",
+        "design",
+        "features",
+        "tasks",
+        "references",
+        "skills",
+    }
+)
 
 
 def find_project_root(start_dir: str | Path) -> Path:
@@ -76,8 +80,6 @@ def is_abb_path(candidate: str | Path, project_root: Path | None = None) -> bool
     if first_part in ABB_TOP_LEVEL_FILES:
         return True
     return first_part in ABB_DOMAINS
-
-
 
 
 def resolve_virtual_path(

@@ -59,6 +59,7 @@ pytestmark = pytest.mark.skipif(not _DOCKER_OK, reason=_SKIP_REASON)
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _settings(*, network_domains: list[str] | None = None, **docker_kw) -> Settings:
     """Build a Settings object with Docker sandbox enabled."""
     return Settings(
@@ -78,7 +79,9 @@ def _settings(*, network_domains: list[str] | None = None, **docker_kw) -> Setti
     )
 
 
-async def _run_and_capture(session: DockerSandboxSession, argv: list[str], cwd: Path) -> tuple[int, str, str]:
+async def _run_and_capture(
+    session: DockerSandboxSession, argv: list[str], cwd: Path
+) -> tuple[int, str, str]:
     """Run a command inside the sandbox and return (returncode, stdout, stderr)."""
     proc = await session.exec_command(
         argv,
@@ -97,6 +100,7 @@ async def _run_and_capture(session: DockerSandboxSession, argv: list[str], cwd: 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def e2e_image():
@@ -117,6 +121,7 @@ def project_dir():
 # ---------------------------------------------------------------------------
 # 1. Image management
 # ---------------------------------------------------------------------------
+
 
 class TestImageManagement:
     def test_image_build(self, e2e_image):
@@ -141,12 +146,15 @@ class TestImageManagement:
 # 2. Container lifecycle
 # ---------------------------------------------------------------------------
 
+
 class TestContainerLifecycle:
     def test_start_and_stop(self, e2e_image, project_dir):
         """Container should start, appear in docker ps, then stop cleanly."""
         settings = _settings()
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-lifecycle", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-lifecycle",
+            cwd=project_dir,
         )
 
         async def _run():
@@ -178,7 +186,9 @@ class TestContainerLifecycle:
         """Synchronous stop (atexit handler) should also clean up."""
         settings = _settings()
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-stopsync", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-stopsync",
+            cwd=project_dir,
         )
 
         async def _start():
@@ -203,19 +213,24 @@ class TestContainerLifecycle:
 # 3. Command execution
 # ---------------------------------------------------------------------------
 
+
 class TestCommandExecution:
     def test_echo(self, e2e_image, project_dir):
         """Basic command should execute and return output."""
         settings = _settings()
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-echo", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-echo",
+            cwd=project_dir,
         )
 
         async def _run():
             await session.start()
             try:
                 rc, stdout, stderr = await _run_and_capture(
-                    session, ["echo", "hello-from-sandbox"], project_dir,
+                    session,
+                    ["echo", "hello-from-sandbox"],
+                    project_dir,
                 )
                 assert rc == 0
                 assert "hello-from-sandbox" in stdout
@@ -228,14 +243,18 @@ class TestCommandExecution:
         """Non-zero exit codes should propagate correctly."""
         settings = _settings()
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-exitcode", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-exitcode",
+            cwd=project_dir,
         )
 
         async def _run():
             await session.start()
             try:
                 rc, _, _ = await _run_and_capture(
-                    session, ["bash", "-c", "exit 42"], project_dir,
+                    session,
+                    ["bash", "-c", "exit 42"],
+                    project_dir,
                 )
                 assert rc == 42
             finally:
@@ -247,7 +266,9 @@ class TestCommandExecution:
         """Environment variables should be forwarded into the container."""
         settings = _settings()
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-env", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-env",
+            cwd=project_dir,
         )
 
         async def _run():
@@ -277,14 +298,18 @@ class TestCommandExecution:
         """Commands should run in the specified working directory."""
         settings = _settings()
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-cwd", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-cwd",
+            cwd=project_dir,
         )
 
         async def _run():
             await session.start()
             try:
                 rc, stdout, _ = await _run_and_capture(
-                    session, ["pwd"], project_dir,
+                    session,
+                    ["pwd"],
+                    project_dir,
                 )
                 assert rc == 0
                 assert str(project_dir.resolve()) in stdout
@@ -298,6 +323,7 @@ class TestCommandExecution:
 # 4. Filesystem isolation
 # ---------------------------------------------------------------------------
 
+
 class TestFilesystemIsolation:
     def test_bind_mount_readable(self, e2e_image, project_dir):
         """Files in the project directory should be readable from inside the container."""
@@ -306,14 +332,18 @@ class TestFilesystemIsolation:
 
         settings = _settings()
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-fsread", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-fsread",
+            cwd=project_dir,
         )
 
         async def _run():
             await session.start()
             try:
                 rc, stdout, _ = await _run_and_capture(
-                    session, ["cat", str(marker)], project_dir,
+                    session,
+                    ["cat", str(marker)],
+                    project_dir,
                 )
                 assert rc == 0
                 assert "E2E_MARKER_OK" in stdout
@@ -327,7 +357,9 @@ class TestFilesystemIsolation:
         output_file = project_dir / "from_container.txt"
         settings = _settings()
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-fswrite", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-fswrite",
+            cwd=project_dir,
         )
 
         async def _run():
@@ -350,7 +382,9 @@ class TestFilesystemIsolation:
         """The container should NOT be able to read host files outside the bind mount."""
         settings = _settings()
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-fsfence", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-fsfence",
+            cwd=project_dir,
         )
 
         async def _run():
@@ -360,7 +394,9 @@ class TestFilesystemIsolation:
                 # the container (container has its own /etc/hostname).
                 # More importantly, a path like /root/.bashrc should not be the host's.
                 rc, stdout, _ = await _run_and_capture(
-                    session, ["ls", "/home"], project_dir,
+                    session,
+                    ["ls", "/home"],
+                    project_dir,
                 )
                 # The container should have its own /home (with codelessuser),
                 # not the host's /home
@@ -379,14 +415,18 @@ class TestFilesystemIsolation:
 
         settings = _settings()
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-rg", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-rg",
+            cwd=project_dir,
         )
 
         async def _run():
             await session.start()
             try:
                 rc, stdout, _ = await _run_and_capture(
-                    session, ["rg", "--no-heading", "hello", "."], project_dir,
+                    session,
+                    ["rg", "--no-heading", "hello", "."],
+                    project_dir,
                 )
                 assert rc == 0
                 assert "hello world" in stdout
@@ -400,12 +440,15 @@ class TestFilesystemIsolation:
 # 5. Network isolation
 # ---------------------------------------------------------------------------
 
+
 class TestNetworkIsolation:
     def test_network_none_blocks_connectivity(self, e2e_image, project_dir):
         """With --network=none, outbound connections should fail."""
         settings = _settings()  # no allowed_domains -> --network=none
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-netblk", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-netblk",
+            cwd=project_dir,
         )
 
         async def _run():
@@ -427,7 +470,9 @@ class TestNetworkIsolation:
         """With allowed_domains set, --network=bridge is used and DNS resolves."""
         settings = _settings(network_domains=["github.com"])
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-netok", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-netok",
+            cwd=project_dir,
         )
 
         async def _run():
@@ -436,7 +481,11 @@ class TestNetworkIsolation:
                 # With bridge network, DNS resolution should work
                 rc, stdout, _ = await _run_and_capture(
                     session,
-                    ["bash", "-c", "getent hosts github.com 2>/dev/null && echo DNS_OK || echo DNS_FAIL"],
+                    [
+                        "bash",
+                        "-c",
+                        "getent hosts github.com 2>/dev/null && echo DNS_OK || echo DNS_FAIL",
+                    ],
                     project_dir,
                 )
                 # getent may not be installed in slim image; check if we at least
@@ -460,20 +509,28 @@ class TestNetworkIsolation:
 # 6. Resource limits
 # ---------------------------------------------------------------------------
 
+
 class TestResourceLimits:
     def test_cpu_limit_applied(self, e2e_image, project_dir):
         """Container should reflect the configured CPU limit."""
         settings = _settings(cpu_limit=1.5)
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-cpu", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-cpu",
+            cwd=project_dir,
         )
 
         async def _run():
             await session.start()
             try:
                 result = subprocess.run(
-                    [_DOCKER, "inspect", "--format", "{{.HostConfig.NanoCpus}}",
-                     session.container_name],
+                    [
+                        _DOCKER,
+                        "inspect",
+                        "--format",
+                        "{{.HostConfig.NanoCpus}}",
+                        session.container_name,
+                    ],
                     capture_output=True,
                     text=True,
                 )
@@ -489,15 +546,22 @@ class TestResourceLimits:
         """Container should reflect the configured memory limit."""
         settings = _settings(memory_limit="256m")
         session = DockerSandboxSession(
-            settings=settings, session_id="e2e-mem", cwd=project_dir,
+            settings=settings,
+            session_id="e2e-mem",
+            cwd=project_dir,
         )
 
         async def _run():
             await session.start()
             try:
                 result = subprocess.run(
-                    [_DOCKER, "inspect", "--format", "{{.HostConfig.Memory}}",
-                     session.container_name],
+                    [
+                        _DOCKER,
+                        "inspect",
+                        "--format",
+                        "{{.HostConfig.Memory}}",
+                        session.container_name,
+                    ],
                     capture_output=True,
                     text=True,
                 )
@@ -513,6 +577,7 @@ class TestResourceLimits:
 # ---------------------------------------------------------------------------
 # 7. Session integration (start_docker_sandbox / stop_docker_sandbox)
 # ---------------------------------------------------------------------------
+
 
 class TestSessionIntegration:
     def test_session_lifecycle(self, e2e_image, project_dir):
@@ -552,6 +617,7 @@ class TestSessionIntegration:
 # 8. shell.py integration (create_shell_subprocess routes through Docker)
 # ---------------------------------------------------------------------------
 
+
 class TestShellIntegration:
     def test_create_shell_subprocess_routes_through_docker(self, e2e_image, project_dir):
         """When Docker sandbox is active, create_shell_subprocess should exec inside container."""
@@ -584,6 +650,7 @@ class TestShellIntegration:
 # ---------------------------------------------------------------------------
 # CLI entry point for running outside pytest
 # ---------------------------------------------------------------------------
+
 
 def _main() -> int:
     """Run all tests and report results."""

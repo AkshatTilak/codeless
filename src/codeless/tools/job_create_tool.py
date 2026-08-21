@@ -27,7 +27,9 @@ class JobCreateTool(BaseTool):
     description = "Create a background shell or local-agent task."
     input_model = JobCreateToolInput
 
-    async def execute(self, arguments: JobCreateToolInput, context: ToolExecutionContext) -> ToolResult:
+    async def execute(
+        self, arguments: JobCreateToolInput, context: ToolExecutionContext
+    ) -> ToolResult:
         manager = get_task_manager()
         if arguments.type == "local_bash":
             if not arguments.command:

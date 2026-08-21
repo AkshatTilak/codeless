@@ -67,7 +67,7 @@ def bootstrap_shadow_workspace(
 ) -> tuple[Path, dict[str, Any]]:
     """
     Bootstrap the shadow workspace and project support folders.
-    
+
     Creates:
     - ~/.codeless/projects/<project_hash>/metadata.json
     - ~/.codeless/projects/<project_hash>/abb_workspace/ (from template)
@@ -86,7 +86,15 @@ def bootstrap_shadow_workspace(
     storage_dir.mkdir(parents=True, exist_ok=True)
 
     # Subdirectories for runtime
-    for sub in ["logs/dev", "logs/docker", "logs/failure", "logs/test", "sessions", "checkpoints", "cache"]:
+    for sub in [
+        "logs/dev",
+        "logs/docker",
+        "logs/failure",
+        "logs/test",
+        "sessions",
+        "checkpoints",
+        "cache",
+    ]:
         (storage_dir / sub).mkdir(parents=True, exist_ok=True)
 
     metadata: dict[str, Any] = {}
@@ -112,13 +120,15 @@ def bootstrap_shadow_workspace(
             )
 
     # Update metadata
-    metadata.update({
-        "project_name": proj_root_path.name,
-        "project_root": str(proj_root_path),
-        "project_hash": get_project_hash(proj_root_path),
-        "template_version": template_ver,
-        "last_active": now_iso,
-    })
+    metadata.update(
+        {
+            "project_name": proj_root_path.name,
+            "project_root": str(proj_root_path),
+            "project_hash": get_project_hash(proj_root_path),
+            "template_version": template_ver,
+            "last_active": now_iso,
+        }
+    )
     if "created_at" not in metadata:
         metadata["created_at"] = now_iso
 
@@ -129,7 +139,7 @@ def bootstrap_shadow_workspace(
 def resolve_abb_workspace(project_root: str | Path, auto_init: bool = True) -> Path:
     """
     Resolve the active ABB workspace path for a project.
-    
+
     Priority:
     0. Container/custom env override: $CODELESS_ABB_ROOT
     1. Dev-mode override: <project_root>/.codeless/abb_workspace/
@@ -146,7 +156,6 @@ def resolve_abb_workspace(project_root: str | Path, auto_init: bool = True) -> P
     dev_override = proj_root_path / ".codeless" / "abb_workspace"
     if dev_override.exists() and (dev_override / "agent.md").exists():
         return dev_override
-
 
     # 2. Shadow workspace
     storage_dir = get_project_storage_dir(proj_root_path)
@@ -179,7 +188,7 @@ def get_dir_size_bytes(directory: Path) -> int:
 def list_shadow_projects() -> list[dict[str, Any]]:
     """
     List all shadow workspaces registered under global Codeless storage.
-    
+
     Returns a list of dicts with:
     - project_hash: SHA-256 hash string
     - storage_dir: Absolute path to the shadow project directory
@@ -218,32 +227,34 @@ def list_shadow_projects() -> list[dict[str, Any]]:
                 exists_on_disk = False
 
         size_bytes = get_dir_size_bytes(entry)
-        results.append({
-            "project_hash": proj_hash,
-            "storage_dir": str(entry),
-            "project_root": raw_root,
-            "project_name": metadata.get("project_name", entry.name),
-            "exists_on_disk": exists_on_disk,
-            "is_orphan": not exists_on_disk,
-            "disk_size_bytes": size_bytes,
-            "template_version": metadata.get("template_version", "unknown"),
-            "last_active": metadata.get("last_active"),
-            "created_at": metadata.get("created_at"),
-        })
+        results.append(
+            {
+                "project_hash": proj_hash,
+                "storage_dir": str(entry),
+                "project_root": raw_root,
+                "project_name": metadata.get("project_name", entry.name),
+                "exists_on_disk": exists_on_disk,
+                "is_orphan": not exists_on_disk,
+                "disk_size_bytes": size_bytes,
+                "template_version": metadata.get("template_version", "unknown"),
+                "last_active": metadata.get("last_active"),
+                "created_at": metadata.get("created_at"),
+            }
+        )
 
-    results.sort(key=lambda x: (x.get("last_active") or "", x.get("project_name") or ""), reverse=True)
+    results.sort(
+        key=lambda x: (x.get("last_active") or "", x.get("project_name") or ""), reverse=True
+    )
     return results
 
 
-def clean_shadow_projects(
-    dry_run: bool = False, clean_all: bool = False
-) -> list[dict[str, Any]]:
+def clean_shadow_projects(dry_run: bool = False, clean_all: bool = False) -> list[dict[str, Any]]:
     """
     Prune shadow workspaces.
-    
+
     If clean_all is True, removes all shadow workspaces.
     Otherwise, removes only orphaned workspaces (whose original project_root no longer exists).
-    
+
     Returns the list of removed (or candidate) shadow workspace metadata records.
     """
     projects = list_shadow_projects()
@@ -259,4 +270,3 @@ def clean_shadow_projects(
                 shutil.rmtree(storage_path, ignore_errors=True)
 
     return targets
-

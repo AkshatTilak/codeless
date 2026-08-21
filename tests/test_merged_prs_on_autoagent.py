@@ -33,19 +33,20 @@ RESULTS: dict[str, tuple[bool, float]] = {}
 # Helpers
 # ==================================================================
 
+
 def _make_registry(extra_tools=None):
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
+    from codeless.tools.file_edit_tool import FileEditTool
     from codeless.tools.file_read_tool import FileReadTool
     from codeless.tools.file_write_tool import FileWriteTool
-    from codeless.tools.file_edit_tool import FileEditTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
 
     reg = ToolRegistry()
     for t in [BashTool(), FileReadTool(), FileWriteTool(), FileEditTool(), GlobTool(), GrepTool()]:
         reg.register(t)
-    for t in (extra_tools or []):
+    for t in extra_tools or []:
         reg.register(t)
     return reg
 
@@ -54,36 +55,50 @@ def _make_checker():
     from codeless.config.settings import PermissionSettings
     from codeless.permissions.checker import PermissionChecker
     from codeless.permissions.modes import PermissionMode
+
     return PermissionChecker(PermissionSettings(mode=PermissionMode.FULL_AUTO))
 
 
 def make_anthropic_engine(system_prompt, extra_tools=None):
     from codeless.api.client import AnthropicApiClient
     from codeless.engine.query_engine import QueryEngine
+
     api = AnthropicApiClient(api_key=API_KEY, base_url=ANTHROPIC_BASE)
     return QueryEngine(
-        api_client=api, tool_registry=_make_registry(extra_tools),
-        permission_checker=_make_checker(), cwd=WORKSPACE, model=MODEL,
-        system_prompt=system_prompt, max_tokens=4096,
+        api_client=api,
+        tool_registry=_make_registry(extra_tools),
+        permission_checker=_make_checker(),
+        cwd=WORKSPACE,
+        model=MODEL,
+        system_prompt=system_prompt,
+        max_tokens=4096,
     )
 
 
 def make_openai_engine(system_prompt, extra_tools=None):
     from codeless.api.openai_client import OpenAICompatibleClient
     from codeless.engine.query_engine import QueryEngine
+
     api = OpenAICompatibleClient(api_key=API_KEY, base_url=OPENAI_BASE)
     return QueryEngine(
-        api_client=api, tool_registry=_make_registry(extra_tools),
-        permission_checker=_make_checker(), cwd=WORKSPACE, model=MODEL,
-        system_prompt=system_prompt, max_tokens=4096,
+        api_client=api,
+        tool_registry=_make_registry(extra_tools),
+        permission_checker=_make_checker(),
+        cwd=WORKSPACE,
+        model=MODEL,
+        system_prompt=system_prompt,
+        max_tokens=4096,
     )
 
 
 def collect(events):
     from codeless.engine.stream_events import (
-        AssistantTextDelta, AssistantTurnComplete,
-        ToolExecutionStarted, ToolExecutionCompleted,
+        AssistantTextDelta,
+        AssistantTurnComplete,
+        ToolExecutionCompleted,
+        ToolExecutionStarted,
     )
+
     r = {"text": "", "tools": [], "errors": [], "turns": 0, "in_tok": 0, "out_tok": 0}
     for ev in events:
         if isinstance(ev, AssistantTextDelta):
@@ -122,14 +137,17 @@ async def task_diagnose_autoagent():
         extra_tools=[SkillTool()],
     )
 
-    evs = [ev async for ev in engine.submit_message(
-        "I think there might be issues with AutoAgent's import structure. "
-        "First, load the 'diagnose' skill. Then investigate: "
-        "1. Try to import the main module: python -c 'import autoagent' "
-        "2. If it fails, read the traceback and find the root cause "
-        "3. If it succeeds, check autoagent/core.py for any bare except clauses "
-        "that could swallow errors silently."
-    )]
+    evs = [
+        ev
+        async for ev in engine.submit_message(
+            "I think there might be issues with AutoAgent's import structure. "
+            "First, load the 'diagnose' skill. Then investigate: "
+            "1. Try to import the main module: python -c 'import autoagent' "
+            "2. If it fails, read the traceback and find the root cause "
+            "3. If it succeeds, check autoagent/core.py for any bare except clauses "
+            "that could swallow errors silently."
+        )
+    ]
     r = collect(evs)
     print(f"\n  Tools: {r['tools']} ({len(r['tools'])} calls)")
     print(f"  Turns: {r['turns']}, Tokens: {r['in_tok']}+{r['out_tok']}")
@@ -155,11 +173,11 @@ async def task_memory_research_autoagent():
     print("  Task 2: PR#12 — Research AutoAgent → save to memory → search → use")
     print("=" * 70)
 
-    from codeless.memory.search import find_relevant_memories
-    from codeless.memory.scan import scan_memory_files
-    import codeless.memory.paths as mp
     import codeless.memory.manager as mm
+    import codeless.memory.paths as mp
     import codeless.memory.scan as ms
+    from codeless.memory.scan import scan_memory_files
+    from codeless.memory.search import find_relevant_memories
 
     with tempfile.TemporaryDirectory() as tmpdir:
         mem_dir = Path(tmpdir) / "memory"
@@ -176,19 +194,25 @@ async def task_memory_research_autoagent():
                 "You are a researcher. Investigate codebases thoroughly. Be concise.",
             )
             print("  Phase 1: Research AutoAgent architecture...")
-            evs1 = [ev async for ev in engine.submit_message(
-                "Read autoagent/core.py (first 50 lines) and autoagent/types.py. "
-                "Tell me: what is the main class, what pattern does the agent loop use, "
-                "and what data types are defined."
-            )]
+            evs1 = [
+                ev
+                async for ev in engine.submit_message(
+                    "Read autoagent/core.py (first 50 lines) and autoagent/types.py. "
+                    "Tell me: what is the main class, what pattern does the agent loop use, "
+                    "and what data types are defined."
+                )
+            ]
             r1 = collect(evs1)
             print(f"    {r1['turns']} turns, {len(r1['tools'])} tools")
 
             # Phase 2: Agent researches dependencies
             print("  Phase 2: Research dependencies...")
-            evs2 = [ev async for ev in engine.submit_message(
-                "Read setup.cfg and tell me what the install_requires are."
-            )]
+            evs2 = [
+                ev
+                async for ev in engine.submit_message(
+                    "Read setup.cfg and tell me what the install_requires are."
+                )
+            ]
             r2 = collect(evs2)
             print(f"    {r2['turns']} turns, {len(r2['tools'])} tools")
 
@@ -199,7 +223,7 @@ description: Core architecture of AutoAgent - MetaChain class with ReAct-style a
 type: project
 ---
 
-{r1['text'][:600]}
+{r1["text"][:600]}
 """)
             (mem_dir / "dependencies.md").write_text(f"""---
 name: autoagent-dependencies
@@ -207,7 +231,7 @@ description: Package dependencies from setup.cfg for AutoAgent framework
 type: reference
 ---
 
-{r2['text'][:600]}
+{r2["text"][:600]}
 """)
 
             # Phase 3: Verify frontmatter parsing (PR #12 fix)
@@ -220,8 +244,12 @@ type: reference
             # Phase 4: Search memory by body content (PR #12 improvement)
             r_arch = find_relevant_memories("What class implements the agent loop?", tmpdir)
             r_deps = find_relevant_memories("What packages does AutoAgent need?", tmpdir)
-            print(f"  Search 'agent loop': {len(r_arch)} results — {r_arch[0].title if r_arch else 'none'}")
-            print(f"  Search 'packages': {len(r_deps)} results — {r_deps[0].title if r_deps else 'none'}")
+            print(
+                f"  Search 'agent loop': {len(r_arch)} results — {r_arch[0].title if r_arch else 'none'}"
+            )
+            print(
+                f"  Search 'packages': {len(r_deps)} results — {r_deps[0].title if r_deps else 'none'}"
+            )
             search_ok = len(r_arch) > 0 and len(r_deps) > 0
 
             # Phase 5: New agent uses memory context to answer
@@ -229,10 +257,13 @@ type: reference
             engine2 = make_anthropic_engine(
                 f"You have project memories:\n{memory_ctx}\n\nAnswer using this context.",
             )
-            evs3 = [ev async for ev in engine2.submit_message(
-                "Based on the project memories: what is the core class in AutoAgent, "
-                "what pattern does it use, and what are 3 key dependencies?"
-            )]
+            evs3 = [
+                ev
+                async for ev in engine2.submit_message(
+                    "Based on the project memories: what is the core class in AutoAgent, "
+                    "what pattern does it use, and what are 3 key dependencies?"
+                )
+            ]
             r3 = collect(evs3)
             print(f"\n  Memory-informed answer: {r3['text'][:200]}")
             answer_ok = any(kw in r3["text"].lower() for kw in ["metacha", "react", "litellm"])
@@ -263,45 +294,60 @@ async def task_openai_code_review():
 
     # Turn 1: Find files to review
     print("  Turn 1: Find key files...")
-    evs1 = [ev async for ev in engine.submit_message(
-        "List the Python files in autoagent/ (top level only) using glob pattern 'autoagent/*.py'"
-    )]
+    evs1 = [
+        ev
+        async for ev in engine.submit_message(
+            "List the Python files in autoagent/ (top level only) using glob pattern 'autoagent/*.py'"
+        )
+    ]
     r1 = collect(evs1)
     print(f"    {r1['text'][:150]}")
 
     # Turn 2: Review core.py for security issues
     print("  Turn 2: Security review of core.py...")
-    evs2 = [ev async for ev in engine.submit_message(
-        "Search autoagent/core.py for potential security issues: "
-        "grep for 'eval(', 'exec(', 'subprocess', 'shell=True', 'os.system'"
-    )]
+    evs2 = [
+        ev
+        async for ev in engine.submit_message(
+            "Search autoagent/core.py for potential security issues: "
+            "grep for 'eval(', 'exec(', 'subprocess', 'shell=True', 'os.system'"
+        )
+    ]
     r2 = collect(evs2)
     print(f"    {r2['text'][:200]}")
 
     # Turn 3: Review error handling
     print("  Turn 3: Error handling review...")
-    evs3 = [ev async for ev in engine.submit_message(
-        "Search autoagent/ for bare 'except:' or 'except Exception' with 'pass' "
-        "that could swallow errors. Use grep."
-    )]
+    evs3 = [
+        ev
+        async for ev in engine.submit_message(
+            "Search autoagent/ for bare 'except:' or 'except Exception' with 'pass' "
+            "that could swallow errors. Use grep."
+        )
+    ]
     r3 = collect(evs3)
     print(f"    {r3['text'][:200]}")
 
     # Turn 4: Read a specific suspicious file
     print("  Turn 4: Deep read of docker_env.py...")
-    evs4 = [ev async for ev in engine.submit_message(
-        "Read autoagent/environment/docker_env.py and check for any hardcoded "
-        "credentials, unsafe subprocess usage, or missing error handling."
-    )]
+    evs4 = [
+        ev
+        async for ev in engine.submit_message(
+            "Read autoagent/environment/docker_env.py and check for any hardcoded "
+            "credentials, unsafe subprocess usage, or missing error handling."
+        )
+    ]
     r4 = collect(evs4)
     print(f"    {r4['text'][:200]}")
 
     # Turn 5: Synthesize review
     print("  Turn 5: Synthesize review report...")
-    evs5 = [ev async for ev in engine.submit_message(
-        "Write a 5-point code review summary based on everything you found. "
-        "Include file paths and severity levels."
-    )]
+    evs5 = [
+        ev
+        async for ev in engine.submit_message(
+            "Write a 5-point code review summary based on everything you found. "
+            "Include file paths and severity levels."
+        )
+    ]
     r5 = collect(evs5)
     print(f"    Report: {r5['text'][:400]}")
 
@@ -312,7 +358,10 @@ async def task_openai_code_review():
     ok = (
         total_tools >= 4
         and len(r5["text"]) > 200
-        and any(kw in (r2["text"] + r4["text"]).lower() for kw in ["subprocess", "shell", "security", "eval"])
+        and any(
+            kw in (r2["text"] + r4["text"]).lower()
+            for kw in ["subprocess", "shell", "security", "eval"]
+        )
     )
     return ok
 
@@ -329,10 +378,11 @@ async def task_session_resume_autoagent():
     print("  Task 4: PR#16 — Research AutoAgent → save → resume → continue")
     print("=" * 70)
 
-    from codeless.services.session_storage import (
-        save_session_snapshot, load_session_snapshot,
-    )
     from codeless.engine.messages import ConversationMessage
+    from codeless.services.session_storage import (
+        load_session_snapshot,
+        save_session_snapshot,
+    )
 
     with tempfile.TemporaryDirectory() as session_dir:
         # Phase 1: Original 3-turn research session
@@ -341,22 +391,31 @@ async def task_session_resume_autoagent():
         )
 
         print("  Phase 1: Original session (3 turns)...")
-        evs1 = [ev async for ev in engine1.submit_message(
-            "Read autoagent/registry.py and tell me what the Registry class does."
-        )]
+        evs1 = [
+            ev
+            async for ev in engine1.submit_message(
+                "Read autoagent/registry.py and tell me what the Registry class does."
+            )
+        ]
         r1 = collect(evs1)
         print(f"    Turn 1: {r1['text'][:100]}")
 
-        evs2 = [ev async for ev in engine1.submit_message(
-            "Now read autoagent/types.py and list the data classes defined there."
-        )]
+        evs2 = [
+            ev
+            async for ev in engine1.submit_message(
+                "Now read autoagent/types.py and list the data classes defined there."
+            )
+        ]
         r2 = collect(evs2)
         print(f"    Turn 2: {r2['text'][:100]}")
 
-        evs3 = [ev async for ev in engine1.submit_message(
-            "How does the Registry class relate to the types in types.py? "
-            "Are any of the data classes registered in the registry?"
-        )]
+        evs3 = [
+            ev
+            async for ev in engine1.submit_message(
+                "How does the Registry class relate to the types in types.py? "
+                "Are any of the data classes registered in the registry?"
+            )
+        ]
         r3 = collect(evs3)
         print(f"    Turn 3: {r3['text'][:100]}")
 
@@ -365,7 +424,8 @@ async def task_session_resume_autoagent():
         print(f"\n  Session cost: in={usage_before.input_tokens}, out={usage_before.output_tokens}")
 
         session_path = save_session_snapshot(
-            cwd=session_dir, model=MODEL,
+            cwd=session_dir,
+            model=MODEL,
             system_prompt="code analyst",
             messages=engine1.messages,
             usage=usage_before,
@@ -381,23 +441,32 @@ async def task_session_resume_autoagent():
         engine2 = make_anthropic_engine(
             "You are a code analyst. Continue the previous analysis.",
         )
-        engine2.load_messages([
-            ConversationMessage.model_validate(m) for m in loaded["messages"]
-        ])
+        engine2.load_messages([ConversationMessage.model_validate(m) for m in loaded["messages"]])
 
         # Phase 3: Continue with context — agent should remember Registry + types
         print("\n  Phase 3: Resumed conversation...")
-        evs4 = [ev async for ev in engine2.submit_message(
-            "Based on your earlier analysis of registry.py and types.py, "
-            "what would be the most important refactoring to improve "
-            "the relationship between these two modules?"
-        )]
+        evs4 = [
+            ev
+            async for ev in engine2.submit_message(
+                "Based on your earlier analysis of registry.py and types.py, "
+                "what would be the most important refactoring to improve "
+                "the relationship between these two modules?"
+            )
+        ]
         r4 = collect(evs4)
         print(f"    Resumed: {r4['text'][:300]}")
 
-        remembers = any(kw in r4["text"].lower() for kw in [
-            "registry", "type", "agent", "tool", "register", "class",
-        ])
+        remembers = any(
+            kw in r4["text"].lower()
+            for kw in [
+                "registry",
+                "type",
+                "agent",
+                "tool",
+                "register",
+                "class",
+            ]
+        )
         print(f"\n  Remembers context: {remembers}")
         return remembers and session_path.exists()
 
@@ -414,12 +483,16 @@ async def task_cron_autoagent_maintenance():
     print("  Task 5: PR#16 — Cron scheduler for AutoAgent maintenance")
     print("=" * 70)
 
-    from codeless.services.cron import (
-        load_cron_jobs, upsert_cron_job, delete_cron_job,
-        get_cron_job, set_job_enabled,
-        mark_job_run, next_run_time,
-    )
     import codeless.services.cron as cron_mod
+    from codeless.services.cron import (
+        delete_cron_job,
+        get_cron_job,
+        load_cron_jobs,
+        mark_job_run,
+        next_run_time,
+        set_job_enabled,
+        upsert_cron_job,
+    )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         registry_path = Path(tmpdir) / "cron_jobs.json"
@@ -429,14 +502,26 @@ async def task_cron_autoagent_maintenance():
         try:
             # Create maintenance jobs for AutoAgent
             jobs_data = [
-                {"name": "lint-autoagent", "schedule": "0 */6 * * *",
-                 "command": "cd /home/tangjiabin/AutoAgent && ruff check autoagent/"},
-                {"name": "test-autoagent", "schedule": "0 2 * * *",
-                 "command": "cd /home/tangjiabin/AutoAgent && python -m pytest tests/ -q"},
-                {"name": "count-todos", "schedule": "0 9 * * 1",
-                 "command": "cd /home/tangjiabin/AutoAgent && grep -r TODO autoagent/ | wc -l"},
-                {"name": "disk-cleanup", "schedule": "0 3 * * 0",
-                 "command": "find /tmp -name '*.pyc' -mtime +7 -delete"},
+                {
+                    "name": "lint-autoagent",
+                    "schedule": "0 */6 * * *",
+                    "command": "cd /home/tangjiabin/AutoAgent && ruff check autoagent/",
+                },
+                {
+                    "name": "test-autoagent",
+                    "schedule": "0 2 * * *",
+                    "command": "cd /home/tangjiabin/AutoAgent && python -m pytest tests/ -q",
+                },
+                {
+                    "name": "count-todos",
+                    "schedule": "0 9 * * 1",
+                    "command": "cd /home/tangjiabin/AutoAgent && grep -r TODO autoagent/ | wc -l",
+                },
+                {
+                    "name": "disk-cleanup",
+                    "schedule": "0 3 * * 0",
+                    "command": "find /tmp -name '*.pyc' -mtime +7 -delete",
+                },
             ]
             for job in jobs_data:
                 upsert_cron_job(job)
@@ -465,9 +550,12 @@ async def task_cron_autoagent_maintenance():
             # Now use agent to actually run the lint command
             engine = make_anthropic_engine("Execute commands. Report results concisely.")
             print("\n  Running lint-autoagent command via agent...")
-            evs = [ev async for ev in engine.submit_message(
-                f"Run this command and report the result: {jobs_data[0]['command']}"
-            )]
+            evs = [
+                ev
+                async for ev in engine.submit_message(
+                    f"Run this command and report the result: {jobs_data[0]['command']}"
+                )
+            ]
             r = collect(evs)
             print(f"    Agent result: {r['text'][:200]}")
 
@@ -502,16 +590,16 @@ async def task_full_dev_workflow():
     print("  Task 6: ALL PRs — Full development workflow on AutoAgent")
     print("=" * 70)
 
-    from codeless.tools.skill_tool import SkillTool
-    from codeless.memory.scan import scan_memory_files
-    from codeless.memory.search import find_relevant_memories
-    from codeless.services.session_storage import save_session_snapshot, load_session_snapshot
-    from codeless.services.cron import upsert_cron_job, load_cron_jobs, validate_cron_expression
-    from codeless.engine.messages import ConversationMessage
-    import codeless.memory.paths as mp
     import codeless.memory.manager as mm
+    import codeless.memory.paths as mp
     import codeless.memory.scan as ms
     import codeless.services.cron as cron_mod
+    from codeless.engine.messages import ConversationMessage
+    from codeless.memory.scan import scan_memory_files
+    from codeless.memory.search import find_relevant_memories
+    from codeless.services.cron import load_cron_jobs, upsert_cron_job, validate_cron_expression
+    from codeless.services.session_storage import load_session_snapshot, save_session_snapshot
+    from codeless.tools.skill_tool import SkillTool
 
     with tempfile.TemporaryDirectory() as tmpdir:
         mem_dir = Path(tmpdir) / "memory"
@@ -532,10 +620,13 @@ async def task_full_dev_workflow():
                 "You are a researcher. Use tools. Be concise.",
                 extra_tools=[SkillTool()],
             )
-            evs1 = [ev async for ev in engine1.submit_message(
-                "Read autoagent/core.py (first 30 lines) and autoagent/registry.py (first 30 lines). "
-                "Tell me the main classes and their purpose."
-            )]
+            evs1 = [
+                ev
+                async for ev in engine1.submit_message(
+                    "Read autoagent/core.py (first 30 lines) and autoagent/registry.py (first 30 lines). "
+                    "Tell me the main classes and their purpose."
+                )
+            ]
             r1 = collect(evs1)
             print(f"    Tools: {r1['tools']}, text: {r1['text'][:150]}")
 
@@ -547,7 +638,7 @@ description: MetaChain class in core.py is the main agent engine with ReAct loop
 type: project
 ---
 
-{r1['text'][:500]}
+{r1["text"][:500]}
 """)
             scanned = scan_memory_files(tmpdir)
             search_results = find_relevant_memories("main agent class", tmpdir)
@@ -555,10 +646,13 @@ type: project
 
             # Step 3: Use diagnose skill on AutoAgent (PR #17)
             print("  Step 3: [PR#17] Load diagnose skill and investigate...")
-            evs3 = [ev async for ev in engine1.submit_message(
-                "Load the 'diagnose' skill. Then check if autoagent/ has any "
-                "circular import issues by running: python -c 'import autoagent.core'"
-            )]
+            evs3 = [
+                ev
+                async for ev in engine1.submit_message(
+                    "Load the 'diagnose' skill. Then check if autoagent/ has any "
+                    "circular import issues by running: python -c 'import autoagent.core'"
+                )
+            ]
             r3 = collect(evs3)
             print(f"    Tools: {r3['tools']}, text: {r3['text'][:150]}")
 
@@ -570,8 +664,11 @@ type: project
             # Step 5: Save session (PR #16)
             print("  Step 5: [PR#16] Save session...")
             sp = save_session_snapshot(
-                cwd=tmpdir, model=MODEL, system_prompt="researcher",
-                messages=engine1.messages, usage=usage,
+                cwd=tmpdir,
+                model=MODEL,
+                system_prompt="researcher",
+                messages=engine1.messages,
+                usage=usage,
                 session_id="full-workflow-001",
             )
             print(f"    Saved: {sp.exists()}, {len(engine1.messages)} messages")
@@ -579,11 +676,13 @@ type: project
             # Step 6: Create cron job for ongoing monitoring (PR #16)
             print("  Step 6: [PR#16] Create maintenance cron job...")
             assert validate_cron_expression("0 */4 * * *")
-            upsert_cron_job({
-                "name": "autoagent-lint",
-                "schedule": "0 */4 * * *",
-                "command": "cd /home/tangjiabin/AutoAgent && ruff check autoagent/",
-            })
+            upsert_cron_job(
+                {
+                    "name": "autoagent-lint",
+                    "schedule": "0 */4 * * *",
+                    "command": "cd /home/tangjiabin/AutoAgent && ruff check autoagent/",
+                }
+            )
             cron_jobs = load_cron_jobs()
             print(f"    Cron jobs: {[j['name'] for j in cron_jobs]}")
 
@@ -593,31 +692,36 @@ type: project
             engine2 = make_anthropic_engine(
                 "You are a researcher continuing a previous analysis. Be concise.",
             )
-            engine2.load_messages([
-                ConversationMessage.model_validate(m) for m in loaded["messages"]
-            ])
+            engine2.load_messages(
+                [ConversationMessage.model_validate(m) for m in loaded["messages"]]
+            )
 
-            evs7 = [ev async for ev in engine2.submit_message(
-                "Based on your earlier research, what is the single most important "
-                "improvement you would recommend for AutoAgent's codebase?"
-            )]
+            evs7 = [
+                ev
+                async for ev in engine2.submit_message(
+                    "Based on your earlier research, what is the single most important "
+                    "improvement you would recommend for AutoAgent's codebase?"
+                )
+            ]
             r7 = collect(evs7)
             print(f"    Continued: {r7['text'][:250]}")
 
             # Verify all features worked
             ok = (
-                len(r1["tools"]) >= 1       # PR#14: OpenAI tools worked
-                and len(scanned) >= 1       # PR#12: memory saved + scanned
-                and len(search_results) > 0 # PR#12: search works
+                len(r1["tools"]) >= 1  # PR#14: OpenAI tools worked
+                and len(scanned) >= 1  # PR#12: memory saved + scanned
+                and len(search_results) > 0  # PR#12: search works
                 and "skill" in r3["tools"]  # PR#17: skill loaded
-                and sp.exists()             # PR#16: session saved
-                and len(cron_jobs) >= 1     # PR#16: cron created
-                and len(r7["text"]) > 50    # PR#16: resume worked
+                and sp.exists()  # PR#16: session saved
+                and len(cron_jobs) >= 1  # PR#16: cron created
+                and len(r7["text"]) > 50  # PR#16: resume worked
             )
-            print(f"\n  All features: OpenAI={len(r1['tools'])>=1}, "
-                  f"memory={len(scanned)>=1}, skill={'skill' in r3['tools']}, "
-                  f"session={sp.exists()}, cron={len(cron_jobs)>=1}, "
-                  f"resume={len(r7['text'])>50}")
+            print(
+                f"\n  All features: OpenAI={len(r1['tools']) >= 1}, "
+                f"memory={len(scanned) >= 1}, skill={'skill' in r3['tools']}, "
+                f"session={sp.exists()}, cron={len(cron_jobs) >= 1}, "
+                f"resume={len(r7['text']) > 50}"
+            )
             return ok
         finally:
             mp.get_project_memory_dir = orig_mp
@@ -648,13 +752,14 @@ async def main():
             print(f"\n  >>> {'PASS' if ok else 'FAIL'} ({elapsed:.1f}s)")
         except Exception as e:
             RESULTS[name] = (False, time.time() - t0)
-            print(f"\n  >>> EXCEPTION ({time.time()-t0:.1f}s): {e}")
+            print(f"\n  >>> EXCEPTION ({time.time() - t0:.1f}s): {e}")
             import traceback
+
             traceback.print_exc()
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("  FINAL — Merged PR Features on AutoAgent (Real Large Tasks)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     passed = sum(1 for ok, _ in RESULTS.values() if ok)
     for name, (ok, elapsed) in RESULTS.items():
         print(f"  {'PASS' if ok else 'FAIL'}  {name}  [{elapsed:.1f}s]")

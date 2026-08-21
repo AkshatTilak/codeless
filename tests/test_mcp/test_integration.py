@@ -8,8 +8,8 @@ from pathlib import Path
 from codeless.config.settings import Settings
 from codeless.mcp.config import load_mcp_server_configs
 from codeless.mcp.types import McpResourceInfo, McpStdioServerConfig, McpToolInfo
-from codeless.plugins.types import LoadedPlugin
 from codeless.plugins.schemas import PluginManifest
+from codeless.plugins.types import LoadedPlugin
 from codeless.tools import create_default_tool_registry
 from codeless.tools.base import ToolExecutionContext
 
@@ -75,5 +75,7 @@ async def test_mcp_tools_are_registered():
 
     list_tool = registry.get("list_mcp_resources")
     assert list_tool is not None
-    list_result = await list_tool.execute(list_tool.input_model(), ToolExecutionContext(cwd=Path(".")))
+    list_result = await list_tool.execute(
+        list_tool.input_model(), ToolExecutionContext(cwd=Path("."))
+    )
     assert "demo://readme" in list_result.output

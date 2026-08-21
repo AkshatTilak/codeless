@@ -19,7 +19,12 @@ __all__ = [
 
 
 def __getattr__(name: str):
-    if name in {"discover_project_skill_dirs", "get_user_skill_dirs", "get_user_skills_dir", "load_skill_registry"}:
+    if name in {
+        "discover_project_skill_dirs",
+        "get_user_skill_dirs",
+        "get_user_skills_dir",
+        "load_skill_registry",
+    }:
         from codeless.skills.loader import (
             discover_project_skill_dirs,
             get_user_skill_dirs,

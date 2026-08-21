@@ -53,7 +53,9 @@ def test_sandbox_settings_default_backend_is_srt():
 
 
 def test_wrap_command_for_sandbox_returns_original_when_disabled():
-    command, settings_path = wrap_command_for_sandbox(["bash", "-lc", "echo hi"], settings=Settings())
+    command, settings_path = wrap_command_for_sandbox(
+        ["bash", "-lc", "echo hi"], settings=Settings()
+    )
     assert command == ["bash", "-lc", "echo hi"]
     assert settings_path is None
 
@@ -62,7 +64,8 @@ def test_wrap_command_ignores_docker_backend():
     """The srt wrap function should pass through unchanged when backend is docker."""
     settings = Settings(sandbox=SandboxSettings(enabled=True, backend="docker"))
     command, settings_path = wrap_command_for_sandbox(
-        ["bash", "-lc", "echo hi"], settings=settings,
+        ["bash", "-lc", "echo hi"],
+        settings=settings,
     )
     # srt availability check will fail (srt not installed in most test envs),
     # so command should be returned unchanged.
@@ -102,7 +105,10 @@ def test_wrap_command_for_sandbox_raises_when_required(monkeypatch):
         wrap_command_for_sandbox(["bash", "-lc", "echo hi"], settings=settings)
 
 
-@pytest.mark.skipif(shutil.which("srt") is None or shutil.which("bwrap") is None, reason="Needs local sandbox runtime")
+@pytest.mark.skipif(
+    shutil.which("srt") is None or shutil.which("bwrap") is None,
+    reason="Needs local sandbox runtime",
+)
 def test_create_shell_subprocess_preserves_exit_code_with_sandbox(monkeypatch):
     import codeless.config.paths as config_paths
 
@@ -111,7 +117,9 @@ def test_create_shell_subprocess_preserves_exit_code_with_sandbox(monkeypatch):
             cfg = Path(tmpdir) / "settings.json"
             from codeless.config.settings import save_settings
 
-            save_settings(Settings(sandbox=SandboxSettings(enabled=True, fail_if_unavailable=True)), cfg)
+            save_settings(
+                Settings(sandbox=SandboxSettings(enabled=True, fail_if_unavailable=True)), cfg
+            )
             orig = config_paths.get_config_file_path
             monkeypatch.setattr(config_paths, "get_config_file_path", lambda: cfg)
             try:

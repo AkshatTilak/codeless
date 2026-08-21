@@ -8,7 +8,6 @@ from codeless.platforms import PlatformCapabilities
 from codeless.swarm.registry import BackendRegistry
 from codeless.swarm.types import TeammateExecutor
 
-
 # ---------------------------------------------------------------------------
 # Default registration
 # ---------------------------------------------------------------------------
@@ -101,14 +100,11 @@ def test_register_custom_backend():
         def is_available(self):
             return True
 
-        async def spawn(self, config):
-            ...
+        async def spawn(self, config): ...
 
-        async def send_message(self, agent_id, message):
-            ...
+        async def send_message(self, agent_id, message): ...
 
-        async def shutdown(self, agent_id, *, force=False):
-            ...
+        async def shutdown(self, agent_id, *, force=False): ...
 
     registry = BackendRegistry()
     fake = FakeExecutor()

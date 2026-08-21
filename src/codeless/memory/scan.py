@@ -78,9 +78,7 @@ def _parse_memory_file(path: Path, content: str) -> MemoryHeader:
     body_lines = [
         line.strip()
         for idx, line in enumerate(lines)
-        if line.strip()
-        and not line.strip().startswith("#")
-        and idx != desc_line_idx
+        if line.strip() and not line.strip().startswith("#") and idx != desc_line_idx
     ]
     body_preview = " ".join(body_lines)[:300]
 

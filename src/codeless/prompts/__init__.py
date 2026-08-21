@@ -2,8 +2,8 @@
 
 from codeless.prompts.claudemd import discover_claude_md_files, load_claude_md_prompt
 from codeless.prompts.context import build_runtime_system_prompt
-from codeless.prompts.system_prompt import build_system_prompt
 from codeless.prompts.environment import get_environment_info
+from codeless.prompts.system_prompt import build_system_prompt
 
 __all__ = [
     "build_runtime_system_prompt",

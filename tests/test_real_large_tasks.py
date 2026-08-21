@@ -8,14 +8,14 @@ Run: python tests/test_real_large_tasks.py
 
 from __future__ import annotations
 
-import pytest
-
 import asyncio
 import os
 import sys
 import tempfile
 import time
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
@@ -34,7 +34,10 @@ RESULTS: dict[str, tuple[bool, float]] = {}
 # Shared infrastructure
 # ====================================================================
 
-def make_engine(system_prompt, cwd=None, hook_executor=None, max_tokens=4096, max_turns=DEFAULT_MAX_TURNS):
+
+def make_engine(
+    system_prompt, cwd=None, hook_executor=None, max_tokens=4096, max_turns=DEFAULT_MAX_TURNS
+):
     from codeless.api.client import AnthropicApiClient
     from codeless.config.settings import PermissionSettings
     from codeless.engine.query_engine import QueryEngine
@@ -42,31 +45,47 @@ def make_engine(system_prompt, cwd=None, hook_executor=None, max_tokens=4096, ma
     from codeless.permissions.modes import PermissionMode
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
+    from codeless.tools.file_edit_tool import FileEditTool
     from codeless.tools.file_read_tool import FileReadTool
     from codeless.tools.file_write_tool import FileWriteTool
-    from codeless.tools.file_edit_tool import FileEditTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
     from codeless.tools.web_fetch_tool import WebFetchTool
 
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
     reg = ToolRegistry()
-    for t in [BashTool(), FileReadTool(), FileWriteTool(), FileEditTool(),
-              GlobTool(), GrepTool(), WebFetchTool()]:
+    for t in [
+        BashTool(),
+        FileReadTool(),
+        FileWriteTool(),
+        FileEditTool(),
+        GlobTool(),
+        GrepTool(),
+        WebFetchTool(),
+    ]:
         reg.register(t)
     checker = PermissionChecker(PermissionSettings(mode=PermissionMode.FULL_AUTO))
     return QueryEngine(
-        api_client=api, tool_registry=reg, permission_checker=checker,
-        cwd=Path(cwd or WORKSPACE), model=MODEL, system_prompt=system_prompt,
-        max_tokens=max_tokens, max_turns=max_turns, hook_executor=hook_executor,
+        api_client=api,
+        tool_registry=reg,
+        permission_checker=checker,
+        cwd=Path(cwd or WORKSPACE),
+        model=MODEL,
+        system_prompt=system_prompt,
+        max_tokens=max_tokens,
+        max_turns=max_turns,
+        hook_executor=hook_executor,
     )
 
 
 def collect(events):
     from codeless.engine.stream_events import (
-        AssistantTextDelta, AssistantTurnComplete,
-        ToolExecutionStarted, ToolExecutionCompleted,
+        AssistantTextDelta,
+        AssistantTurnComplete,
+        ToolExecutionCompleted,
+        ToolExecutionStarted,
     )
+
     r = {"text": "", "tools": [], "tool_outputs": [], "turns": 0, "in_tok": 0, "out_tok": 0}
     for ev in events:
         if isinstance(ev, AssistantTextDelta):
@@ -74,7 +93,9 @@ def collect(events):
         elif isinstance(ev, ToolExecutionStarted):
             r["tools"].append(ev.tool_name)
         elif isinstance(ev, ToolExecutionCompleted):
-            r["tool_outputs"].append({"tool": ev.tool_name, "ok": not ev.is_error, "out": ev.output[:200]})
+            r["tool_outputs"].append(
+                {"tool": ev.tool_name, "ok": not ev.is_error, "out": ev.output[:200]}
+            )
         elif isinstance(ev, AssistantTurnComplete):
             r["turns"] += 1
             r["in_tok"] += ev.usage.input_tokens
@@ -89,30 +110,40 @@ def collect(events):
 #           web_fetch (fetch OWASP reference), multi-turn agent loop,
 #           file read/grep on unfamiliar codebase
 # ====================================================================
-@pytest.mark.skipif(not Path("/home/tangjiabin/AutoAgent").exists(), reason="Needs real API + AutoAgent")
+@pytest.mark.skipif(
+    not Path("/home/tangjiabin/AutoAgent").exists(), reason="Needs real API + AutoAgent"
+)
 async def task_security_audit_with_hooks():
     """Full security audit: agent reads code, fetches OWASP checklist, reports issues.
     Hooks log every tool use. Permission denies dangerous commands."""
 
+    from codeless.api.client import AnthropicApiClient
     from codeless.hooks.events import HookEvent
+    from codeless.hooks.executor import HookExecutionContext, HookExecutor
     from codeless.hooks.loader import HookRegistry
     from codeless.hooks.schemas import CommandHookDefinition
-    from codeless.hooks.executor import HookExecutor, HookExecutionContext
-    from codeless.api.client import AnthropicApiClient
 
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
 
     # Hook: log every tool use to a file
     log_file = Path(tempfile.mktemp(suffix=".log"))
     hook_reg = HookRegistry()
-    hook_reg.register(HookEvent.POST_TOOL_USE, CommandHookDefinition(
-        type="command",
-        command=f'echo "[$(date +%H:%M:%S)] $TOOL_NAME" >> {log_file}',
-        timeout_seconds=5,
-    ))
-    hook_exec = HookExecutor(hook_reg, HookExecutionContext(
-        cwd=WORKSPACE, api_client=api, default_model=MODEL,
-    ))
+    hook_reg.register(
+        HookEvent.POST_TOOL_USE,
+        CommandHookDefinition(
+            type="command",
+            command=f'echo "[$(date +%H:%M:%S)] $TOOL_NAME" >> {log_file}',
+            timeout_seconds=5,
+        ),
+    )
+    hook_exec = HookExecutor(
+        hook_reg,
+        HookExecutionContext(
+            cwd=WORKSPACE,
+            api_client=api,
+            default_model=MODEL,
+        ),
+    )
 
     engine = make_engine(
         "You are a senior security auditor. Analyze code for OWASP top 10 vulnerabilities. "
@@ -123,19 +154,25 @@ async def task_security_audit_with_hooks():
     )
 
     # Turn 1: scan for dangerous patterns
-    evs1 = [ev async for ev in engine.submit_message(
-        "Scan the autoagent/ directory for security vulnerabilities. "
-        "Search for: eval(, exec(, subprocess.run with shell=True, hardcoded passwords/tokens, "
-        "os.system calls. Report all findings with file:line references."
-    )]
+    evs1 = [
+        ev
+        async for ev in engine.submit_message(
+            "Scan the autoagent/ directory for security vulnerabilities. "
+            "Search for: eval(, exec(, subprocess.run with shell=True, hardcoded passwords/tokens, "
+            "os.system calls. Report all findings with file:line references."
+        )
+    ]
     r1 = collect(evs1)
     print(f"  Turn 1: {r1['turns']} turns, {len(r1['tools'])} tools, text={len(r1['text'])} chars")
 
     # Turn 2: fetch OWASP reference and cross-check
-    evs2 = [ev async for ev in engine.submit_message(
-        "Now fetch https://httpbin.org/json as a test to verify web_fetch works. "
-        "Then summarize your top 3 most critical findings from the code audit."
-    )]
+    evs2 = [
+        ev
+        async for ev in engine.submit_message(
+            "Now fetch https://httpbin.org/json as a test to verify web_fetch works. "
+            "Then summarize your top 3 most critical findings from the code audit."
+        )
+    ]
     r2 = collect(evs2)
     print(f"  Turn 2: {r2['turns']} turns, {len(r2['tools'])} tools")
 
@@ -151,10 +188,15 @@ async def task_security_audit_with_hooks():
     all_tools = r1["tools"] + r2["tools"]
     has_grep = "grep" in all_tools
     has_web = "web_fetch" in all_tools
-    has_findings = any(kw in (r1["text"] + r2["text"]).lower() for kw in ["eval", "exec", "shell", "inject", "subprocess"])
+    has_findings = any(
+        kw in (r1["text"] + r2["text"]).lower()
+        for kw in ["eval", "exec", "shell", "inject", "subprocess"]
+    )
     hooks_fired = len(hook_entries) > 0
 
-    print(f"  grep used: {has_grep}, web_fetch used: {has_web}, findings: {has_findings}, hooks: {hooks_fired}")
+    print(
+        f"  grep used: {has_grep}, web_fetch used: {has_web}, findings: {has_findings}, hooks: {hooks_fired}"
+    )
     return has_grep and has_findings and hooks_fired
 
 
@@ -165,29 +207,33 @@ async def task_security_audit_with_hooks():
 #           team lifecycle, in-process teammates (2 concurrent),
 #           mailbox communication, agent definitions
 # ====================================================================
-@pytest.mark.skipif(not Path("/home/tangjiabin/AutoAgent").exists(), reason="Needs real API + AutoAgent")
+@pytest.mark.skipif(
+    not Path("/home/tangjiabin/AutoAgent").exists(), reason="Needs real API + AutoAgent"
+)
 async def task_coordinator_code_review():
     """Coordinator delegates code review to 2 worker agents, synthesizes results."""
 
-    from codeless.coordinator.coordinator_mode import (
-        get_coordinator_system_prompt, format_task_notification, TaskNotification,
-    )
-    from codeless.coordinator.agent_definitions import get_agent_definition
-    from codeless.swarm.in_process import start_in_process_teammate, TeammateAbortController
-    from codeless.swarm.types import TeammateSpawnConfig
-    from codeless.swarm.team_lifecycle import TeamLifecycleManager, TeamMember
-    from codeless.engine.query import QueryContext
+    import codeless.swarm.mailbox as mb
+    import codeless.swarm.team_lifecycle as tl
     from codeless.api.client import AnthropicApiClient
     from codeless.config.settings import PermissionSettings
+    from codeless.coordinator.agent_definitions import get_agent_definition
+    from codeless.coordinator.coordinator_mode import (
+        TaskNotification,
+        format_task_notification,
+        get_coordinator_system_prompt,
+    )
+    from codeless.engine.query import QueryContext
     from codeless.permissions.checker import PermissionChecker
     from codeless.permissions.modes import PermissionMode
+    from codeless.swarm.in_process import TeammateAbortController, start_in_process_teammate
+    from codeless.swarm.team_lifecycle import TeamLifecycleManager, TeamMember
+    from codeless.swarm.types import TeammateSpawnConfig
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
     from codeless.tools.file_read_tool import FileReadTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
-    import codeless.swarm.mailbox as mb
-    import codeless.swarm.team_lifecycle as tl
 
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
 
@@ -204,7 +250,6 @@ async def task_coordinator_code_review():
 
             # Phase 1: Spawn 2 worker agents with different review focuses
 
-
             async def run_reviewer(name, prompt):
                 reg = ToolRegistry()
                 for t in [BashTool(), FileReadTool(), GlobTool(), GrepTool()]:
@@ -213,43 +258,69 @@ async def task_coordinator_code_review():
 
                 # Use the verification agent definition for system prompt
                 verify_def = get_agent_definition("verification")
-                sys_prompt = verify_def.system_prompt if verify_def and verify_def.system_prompt else (
-                    "You are a code reviewer. Read files thoroughly. Report issues concisely."
+                sys_prompt = (
+                    verify_def.system_prompt
+                    if verify_def and verify_def.system_prompt
+                    else (
+                        "You are a code reviewer. Read files thoroughly. Report issues concisely."
+                    )
                 )
 
                 ctx = QueryContext(
-                    api_client=api, tool_registry=reg, permission_checker=checker,
-                    cwd=WORKSPACE, model=MODEL, max_tokens=2048, max_turns=DEFAULT_MAX_TURNS,
+                    api_client=api,
+                    tool_registry=reg,
+                    permission_checker=checker,
+                    cwd=WORKSPACE,
+                    model=MODEL,
+                    max_tokens=2048,
+                    max_turns=DEFAULT_MAX_TURNS,
                     system_prompt=sys_prompt,
                 )
                 config = TeammateSpawnConfig(
-                    name=name, team="review-team", prompt=prompt,
-                    cwd=str(WORKSPACE), parent_session_id="coordinator",
+                    name=name,
+                    team="review-team",
+                    prompt=prompt,
+                    cwd=str(WORKSPACE),
+                    parent_session_id="coordinator",
                 )
-                mgr.add_member("review-team", TeamMember(
-                    agent_id=f"{name}@review-team", name=name,
-                    backend_type="in_process", joined_at=time.time(), is_active=True,
-                ))
+                mgr.add_member(
+                    "review-team",
+                    TeamMember(
+                        agent_id=f"{name}@review-team",
+                        name=name,
+                        backend_type="in_process",
+                        joined_at=time.time(),
+                        is_active=True,
+                    ),
+                )
                 abort = TeammateAbortController()
                 await start_in_process_teammate(
-                    config=config, agent_id=f"{name}@review-team",
-                    abort_controller=abort, query_context=ctx,
+                    config=config,
+                    agent_id=f"{name}@review-team",
+                    abort_controller=abort,
+                    query_context=ctx,
                 )
 
             t0 = time.time()
             await asyncio.gather(
-                asyncio.wait_for(run_reviewer(
-                    "error-reviewer",
-                    "Review autoagent/core.py for error handling issues. "
-                    "Find: bare except clauses, missing error handling, swallowed exceptions. "
-                    "Report file:line and issue for each finding."
-                ), timeout=45),
-                asyncio.wait_for(run_reviewer(
-                    "style-reviewer",
-                    "Review autoagent/util.py for code style issues. "
-                    "Find: inconsistent naming, missing type hints, overly complex functions. "
-                    "Report file:line and issue for each finding."
-                ), timeout=45),
+                asyncio.wait_for(
+                    run_reviewer(
+                        "error-reviewer",
+                        "Review autoagent/core.py for error handling issues. "
+                        "Find: bare except clauses, missing error handling, swallowed exceptions. "
+                        "Report file:line and issue for each finding.",
+                    ),
+                    timeout=45,
+                ),
+                asyncio.wait_for(
+                    run_reviewer(
+                        "style-reviewer",
+                        "Review autoagent/util.py for code style issues. "
+                        "Find: inconsistent naming, missing type hints, overly complex functions. "
+                        "Report file:line and issue for each finding.",
+                    ),
+                    timeout=45,
+                ),
                 return_exceptions=True,
             )
             worker_time = time.time() - t0
@@ -262,24 +333,36 @@ async def task_coordinator_code_review():
 
             # Simulate coordinator receiving worker results as task notifications
             engine = make_engine(get_coordinator_system_prompt())
-            evs = [ev async for ev in engine.submit_message(
-                "I asked two workers to review AutoAgent code. Here are their results:\n\n"
-                + format_task_notification(TaskNotification(
-                    task_id="error-reviewer", status="completed",
-                    summary="Error handling review of core.py completed",
-                    result="Found 3 issues: (1) bare except at line 450, (2) missing timeout on API calls at line 320, (3) swallowed ConnectionError at line 285",
-                )) + "\n\n"
-                + format_task_notification(TaskNotification(
-                    task_id="style-reviewer", status="completed",
-                    summary="Code style review of util.py completed",
-                    result="Found 4 issues: (1) 11 functions missing type hints, (2) function_to_json is 80 lines (too long), (3) inconsistent naming (camelCase mixed with snake_case), (4) dead code at line 150-160",
-                ))
-                + "\n\nSummarize all findings into a unified review report."
-            )]
+            evs = [
+                ev
+                async for ev in engine.submit_message(
+                    "I asked two workers to review AutoAgent code. Here are their results:\n\n"
+                    + format_task_notification(
+                        TaskNotification(
+                            task_id="error-reviewer",
+                            status="completed",
+                            summary="Error handling review of core.py completed",
+                            result="Found 3 issues: (1) bare except at line 450, (2) missing timeout on API calls at line 320, (3) swallowed ConnectionError at line 285",
+                        )
+                    )
+                    + "\n\n"
+                    + format_task_notification(
+                        TaskNotification(
+                            task_id="style-reviewer",
+                            status="completed",
+                            summary="Code style review of util.py completed",
+                            result="Found 4 issues: (1) 11 functions missing type hints, (2) function_to_json is 80 lines (too long), (3) inconsistent naming (camelCase mixed with snake_case), (4) dead code at line 150-160",
+                        )
+                    )
+                    + "\n\nSummarize all findings into a unified review report."
+                )
+            ]
             r = collect(evs)
             print(f"  Coordinator synthesis: {r['turns']} turns, {len(r['text'])} chars")
 
-            has_synthesis = any(kw in r["text"].lower() for kw in ["error", "style", "type hint", "issue"])
+            has_synthesis = any(
+                kw in r["text"].lower() for kw in ["error", "style", "type hint", "issue"]
+            )
             return worker_time < 50 and len(members) >= 2 and has_synthesis
         finally:
             mb.get_team_dir = orig_td
@@ -293,18 +376,20 @@ async def task_coordinator_code_review():
 #           session storage (save/export), multi-turn conversation,
 #           config settings, agent definitions (Plan agent prompt)
 # ====================================================================
-@pytest.mark.skipif(not Path("/home/tangjiabin/AutoAgent").exists(), reason="Needs real API + AutoAgent")
+@pytest.mark.skipif(
+    not Path("/home/tangjiabin/AutoAgent").exists(), reason="Needs real API + AutoAgent"
+)
 async def task_migration_plan_with_memory():
     """Agent analyzes AutoAgent, saves findings to memory, creates migration plan,
     saves session for later resume."""
 
+    import codeless.memory.manager as mm
+    import codeless.memory.paths as mp
     from codeless.coordinator.agent_definitions import get_agent_definition
+    from codeless.memory.manager import add_memory_entry, list_memory_files, remove_memory_entry
+    from codeless.services.session_storage import export_session_markdown, save_session_snapshot
     from codeless.skills.registry import SkillRegistry
     from codeless.skills.types import SkillDefinition
-    from codeless.memory.manager import add_memory_entry, list_memory_files, remove_memory_entry
-    from codeless.services.session_storage import save_session_snapshot, export_session_markdown
-    import codeless.memory.paths as mp
-    import codeless.memory.manager as mm
 
     with tempfile.TemporaryDirectory() as tmpdir:
         mem_dir = Path(tmpdir) / "memory"
@@ -317,58 +402,74 @@ async def task_migration_plan_with_memory():
         try:
             # Load a "migration" skill
             skill_reg = SkillRegistry()
-            skill_reg.register(SkillDefinition(
-                name="migration-checklist",
-                description="Steps for migrating a Python project to a new framework",
-                content=(
-                    "1. Audit all dependencies in setup.cfg/pyproject.toml\n"
-                    "2. Identify deprecated APIs and their replacements\n"
-                    "3. Map the module structure to the target framework\n"
-                    "4. Create migration scripts for data models\n"
-                    "5. Update tests to use new assertion patterns\n"
-                    "6. Run full test suite and fix failures\n"
-                ),
-                source="user",
-            ))
+            skill_reg.register(
+                SkillDefinition(
+                    name="migration-checklist",
+                    description="Steps for migrating a Python project to a new framework",
+                    content=(
+                        "1. Audit all dependencies in setup.cfg/pyproject.toml\n"
+                        "2. Identify deprecated APIs and their replacements\n"
+                        "3. Map the module structure to the target framework\n"
+                        "4. Create migration scripts for data models\n"
+                        "5. Update tests to use new assertion patterns\n"
+                        "6. Run full test suite and fix failures\n"
+                    ),
+                    source="user",
+                )
+            )
 
             # Use Plan agent system prompt
             plan_def = get_agent_definition("Plan")
             engine = make_engine(
-                plan_def.system_prompt if plan_def and plan_def.system_prompt else
-                "You are a software architect. Explore code and create migration plans.",
+                plan_def.system_prompt
+                if plan_def and plan_def.system_prompt
+                else "You are a software architect. Explore code and create migration plans.",
             )
 
             # Turn 1: Analyze current architecture
-            evs1 = [ev async for ev in engine.submit_message(
-                "Analyze the AutoAgent project's dependency structure. "
-                "Read pyproject.toml and setup.cfg, identify all dependencies, "
-                "and classify them as: core, optional, dev-only."
-            )]
+            evs1 = [
+                ev
+                async for ev in engine.submit_message(
+                    "Analyze the AutoAgent project's dependency structure. "
+                    "Read pyproject.toml and setup.cfg, identify all dependencies, "
+                    "and classify them as: core, optional, dev-only."
+                )
+            ]
             r1 = collect(evs1)
             print(f"  Turn 1 (deps): {r1['turns']} turns, {len(r1['tools'])} tools")
 
             # Save findings to memory
-            add_memory_entry(tmpdir, "autoagent-dependencies",
-                f"AutoAgent dependency analysis:\n{r1['text'][:500]}")
+            add_memory_entry(
+                tmpdir,
+                "autoagent-dependencies",
+                f"AutoAgent dependency analysis:\n{r1['text'][:500]}",
+            )
 
             # Turn 2: Analyze module structure
-            evs2 = [ev async for ev in engine.submit_message(
-                "Now analyze the module structure of autoagent/. "
-                "List all subpackages, count files per package, and identify the core vs. peripheral modules."
-            )]
+            evs2 = [
+                ev
+                async for ev in engine.submit_message(
+                    "Now analyze the module structure of autoagent/. "
+                    "List all subpackages, count files per package, and identify the core vs. peripheral modules."
+                )
+            ]
             r2 = collect(evs2)
             print(f"  Turn 2 (modules): {r2['turns']} turns, {len(r2['tools'])} tools")
 
-            add_memory_entry(tmpdir, "autoagent-modules",
-                f"AutoAgent module structure:\n{r2['text'][:500]}")
+            add_memory_entry(
+                tmpdir, "autoagent-modules", f"AutoAgent module structure:\n{r2['text'][:500]}"
+            )
 
             # Turn 3: Create migration plan using skill context
             skill = skill_reg.get("migration-checklist")
-            evs3 = [ev async for ev in engine.submit_message(
-                f"Based on your analysis, create a concrete migration plan for AutoAgent. "
-                f"Use this checklist as a starting template:\n\n{skill.content}\n\n"
-                f"Adapt each step specifically for AutoAgent's codebase."
-            )]
+            evs3 = [
+                ev
+                async for ev in engine.submit_message(
+                    f"Based on your analysis, create a concrete migration plan for AutoAgent. "
+                    f"Use this checklist as a starting template:\n\n{skill.content}\n\n"
+                    f"Adapt each step specifically for AutoAgent's codebase."
+                )
+            ]
             r3 = collect(evs3)
             print(f"  Turn 3 (plan): {r3['turns']} turns, text={len(r3['text'])} chars")
 
@@ -380,8 +481,12 @@ async def task_migration_plan_with_memory():
             all_msgs = engine.messages
             usage = engine.total_usage
             session_path = save_session_snapshot(
-                cwd=tmpdir, model=MODEL, system_prompt="Plan agent",
-                messages=all_msgs, usage=usage, session_id="migration-plan-001",
+                cwd=tmpdir,
+                model=MODEL,
+                system_prompt="Plan agent",
+                messages=all_msgs,
+                usage=usage,
+                session_id="migration-plan-001",
             )
             print(f"  Session saved: {session_path.exists()}")
 
@@ -414,7 +519,9 @@ async def task_migration_plan_with_memory():
 #           file write/edit, bash (run tests), multi-turn,
 #           agent works in worktree copy, changes don't affect original
 # ====================================================================
-@pytest.mark.skipif(not Path("/home/tangjiabin/AutoAgent").exists(), reason="Needs real API + AutoAgent")
+@pytest.mark.skipif(
+    not Path("/home/tangjiabin/AutoAgent").exists(), reason="Needs real API + AutoAgent"
+)
 async def task_bugfix_in_worktree():
     """Agent creates a worktree, makes a fix in isolation, verifies it, cleans up."""
 
@@ -473,11 +580,14 @@ if __name__ == "__main__":
             cwd=wt.path,
         )
 
-        evs = [ev async for ev in engine.submit_message(
-            "Read calc.py, fix the divide-by-zero bug by adding a check that raises "
-            "ZeroDivisionError with a helpful message when b is 0. "
-            "Then run: python calc.py to verify the fix."
-        )]
+        evs = [
+            ev
+            async for ev in engine.submit_message(
+                "Read calc.py, fix the divide-by-zero bug by adding a check that raises "
+                "ZeroDivisionError with a helpful message when b is 0. "
+                "Then run: python calc.py to verify the fix."
+            )
+        ]
         r = collect(evs)
         print(f"  Agent: {r['turns']} turns, {len(r['tools'])} tools")
         print(f"  Tools used: {r['tools']}")
@@ -513,32 +623,39 @@ if __name__ == "__main__":
 #           in-process teammates, permission sync (request/resolve),
 #           team lifecycle, mailbox, agent definitions, auto-compact
 # ====================================================================
-@pytest.mark.skipif(not Path("/home/tangjiabin/AutoAgent").exists(), reason="Needs real API + AutoAgent")
+@pytest.mark.skipif(
+    not Path("/home/tangjiabin/AutoAgent").exists(), reason="Needs real API + AutoAgent"
+)
 async def task_full_pipeline():
     """Simulate the full research→plan→implement→verify pipeline with coordinator."""
 
-    from codeless.coordinator.coordinator_mode import (
-        get_coordinator_system_prompt, format_task_notification, TaskNotification,
-    )
-    from codeless.swarm.in_process import start_in_process_teammate, TeammateAbortController
-    from codeless.swarm.types import TeammateSpawnConfig
-    from codeless.swarm.permission_sync import (
-        create_permission_request, write_permission_request,
-        read_pending_permissions, resolve_permission, PermissionResolution,
-    )
-    from codeless.swarm.team_lifecycle import TeamLifecycleManager, TeamMember
-    from codeless.engine.query import QueryContext
+    import codeless.swarm.mailbox as mb
+    import codeless.swarm.team_lifecycle as tl
     from codeless.api.client import AnthropicApiClient
     from codeless.config.settings import PermissionSettings
+    from codeless.coordinator.coordinator_mode import (
+        TaskNotification,
+        format_task_notification,
+        get_coordinator_system_prompt,
+    )
+    from codeless.engine.query import QueryContext
     from codeless.permissions.checker import PermissionChecker
     from codeless.permissions.modes import PermissionMode
+    from codeless.swarm.in_process import TeammateAbortController, start_in_process_teammate
+    from codeless.swarm.permission_sync import (
+        PermissionResolution,
+        create_permission_request,
+        read_pending_permissions,
+        resolve_permission,
+        write_permission_request,
+    )
+    from codeless.swarm.team_lifecycle import TeamLifecycleManager, TeamMember
+    from codeless.swarm.types import TeammateSpawnConfig
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
     from codeless.tools.file_read_tool import FileReadTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
-    import codeless.swarm.mailbox as mb
-    import codeless.swarm.team_lifecycle as tl
 
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
 
@@ -558,36 +675,59 @@ async def task_full_pipeline():
                 for t in [BashTool(), FileReadTool(), GlobTool(), GrepTool()]:
                     reg.register(t)
                 ctx = QueryContext(
-                    api_client=api, tool_registry=reg,
-                    permission_checker=PermissionChecker(PermissionSettings(mode=PermissionMode.FULL_AUTO)),
-                    cwd=WORKSPACE, model=MODEL, max_tokens=1024, max_turns=DEFAULT_MAX_TURNS,
+                    api_client=api,
+                    tool_registry=reg,
+                    permission_checker=PermissionChecker(
+                        PermissionSettings(mode=PermissionMode.FULL_AUTO)
+                    ),
+                    cwd=WORKSPACE,
+                    model=MODEL,
+                    max_tokens=1024,
+                    max_turns=DEFAULT_MAX_TURNS,
                     system_prompt="You are a research worker. Investigate and report findings. Be concise.",
                 )
                 config = TeammateSpawnConfig(
-                    name=name, team="pipeline", prompt=prompt,
-                    cwd=str(WORKSPACE), parent_session_id="main",
+                    name=name,
+                    team="pipeline",
+                    prompt=prompt,
+                    cwd=str(WORKSPACE),
+                    parent_session_id="main",
                 )
-                mgr.add_member("pipeline", TeamMember(
-                    agent_id=f"{name}@pipeline", name=name,
-                    backend_type="in_process", joined_at=time.time(), is_active=True,
-                ))
+                mgr.add_member(
+                    "pipeline",
+                    TeamMember(
+                        agent_id=f"{name}@pipeline",
+                        name=name,
+                        backend_type="in_process",
+                        joined_at=time.time(),
+                        is_active=True,
+                    ),
+                )
                 abort = TeammateAbortController()
                 await start_in_process_teammate(
-                    config=config, agent_id=f"{name}@pipeline",
-                    abort_controller=abort, query_context=ctx,
+                    config=config,
+                    agent_id=f"{name}@pipeline",
+                    abort_controller=abort,
+                    query_context=ctx,
                 )
 
             print("  Phase 1: Research (2 workers)...")
             t0 = time.time()
             res = await asyncio.gather(
-                asyncio.wait_for(research_worker(
-                    "arch-researcher",
-                    "Count .py files in autoagent/ using bash. Report the total."
-                ), timeout=30),
-                asyncio.wait_for(research_worker(
-                    "dep-researcher",
-                    "Read setup.cfg and report what install_requires are listed."
-                ), timeout=30),
+                asyncio.wait_for(
+                    research_worker(
+                        "arch-researcher",
+                        "Count .py files in autoagent/ using bash. Report the total.",
+                    ),
+                    timeout=30,
+                ),
+                asyncio.wait_for(
+                    research_worker(
+                        "dep-researcher",
+                        "Read setup.cfg and report what install_requires are listed.",
+                    ),
+                    timeout=30,
+                ),
                 return_exceptions=True,
             )
             research_time = time.time() - t0
@@ -597,9 +737,10 @@ async def task_full_pipeline():
             # Phase 2: Permission request + resolve
             print("  Phase 2: Permission sync...")
             perm_req = create_permission_request(
-                tool_name="Bash", tool_use_id="tu_deploy",
+                tool_name="Bash",
+                tool_use_id="tu_deploy",
                 tool_input={"command": "git push origin main"},
-                description="Push changes to remote"
+                description="Push changes to remote",
             )
             perm_req.team_name = "pipeline"
             perm_req.worker_id = "impl-worker@pipeline"
@@ -620,24 +761,35 @@ async def task_full_pipeline():
             print("  Phase 3: Coordinator synthesis...")
             engine = make_engine(get_coordinator_system_prompt())
 
-            notif_text = "\n\n".join([
-                format_task_notification(TaskNotification(
-                    task_id="arch-researcher", status="completed",
-                    summary="Architecture research done",
-                    result="AutoAgent has 99 Python files across 12 subpackages.",
-                    usage={"total_tokens": 500, "tool_uses": 2}
-                )),
-                format_task_notification(TaskNotification(
-                    task_id="dep-researcher", status="completed",
-                    summary="Dependency research done",
-                    result="Key dependencies: litellm, docker, rich, prompt_toolkit, pydantic",
-                    usage={"total_tokens": 400, "tool_uses": 1}
-                )),
-            ])
-            evs = [ev async for ev in engine.submit_message(
-                f"Two research workers completed their analysis:\n\n{notif_text}\n\n"
-                "Summarize the findings and suggest next steps for improving this project."
-            )]
+            notif_text = "\n\n".join(
+                [
+                    format_task_notification(
+                        TaskNotification(
+                            task_id="arch-researcher",
+                            status="completed",
+                            summary="Architecture research done",
+                            result="AutoAgent has 99 Python files across 12 subpackages.",
+                            usage={"total_tokens": 500, "tool_uses": 2},
+                        )
+                    ),
+                    format_task_notification(
+                        TaskNotification(
+                            task_id="dep-researcher",
+                            status="completed",
+                            summary="Dependency research done",
+                            result="Key dependencies: litellm, docker, rich, prompt_toolkit, pydantic",
+                            usage={"total_tokens": 400, "tool_uses": 1},
+                        )
+                    ),
+                ]
+            )
+            evs = [
+                ev
+                async for ev in engine.submit_message(
+                    f"Two research workers completed their analysis:\n\n{notif_text}\n\n"
+                    "Summarize the findings and suggest next steps for improving this project."
+                )
+            ]
             r = collect(evs)
             print(f"    Coordinator: {r['turns']} turns, {len(r['text'])} chars")
 
@@ -661,12 +813,15 @@ async def task_full_pipeline():
 # Features: session save/load, multi-turn (3 turns), file edit,
 #           config settings, cost tracking
 # ====================================================================
-@pytest.mark.skipif(not Path("/home/tangjiabin/AutoAgent").exists(), reason="Needs real API + AutoAgent")
+@pytest.mark.skipif(
+    not Path("/home/tangjiabin/AutoAgent").exists(), reason="Needs real API + AutoAgent"
+)
 async def task_refactor_with_session():
     """Refactor code across 3 turns, save session, verify it can be loaded."""
 
     from codeless.services.session_storage import (
-        save_session_snapshot, load_session_snapshot,
+        load_session_snapshot,
+        save_session_snapshot,
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -710,37 +865,51 @@ def handle_create_admin(data):
         )
 
         # Turn 1: Read and identify duplication
-        evs1 = [ev async for ev in engine.submit_message(
-            f"Read {code_file} and identify the duplicated validation logic."
-        )]
+        evs1 = [
+            ev
+            async for ev in engine.submit_message(
+                f"Read {code_file} and identify the duplicated validation logic."
+            )
+        ]
         r1 = collect(evs1)
         print(f"  Turn 1 (analyze): {r1['turns']} turns, {len(r1['tools'])} tools")
 
         # Turn 2: Refactor
-        evs2 = [ev async for ev in engine.submit_message(
-            "Extract the duplicated validation into a helper function called validate_user_data(). "
-            "Edit the file to use it in all three handlers."
-        )]
+        evs2 = [
+            ev
+            async for ev in engine.submit_message(
+                "Extract the duplicated validation into a helper function called validate_user_data(). "
+                "Edit the file to use it in all three handlers."
+            )
+        ]
         r2 = collect(evs2)
         print(f"  Turn 2 (refactor): {r2['turns']} turns, {len(r2['tools'])} tools")
 
         # Turn 3: Verify
-        evs3 = [ev async for ev in engine.submit_message(
-            "Read the file again and verify the refactoring is correct. "
-            "Check that the helper function exists and all handlers use it."
-        )]
+        evs3 = [
+            ev
+            async for ev in engine.submit_message(
+                "Read the file again and verify the refactoring is correct. "
+                "Check that the helper function exists and all handlers use it."
+            )
+        ]
         r3 = collect(evs3)
         print(f"  Turn 3 (verify): {r3['turns']} turns, {len(r3['tools'])} tools")
 
         # Save session
         session_path = save_session_snapshot(
-            cwd=tmpdir, model=MODEL, system_prompt="Refactoring expert",
-            messages=engine.messages, usage=engine.total_usage,
+            cwd=tmpdir,
+            model=MODEL,
+            system_prompt="Refactoring expert",
+            messages=engine.messages,
+            usage=engine.total_usage,
         )
         loaded = load_session_snapshot(tmpdir)
         print(f"  Session saved: {session_path.exists()}")
         print(f"  Session loaded: messages={len(loaded.get('messages', []))}")
-        print(f"  Cost: in={engine.total_usage.input_tokens}, out={engine.total_usage.output_tokens}")
+        print(
+            f"  Cost: in={engine.total_usage.input_tokens}, out={engine.total_usage.output_tokens}"
+        )
 
         # Verify refactoring
         final_code = code_file.read_text()
@@ -769,9 +938,9 @@ async def main():
     ]
 
     for name, coro in tasks:
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"  TASK: {name}")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         t0 = time.time()
         try:
             ok = await coro
@@ -782,11 +951,12 @@ async def main():
             RESULTS[name] = (False, time.time() - t0)
             print(f"\n  >>> EXCEPTION: {e}")
             import traceback
+
             traceback.print_exc()
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("  FINAL RESULTS — Real Large Tasks")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     passed = sum(1 for ok, _ in RESULTS.values() if ok)
     for name, (ok, elapsed) in RESULTS.items():
         print(f"  {'PASS' if ok else 'FAIL'}  {name}  [{elapsed:.1f}s]")

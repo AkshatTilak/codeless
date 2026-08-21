@@ -34,7 +34,6 @@ def rollup_task_completion(
         return actions
 
     parent_id = sub_fm.get("parent")
-    sub_id = sub_fm.get("id", subtask_path.name)
     base_dir = tasks_dir / "base"
     sub_dir = tasks_dir / "sub"
 
@@ -52,7 +51,9 @@ def rollup_task_completion(
                 try:
                     b_content = bf.read_text(encoding="utf-8")
                     b_fm, b_b = parse_frontmatter(b_content)
-                    if subtask_path.name in b_content or (parent_id and b_fm.get("id") == parent_id):
+                    if subtask_path.name in b_content or (
+                        parent_id and b_fm.get("id") == parent_id
+                    ):
                         base_file = bf
                         base_fm = b_fm
                         base_body = b_b
@@ -94,7 +95,9 @@ def rollup_task_completion(
 
     if sub_count > 0 and all_subtasks_done and base_fm.get("status") != "done":
         base_fm["status"] = "done"
-        actions.append(f"All {sub_count} subtasks complete: Marked base task `{base_file.name}` as `status: done`")
+        actions.append(
+            f"All {sub_count} subtasks complete: Marked base task `{base_file.name}` as `status: done`"
+        )
 
     # Save updated base task
     updated_base_content = dump_with_frontmatter(base_fm, base_body)
@@ -127,7 +130,9 @@ def rollup_task_completion(
 
                     if base_files and all_base_done and g_fm.get("status") != "done":
                         g_fm["status"] = "done"
-                        actions.append(f"All base tasks complete: Marked system goal `{gf.name}` as `status: done`!")
+                        actions.append(
+                            f"All base tasks complete: Marked system goal `{gf.name}` as `status: done`!"
+                        )
 
                     gf.write_text(dump_with_frontmatter(g_fm, g_body), encoding="utf-8")
                 except Exception:

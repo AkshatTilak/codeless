@@ -13,9 +13,9 @@ import contextlib
 import json
 import logging
 import os
-import subprocess
 import shlex
 import signal
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -25,12 +25,12 @@ from typing import Any, Callable
 
 from codeless.config.paths import get_data_dir, get_logs_dir
 from codeless.platforms import get_platform
+from codeless.sandbox import SandboxUnavailableError
 from codeless.services.cron import (
     load_cron_jobs,
     mark_job_run,
     validate_cron_expression,
 )
-from codeless.sandbox import SandboxUnavailableError
 from codeless.utils.shell import create_shell_subprocess
 
 load_gateway_config = None
@@ -47,6 +47,7 @@ TICK_INTERVAL_SECONDS = 30
 # ---------------------------------------------------------------------------
 # History helpers
 # ---------------------------------------------------------------------------
+
 
 def get_history_path() -> Path:
     """Return the path to the cron execution history file."""
@@ -84,6 +85,7 @@ def load_history(*, limit: int = 50, job_name: str | None = None) -> list[dict[s
 # ---------------------------------------------------------------------------
 # PID file helpers
 # ---------------------------------------------------------------------------
+
 
 def get_pid_path() -> Path:
     """Return the scheduler PID file path."""
@@ -260,7 +262,9 @@ async def _notify_job_result(job: dict[str, Any], entry: dict[str, Any]) -> None
             if not user_open_id:
                 raise ValueError("missing notify.user_open_id")
             workspace = notify.get("workspace")
-            logger.info("Feishu notification requested for %s (workspace=%s)", user_open_id, workspace)
+            logger.info(
+                "Feishu notification requested for %s (workspace=%s)", user_open_id, workspace
+            )
         elif notify_type:
             raise ValueError(f"unsupported notify.type: {notify_type}")
     except Exception as exc:
@@ -408,6 +412,7 @@ async def execute_job(job: dict[str, Any]) -> dict[str, Any]:
 # Scheduler loop
 # ---------------------------------------------------------------------------
 
+
 def _jobs_due(jobs: list[dict[str, Any]], now: datetime) -> list[dict[str, Any]]:
     """Return jobs whose next_run is at or before *now*."""
     due: list[dict[str, Any]] = []
@@ -507,6 +512,7 @@ def _install_shutdown_signal_handlers(
 # ---------------------------------------------------------------------------
 # Daemon entry point (spawned by ``codeless cron start``)
 # ---------------------------------------------------------------------------
+
 
 def _run_daemon() -> None:
     """Entry point for the scheduler subprocess."""

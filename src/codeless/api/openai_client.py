@@ -27,8 +27,8 @@ from codeless.api.errors import (
 )
 from codeless.api.usage import UsageSnapshot
 from codeless.engine.messages import (
-    ConversationMessage,
     ContentBlock,
+    ConversationMessage,
     ImageBlock,
     TextBlock,
     ToolResultBlock,
@@ -67,14 +67,16 @@ def _convert_tools_to_openai(tools: list[dict[str, Any]]) -> list[dict[str, Any]
     """
     result = []
     for tool in tools:
-        result.append({
-            "type": "function",
-            "function": {
-                "name": tool["name"],
-                "description": tool.get("description", ""),
-                "parameters": tool.get("input_schema", {}),
-            },
-        })
+        result.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": tool["name"],
+                    "description": tool.get("description", ""),
+                    "parameters": tool.get("input_schema", {}),
+                },
+            }
+        )
     return result
 
 
@@ -107,11 +109,13 @@ def _convert_messages_to_openai(
             if tool_results:
                 # Each tool result becomes a separate message with role="tool"
                 for tr in tool_results:
-                    openai_messages.append({
-                        "role": "tool",
-                        "tool_call_id": tr.tool_use_id,
-                        "content": tr.content,
-                    })
+                    openai_messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tr.tool_use_id,
+                            "content": tr.content,
+                        }
+                    )
             if user_blocks:
                 content = _convert_user_content_to_openai(user_blocks)
                 if isinstance(content, str):
@@ -137,12 +141,14 @@ def _convert_user_content_to_openai(blocks: list[ContentBlock]) -> str | list[di
         if isinstance(block, TextBlock) and block.text:
             content.append({"type": "text", "text": block.text})
         elif isinstance(block, ImageBlock):
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:{block.media_type};base64,{block.data}",
-                },
-            })
+            content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{block.media_type};base64,{block.data}",
+                    },
+                }
+            )
     return content
 
 
@@ -232,11 +238,13 @@ def _parse_assistant_response(response: Any) -> ConversationMessage:
                 args = json.loads(tc.function.arguments)
             except (json.JSONDecodeError, TypeError):
                 args = {}
-            content.append(ToolUseBlock(
-                id=tc.id,
-                name=tc.function.name,
-                input=args,
-            ))
+            content.append(
+                ToolUseBlock(
+                    id=tc.id,
+                    name=tc.function.name,
+                    input=args,
+                )
+            )
 
     return ConversationMessage(role="assistant", content=content)
 
@@ -264,7 +272,9 @@ class OpenAICompatibleClient:
     so it can be used as a drop-in replacement in the agent loop.
     """
 
-    def __init__(self, api_key: str, *, base_url: str | None = None, timeout: float | None = None) -> None:
+    def __init__(
+        self, api_key: str, *, base_url: str | None = None, timeout: float | None = None
+    ) -> None:
         kwargs: dict[str, Any] = {
             "api_key": api_key,
             "default_headers": {"Authorization": f"Bearer {api_key}"},
@@ -296,10 +306,13 @@ class OpenAICompatibleClient:
                 if attempt >= MAX_RETRIES or not self._is_retryable(exc):
                     raise self._translate_error(exc) from exc
 
-                delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
                 log.warning(
                     "OpenAI API request failed (attempt %d/%d), retrying in %.1fs: %s",
-                    attempt + 1, MAX_RETRIES + 1, delay, exc,
+                    attempt + 1,
+                    MAX_RETRIES + 1,
+                    delay,
+                    exc,
                 )
                 yield ApiRetryEvent(
                     message=str(exc),
@@ -342,60 +355,79 @@ class OpenAICompatibleClient:
         _think_buf = ""
 
         stream = await self._client.chat.completions.create(**params)
-        async for chunk in stream:
-            if not chunk.choices:
-                # Usage-only chunk (some providers send this at the end)
+        try:
+            async for chunk in stream:
+                if not chunk.choices:
+                    # Usage-only chunk (some providers send this at the end)
+                    if chunk.usage:
+                        usage_data = {
+                            "input_tokens": chunk.usage.prompt_tokens or 0,
+                            "output_tokens": chunk.usage.completion_tokens or 0,
+                        }
+                    continue
+
+                delta = chunk.choices[0].delta
+                chunk_finish = chunk.choices[0].finish_reason
+
+                if chunk_finish:
+                    finish_reason = chunk_finish
+
+                # Accumulate reasoning_content from thinking models (not shown to user)
+                reasoning_piece = getattr(delta, "reasoning_content", None) or ""
+                if reasoning_piece:
+                    collected_reasoning += reasoning_piece
+
+                # Stream text content to user, stripping inline <think> blocks
+                if delta.content:
+                    _think_buf += delta.content
+                    visible, _think_buf = _strip_think_blocks(_think_buf)
+                    if visible:
+                        collected_content += visible
+                        yield ApiTextDeltaEvent(text=visible)
+
+                # Accumulate tool calls
+                if delta.tool_calls:
+                    for tc_delta in delta.tool_calls:
+                        idx = tc_delta.index
+                        if idx not in collected_tool_calls:
+                            collected_tool_calls[idx] = {
+                                "id": tc_delta.id or "",
+                                "name": "",
+                                "arguments": "",
+                            }
+                        entry = collected_tool_calls[idx]
+                        if tc_delta.id:
+                            entry["id"] = tc_delta.id
+                        if tc_delta.function:
+                            if tc_delta.function.name:
+                                entry["name"] = tc_delta.function.name
+                            if tc_delta.function.arguments:
+                                entry["arguments"] += tc_delta.function.arguments
+
+                # Usage in chunk (if provider sends it)
                 if chunk.usage:
                     usage_data = {
                         "input_tokens": chunk.usage.prompt_tokens or 0,
                         "output_tokens": chunk.usage.completion_tokens or 0,
                     }
-                continue
-
-            delta = chunk.choices[0].delta
-            chunk_finish = chunk.choices[0].finish_reason
-
-            if chunk_finish:
-                finish_reason = chunk_finish
-
-            # Accumulate reasoning_content from thinking models (not shown to user)
-            reasoning_piece = getattr(delta, "reasoning_content", None) or ""
-            if reasoning_piece:
-                collected_reasoning += reasoning_piece
-
-            # Stream text content to user, stripping inline <think> blocks
-            if delta.content:
-                _think_buf += delta.content
-                visible, _think_buf = _strip_think_blocks(_think_buf)
-                if visible:
-                    collected_content += visible
-                    yield ApiTextDeltaEvent(text=visible)
-
-            # Accumulate tool calls
-            if delta.tool_calls:
-                for tc_delta in delta.tool_calls:
-                    idx = tc_delta.index
-                    if idx not in collected_tool_calls:
-                        collected_tool_calls[idx] = {
-                            "id": tc_delta.id or "",
-                            "name": "",
-                            "arguments": "",
-                        }
-                    entry = collected_tool_calls[idx]
-                    if tc_delta.id:
-                        entry["id"] = tc_delta.id
-                    if tc_delta.function:
-                        if tc_delta.function.name:
-                            entry["name"] = tc_delta.function.name
-                        if tc_delta.function.arguments:
-                            entry["arguments"] += tc_delta.function.arguments
-
-            # Usage in chunk (if provider sends it)
-            if chunk.usage:
-                usage_data = {
-                    "input_tokens": chunk.usage.prompt_tokens or 0,
-                    "output_tokens": chunk.usage.completion_tokens or 0,
-                }
+        finally:
+            if hasattr(stream, "response") and hasattr(stream.response, "aclose"):
+                try:
+                    await stream.response.aclose()
+                except Exception:
+                    pass
+            elif hasattr(stream, "aclose"):
+                try:
+                    await stream.aclose()
+                except Exception:
+                    pass
+            elif hasattr(stream, "close"):
+                try:
+                    res = stream.close()
+                    if asyncio.iscoroutine(res):
+                        await res
+                except Exception:
+                    pass
 
         # Build the final ConversationMessage
         content: list[ContentBlock] = []
@@ -411,11 +443,13 @@ class OpenAICompatibleClient:
                 args = json.loads(tc["arguments"])
             except (json.JSONDecodeError, TypeError):
                 args = {}
-            content.append(ToolUseBlock(
-                id=tc["id"],
-                name=tc["name"],
-                input=args,
-            ))
+            content.append(
+                ToolUseBlock(
+                    id=tc["id"],
+                    name=tc["name"],
+                    input=args,
+                )
+            )
 
         final_message = ConversationMessage(role="assistant", content=content)
 

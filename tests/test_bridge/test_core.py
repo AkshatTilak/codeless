@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import asyncio
+from pathlib import Path
 
 import pytest
 
-from codeless.bridge import WorkSecret, build_sdk_url, decode_work_secret, encode_work_secret, spawn_session
+from codeless.bridge import (
+    WorkSecret,
+    build_sdk_url,
+    decode_work_secret,
+    encode_work_secret,
+    spawn_session,
+)
 
 
 def test_work_secret_roundtrip():
-    secret = WorkSecret(version=1, session_ingress_token="tok", api_base_url="https://api.example.com")
+    secret = WorkSecret(
+        version=1, session_ingress_token="tok", api_base_url="https://api.example.com"
+    )
     encoded = encode_work_secret(secret)
     decoded = decode_work_secret(encoded)
     assert decoded == secret

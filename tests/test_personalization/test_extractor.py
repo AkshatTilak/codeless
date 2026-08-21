@@ -59,20 +59,26 @@ class TestExtractFacts:
 
 class TestMergeFacts:
     def test_merge_new_facts(self):
-        existing = {"facts": [{"key": "ssh_host:a@1.1.1.1", "value": "a@1.1.1.1", "confidence": 0.7}]}
+        existing = {
+            "facts": [{"key": "ssh_host:a@1.1.1.1", "value": "a@1.1.1.1", "confidence": 0.7}]
+        }
         new = [{"key": "conda_env:dev312", "value": "dev312", "confidence": 0.7}]
         merged = merge_facts(existing, new)
         assert len(merged["facts"]) == 2
 
     def test_merge_updates_higher_confidence(self):
-        existing = {"facts": [{"key": "ssh_host:a@1.1.1.1", "value": "a@1.1.1.1", "confidence": 0.5}]}
+        existing = {
+            "facts": [{"key": "ssh_host:a@1.1.1.1", "value": "a@1.1.1.1", "confidence": 0.5}]
+        }
         new = [{"key": "ssh_host:a@1.1.1.1", "value": "a@1.1.1.1", "confidence": 0.9}]
         merged = merge_facts(existing, new)
         assert len(merged["facts"]) == 1
         assert merged["facts"][0]["confidence"] == 0.9
 
     def test_merge_keeps_existing_if_higher(self):
-        existing = {"facts": [{"key": "ssh_host:a@1.1.1.1", "value": "a@1.1.1.1", "confidence": 0.9}]}
+        existing = {
+            "facts": [{"key": "ssh_host:a@1.1.1.1", "value": "a@1.1.1.1", "confidence": 0.9}]
+        }
         new = [{"key": "ssh_host:a@1.1.1.1", "value": "a@1.1.1.1", "confidence": 0.5}]
         merged = merge_facts(existing, new)
         assert merged["facts"][0]["confidence"] == 0.9

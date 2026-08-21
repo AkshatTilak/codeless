@@ -11,9 +11,9 @@ import pytest
 
 from codeless.api.client import ApiMessageCompleteEvent
 from codeless.api.usage import UsageSnapshot
-from codeless.engine.stream_events import CompactProgressEvent
-from codeless.engine.messages import ConversationMessage, ImageBlock, TextBlock
 from codeless.config.settings import Settings, save_settings
+from codeless.engine.messages import ConversationMessage, ImageBlock, TextBlock
+from codeless.engine.stream_events import CompactProgressEvent
 from codeless.ui.backend_host import (
     BackendHostConfig,
     ReactBackendHost,
@@ -131,14 +131,20 @@ def test_build_user_message_with_images():
 
 def test_format_transcript_line_mentions_attached_images():
     assert _format_transcript_line("inspect", []) == "inspect"
-    assert _format_transcript_line("", [FrontendImageAttachment(media_type="image/png", data="x")]) == "[1 image attached]"
-    assert _format_transcript_line(
-        "inspect",
-        [
-            FrontendImageAttachment(media_type="image/png", data="x"),
-            FrontendImageAttachment(media_type="image/jpeg", data="y"),
-        ],
-    ) == "inspect\n[2 images attached]"
+    assert (
+        _format_transcript_line("", [FrontendImageAttachment(media_type="image/png", data="x")])
+        == "[1 image attached]"
+    )
+    assert (
+        _format_transcript_line(
+            "inspect",
+            [
+                FrontendImageAttachment(media_type="image/png", data="x"),
+                FrontendImageAttachment(media_type="image/jpeg", data="y"),
+            ],
+        )
+        == "inspect\n[2 images attached]"
+    )
 
 
 @pytest.mark.asyncio
@@ -317,7 +323,10 @@ async def test_backend_host_processes_command(tmp_path, monkeypatch):
         await close_runtime(host._bundle)
 
     assert should_continue is True
-    assert any(event.type == "transcript_item" and event.item and event.item.role == "user" for event in events)
+    assert any(
+        event.type == "transcript_item" and event.item and event.item.role == "user"
+        for event in events
+    )
     assert any(
         event.type == "transcript_item"
         and event.item
@@ -334,7 +343,9 @@ async def test_backend_host_processes_model_turn(tmp_path, monkeypatch):
     monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
 
-    host = ReactBackendHost(BackendHostConfig(api_client=StaticApiClient("hello from react backend")))
+    host = ReactBackendHost(
+        BackendHostConfig(api_client=StaticApiClient("hello from react backend"))
+    )
     host._bundle = await build_runtime(api_client=StaticApiClient("hello from react backend"))
     events = []
 
@@ -397,7 +408,8 @@ async def test_backend_host_processes_image_turn(tmp_path, monkeypatch):
     image_messages = [
         message
         for message in client.requests[0].messages
-        if message.role == "user" and any(isinstance(block, ImageBlock) for block in message.content)
+        if message.role == "user"
+        and any(isinstance(block, ImageBlock) for block in message.content)
     ]
     assert len(image_messages) == 1
     message = image_messages[0]
@@ -559,7 +571,9 @@ async def test_backend_host_uses_effective_model_from_env_override(tmp_path, mon
 
 
 @pytest.mark.asyncio
-async def test_build_runtime_leaves_interactive_sessions_unbounded_by_default(tmp_path, monkeypatch):
+async def test_build_runtime_leaves_interactive_sessions_unbounded_by_default(
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
@@ -598,7 +612,9 @@ async def test_backend_host_emits_model_select_request(tmp_path, monkeypatch):
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
 
     host = ReactBackendHost(BackendHostConfig(api_client=StaticApiClient("unused")))
-    host._bundle = await build_runtime(api_client=StaticApiClient("unused"), model="opus", api_format="anthropic")
+    host._bundle = await build_runtime(
+        api_client=StaticApiClient("unused"), model="opus", api_format="anthropic"
+    )
     events = []
 
     async def _emit(event):
@@ -613,7 +629,9 @@ async def test_backend_host_emits_model_select_request(tmp_path, monkeypatch):
 
     event = next(item for item in events if item.type == "select_request")
     assert event.modal["command"] == "model"
-    assert any(option["value"] == "opus" and option.get("active") for option in event.select_options)
+    assert any(
+        option["value"] == "opus" and option.get("active") for option in event.select_options
+    )
     assert any(option["value"] == "default" for option in event.select_options)
 
 
@@ -662,7 +680,9 @@ async def test_backend_host_model_selector_uses_profile_model_allowlist(tmp_path
 
     event = next(item for item in events if item.type == "select_request")
     assert [option["value"] for option in event.select_options] == ["deepseek-chat", "qwen-vl"]
-    assert any(option["value"] == "qwen-vl" and option.get("active") for option in event.select_options)
+    assert any(
+        option["value"] == "qwen-vl" and option.get("active") for option in event.select_options
+    )
 
 
 @pytest.mark.asyncio
@@ -697,7 +717,9 @@ async def test_backend_host_emits_turns_select_request_with_unlimited_option(tmp
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
 
     host = ReactBackendHost(BackendHostConfig(api_client=StaticApiClient("unused")))
-    host._bundle = await build_runtime(api_client=StaticApiClient("unused"), enforce_max_turns=False)
+    host._bundle = await build_runtime(
+        api_client=StaticApiClient("unused"), enforce_max_turns=False
+    )
     events = []
 
     async def _emit(event):
@@ -712,7 +734,9 @@ async def test_backend_host_emits_turns_select_request_with_unlimited_option(tmp
 
     event = next(item for item in events if item.type == "select_request")
     assert event.modal["command"] == "turns"
-    assert any(option["value"] == "unlimited" and option.get("active") for option in event.select_options)
+    assert any(
+        option["value"] == "unlimited" and option.get("active") for option in event.select_options
+    )
 
 
 @pytest.mark.asyncio
@@ -737,11 +761,15 @@ async def test_backend_host_emits_provider_select_request(tmp_path, monkeypatch)
 
     event = next(item for item in events if item.type == "select_request")
     assert event.modal["command"] == "provider"
-    assert any(option["value"] == "claude-api" and option.get("active") for option in event.select_options)
+    assert any(
+        option["value"] == "claude-api" and option.get("active") for option in event.select_options
+    )
 
 
 @pytest.mark.asyncio
-async def test_backend_host_apply_select_command_shows_single_segment_transcript(tmp_path, monkeypatch):
+async def test_backend_host_apply_select_command_shows_single_segment_transcript(
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
@@ -761,12 +789,18 @@ async def test_backend_host_apply_select_command_shows_single_segment_transcript
         await close_runtime(host._bundle)
 
     assert should_continue is True
-    user_event = next(item for item in events if item.type == "transcript_item" and item.item and item.item.role == "user")
+    user_event = next(
+        item
+        for item in events
+        if item.type == "transcript_item" and item.item and item.item.role == "user"
+    )
     assert user_event.item.text == "/theme"
 
 
 @pytest.mark.asyncio
-async def test_backend_host_apply_provider_select_command_shows_single_segment_transcript(tmp_path, monkeypatch):
+async def test_backend_host_apply_provider_select_command_shows_single_segment_transcript(
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
@@ -786,7 +820,11 @@ async def test_backend_host_apply_provider_select_command_shows_single_segment_t
         await close_runtime(host._bundle)
 
     assert should_continue is True
-    user_event = next(item for item in events if item.type == "transcript_item" and item.item and item.item.role == "user")
+    user_event = next(
+        item
+        for item in events
+        if item.type == "transcript_item" and item.item and item.item.role == "user"
+    )
     assert user_event.item.text == "/provider"
 
 
@@ -859,9 +897,7 @@ async def test_ask_edit_approval_remembers_always_choice():
     assert reply == "always"
     assert host._edit_always_approved is True
     assert any(
-        event.type == "modal_request"
-        and event.modal
-        and event.modal.get("kind") == "edit_diff"
+        event.type == "modal_request" and event.modal and event.modal.get("kind") == "edit_diff"
         for event in events
     )
 
@@ -915,4 +951,3 @@ async def test_backend_host_emits_mode_select_request(tmp_path, monkeypatch):
     assert event.modal["command"] == "mode"
     values = [option["value"] for option in event.select_options]
     assert values == ["agent", "plan", "ask", "codebase", "governance"]
-

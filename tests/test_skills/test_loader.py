@@ -7,9 +7,9 @@ from pathlib import Path
 
 from codeless.config.settings import Settings
 from codeless.skills import get_user_skills_dir, load_skill_registry
-from codeless.skills.loader import discover_project_skill_dirs, get_user_skill_dirs
 from codeless.skills.bundled import _parse_frontmatter as parse_bundled_frontmatter
 from codeless.skills.loader import _parse_skill_markdown as parse_skill_markdown
+from codeless.skills.loader import discover_project_skill_dirs, get_user_skill_dirs
 
 
 def test_load_skill_registry_includes_bundled(tmp_path: Path, monkeypatch):
@@ -40,7 +40,9 @@ def test_load_skill_registry_includes_user_skills(tmp_path: Path, monkeypatch):
     skills_dir = get_user_skills_dir()
     deploy_dir = skills_dir / "deploy"
     deploy_dir.mkdir(parents=True)
-    (deploy_dir / "SKILL.md").write_text("# Deploy\nDeployment workflow guidance\n", encoding="utf-8")
+    (deploy_dir / "SKILL.md").write_text(
+        "# Deploy\nDeployment workflow guidance\n", encoding="utf-8"
+    )
 
     registry = load_skill_registry()
     deploy = registry.get("Deploy")
@@ -164,7 +166,9 @@ def test_project_skill_discovery_walks_up_to_git_root(tmp_path: Path, monkeypatc
 def test_project_skill_nearer_cwd_overrides_parent_and_user(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
-    _write_skill(tmp_path / "home" / ".claude" / "skills", "deploy", "# user deploy\nuser version\n")
+    _write_skill(
+        tmp_path / "home" / ".claude" / "skills", "deploy", "# user deploy\nuser version\n"
+    )
     repo = tmp_path / "repo"
     cwd = repo / "services" / "api"
     cwd.mkdir(parents=True)

@@ -41,9 +41,7 @@ async def start_docker_sandbox(
         if settings.sandbox.fail_if_unavailable:
             from codeless.sandbox.adapter import SandboxUnavailableError
 
-            raise SandboxUnavailableError(
-                availability.reason or "Docker sandbox is unavailable"
-            )
+            raise SandboxUnavailableError(availability.reason or "Docker sandbox is unavailable")
         logger.warning("Docker sandbox unavailable: %s", availability.reason)
         return
 

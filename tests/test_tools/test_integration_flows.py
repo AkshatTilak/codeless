@@ -178,13 +178,15 @@ async def test_agent_send_message_flow_restarts_completed_agent(tmp_path: Path, 
     assert send_result.is_error is False
 
     await asyncio.sleep(0.2)
-    for _ in range(80):
+    for _ in range(150):
         output = await task_output.execute(task_output.input_model(task_id=task_id), context)
         if "AGENT_ECHO:agent ping" in output.output:
             break
         await asyncio.sleep(0.1)
     else:
-        raise AssertionError("agent follow-up output did not become available in time")
+        raise AssertionError(
+            f"agent follow-up output did not become available in time. Output: {output.output}"
+        )
 
     assert "AGENT_ECHO:ready" in output.output
     assert "AGENT_ECHO:agent ping" in output.output

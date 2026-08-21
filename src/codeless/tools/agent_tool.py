@@ -8,9 +8,9 @@ from pydantic import BaseModel, Field
 
 from codeless.coordinator.agent_definitions import get_agent_definition
 from codeless.hooks import HookEvent
+from codeless.jobs import get_task_manager
 from codeless.swarm.registry import get_backend_registry
 from codeless.swarm.types import TeammateSpawnConfig
-from codeless.jobs import get_task_manager
 from codeless.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,6 @@ class AgentTool(BaseTool):
 
         if not result.success:
             return ToolResult(output=result.error or "Failed to spawn agent", is_error=True)
-
 
         if context.hook_executor is not None:
             manager = get_task_manager()

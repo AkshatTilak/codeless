@@ -24,4 +24,3 @@ __all__ = [
     "is_coordinator_mode",
     "parse_task_notification",
 ]
-

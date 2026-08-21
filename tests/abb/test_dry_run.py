@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
-from codeless.abb.dry_run import audit_abb_readiness, DryRunReport
+from codeless.abb.dry_run import audit_abb_readiness
 from codeless.cli import _build_dry_run_preview, _format_dry_run_preview
 
 

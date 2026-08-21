@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
-
 from unittest.mock import MagicMock
+
+import pytest
 
 from codeless.abb.commands import _mode_handler
 from codeless.abb.permissions import TriMode, get_mode_engine
@@ -53,4 +53,3 @@ async def test_mode_slash_command_invalid_input(tmp_path: Path):
     res = await _mode_handler("invalid_mode", ctx)
     assert "Operational Modes & Domain Write Boundaries" in res.message
     assert "Usage:" in res.message
-

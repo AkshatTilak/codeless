@@ -20,4 +20,3 @@ def test_pyproject_exposes_codeless_console_script():
 def test_powershell_installer_references():
     script = Path("scripts/install.ps1").read_text(encoding="utf-8")
     assert "codeless" in script.lower()
-

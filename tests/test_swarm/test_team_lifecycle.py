@@ -13,7 +13,6 @@ from codeless.swarm.team_lifecycle import (
     TeamMember,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -166,14 +165,10 @@ def test_add_member_persists(manager):
 
 def test_add_member_replaces_existing(manager):
     manager.create_team("epsilon")
-    m1 = TeamMember(
-        agent_id="w@epsilon", name="old", backend_type="subprocess", joined_at=1.0
-    )
+    m1 = TeamMember(agent_id="w@epsilon", name="old", backend_type="subprocess", joined_at=1.0)
     manager.add_member("epsilon", m1)
 
-    m2 = TeamMember(
-        agent_id="w@epsilon", name="new", backend_type="in_process", joined_at=2.0
-    )
+    m2 = TeamMember(agent_id="w@epsilon", name="new", backend_type="in_process", joined_at=2.0)
     updated = manager.add_member("epsilon", m2)
     assert updated.members["w@epsilon"].name == "new"
 

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from croniter import croniter
 
@@ -81,10 +81,14 @@ def upsert_cron_job(job: dict[str, Any]) -> None:
 
     schedule = job.get("schedule", "")
     if validate_cron_expression(schedule):
-        job["next_run"] = next_run_time(schedule, tz=job.get("timezone") or job.get("tz")).isoformat()
+        job["next_run"] = next_run_time(
+            schedule, tz=job.get("timezone") or job.get("tz")
+        ).isoformat()
 
     with exclusive_file_lock(_cron_lock_path()):
-        jobs = [existing for existing in load_cron_jobs() if existing.get("name") != job.get("name")]
+        jobs = [
+            existing for existing in load_cron_jobs() if existing.get("name") != job.get("name")
+        ]
         jobs.append(job)
         jobs.sort(key=lambda item: str(item.get("name", "")))
         save_cron_jobs(jobs)
@@ -132,6 +136,8 @@ def mark_job_run(name: str, *, success: bool) -> None:
                 job["last_status"] = "success" if success else "failed"
                 schedule = job.get("schedule", "")
                 if validate_cron_expression(schedule):
-                    job["next_run"] = next_run_time(schedule, now, tz=job.get("timezone") or job.get("tz")).isoformat()
+                    job["next_run"] = next_run_time(
+                        schedule, now, tz=job.get("timezone") or job.get("tz")
+                    ).isoformat()
                 save_cron_jobs(jobs)
                 return

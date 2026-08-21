@@ -123,11 +123,7 @@ class ImageToTextTool(BaseTool):
                 is_error=True,
             )
 
-        return ToolResult(
-            output=(
-                f"[Image description via {model}]\n\n{description}"
-            )
-        )
+        return ToolResult(output=(f"[Image description via {model}]\n\n{description}"))
 
     def is_read_only(self, arguments: BaseModel) -> bool:
         del arguments
@@ -224,7 +220,7 @@ class ImageToTextTool(BaseTool):
                 tools=[],
             )
         ):
-            from codeless.api.client import ApiTextDeltaEvent, ApiMessageCompleteEvent
+            from codeless.api.client import ApiMessageCompleteEvent, ApiTextDeltaEvent
 
             if isinstance(event, ApiTextDeltaEvent):
                 collected_text += event.text

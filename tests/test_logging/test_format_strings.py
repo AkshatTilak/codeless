@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-
 LOGGER_METHODS = {"debug", "info", "warning", "error", "exception", "critical"}
 SCAN_ROOTS = ("src/codeless", "scripts")
 

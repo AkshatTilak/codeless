@@ -8,23 +8,27 @@ from pathlib import Path
 import pytest
 
 import codeless.commands.registry as registry_module
+from codeless.autopilot import RepoVerificationStep
 from codeless.commands.registry import (
     CommandContext,
     MemoryCommandBackend,
     create_default_command_registry,
     lookup_skill_slash_command,
 )
-from codeless.autopilot import RepoVerificationStep
-from codeless.config.paths import get_feedback_log_path, get_project_issue_file, get_project_pr_comments_file
-from codeless.config.settings import load_settings, save_settings, Settings
+from codeless.config.paths import (
+    get_feedback_log_path,
+    get_project_issue_file,
+    get_project_pr_comments_file,
+)
+from codeless.config.settings import Settings, load_settings, save_settings
 from codeless.engine.messages import ConversationMessage, TextBlock
 from codeless.engine.query_engine import QueryEngine
-from codeless.memory.paths import get_project_memory_dir
+from codeless.jobs import get_task_manager
 from codeless.mcp.types import McpHttpServerConfig, McpStdioServerConfig
+from codeless.memory.paths import get_project_memory_dir
 from codeless.permissions import PermissionChecker
 from codeless.plugins.types import PluginCommandDefinition
 from codeless.state import AppState, AppStateStore
-from codeless.jobs import get_task_manager
 from codeless.tools import create_default_tool_registry
 
 
@@ -76,7 +80,9 @@ async def test_permissions_command_persists(tmp_path: Path, monkeypatch):
     command, args = registry.lookup("/permissions set full_auto")
     assert command is not None
 
-    result = await command.handler(args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    result = await command.handler(
+        args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     assert "Auto" in result.message
     assert load_settings().permission.mode == "full_auto"
@@ -92,7 +98,9 @@ async def test_permissions_command_is_marked_local_only(tmp_path: Path, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_permissions_command_supports_explicit_remote_admin_opt_in(tmp_path: Path, monkeypatch):
+async def test_permissions_command_supports_explicit_remote_admin_opt_in(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     registry = create_default_command_registry()
     command, _ = registry.lookup("/permissions set full_auto")
@@ -107,7 +115,9 @@ async def test_stop_command_explains_interrupt_paths(tmp_path: Path, monkeypatch
     command, args = registry.lookup("/stop")
     assert command is not None
 
-    result = await command.handler(args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    result = await command.handler(
+        args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     assert "/stop" in result.message
     assert "Esc/Ctrl+C" in result.message
@@ -141,7 +151,9 @@ async def test_reload_plugins_command_is_marked_local_only(tmp_path: Path, monke
 
 
 @pytest.mark.asyncio
-async def test_reload_plugins_command_supports_explicit_remote_admin_opt_in(tmp_path: Path, monkeypatch):
+async def test_reload_plugins_command_supports_explicit_remote_admin_opt_in(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     registry = create_default_command_registry()
     command, _ = registry.lookup("/reload-plugins")
@@ -218,7 +230,9 @@ async def test_project_context_commands_are_marked_local_only(tmp_path: Path, mo
 
 
 @pytest.mark.asyncio
-async def test_project_context_commands_support_explicit_remote_admin_opt_in(tmp_path: Path, monkeypatch):
+async def test_project_context_commands_support_explicit_remote_admin_opt_in(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     registry = create_default_command_registry()
 
@@ -307,7 +321,9 @@ async def test_config_show_redacts_nested_mcp_and_vision_secrets(tmp_path: Path,
     command, args = registry.lookup("/config show")
     assert command is not None
 
-    result = await command.handler(args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    result = await command.handler(
+        args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     for secret in (
         "TOP_LEVEL_FAKE_SECRET",
@@ -330,7 +346,9 @@ async def test_memory_show_rejects_path_traversal(tmp_path: Path, monkeypatch):
     command, args = registry.lookup("/memory show ../../../../../../etc/hosts")
     assert command is not None
 
-    result = await command.handler(args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    result = await command.handler(
+        args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     assert result.message == "Memory entry path must stay within the configured memory directory."
 
@@ -343,10 +361,14 @@ async def test_memory_show_reads_normal_entries_with_md_fallback(tmp_path: Path,
 
     add_command, add_args = registry.lookup("/memory add Notes :: hello world")
     assert add_command is not None
-    await add_command.handler(add_args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    await add_command.handler(
+        add_args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     show_command, show_args = registry.lookup("/memory show Notes")
-    result = await show_command.handler(show_args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    result = await show_command.handler(
+        show_args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     assert "hello world" in result.message
 
@@ -358,7 +380,9 @@ async def test_model_command_persists(tmp_path: Path, monkeypatch):
     command, args = registry.lookup("/model opus")
     assert command is not None
 
-    result = await command.handler(args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    result = await command.handler(
+        args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     assert "opus" in result.message
     assert load_settings().resolve_profile()[1].last_model == "opus"
@@ -372,7 +396,9 @@ async def test_model_command_accepts_direct_value(tmp_path: Path, monkeypatch):
     command, args = registry.lookup("/model gpt-5.4")
     assert command is not None
 
-    result = await command.handler(args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    result = await command.handler(
+        args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     assert "gpt-5.4" in result.message
     assert load_settings().model == "gpt-5.4"
@@ -408,7 +434,9 @@ async def test_model_command_lists_profile_model_allowlist(tmp_path: Path, monke
     command, args = registry.lookup("/model list")
     assert command is not None
 
-    result = await command.handler(args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    result = await command.handler(
+        args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     assert "Switchable models for profile 'local-llm'" in result.message
     assert "- deepseek-chat" in result.message
@@ -445,7 +473,9 @@ async def test_model_command_adds_model_to_profile_allowlist(tmp_path: Path, mon
     command, args = registry.lookup("/model add qwen-vl")
     assert command is not None
 
-    result = await command.handler(args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    result = await command.handler(
+        args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     assert result.refresh_runtime is True
     assert load_settings().resolve_profile()[1].allowed_models == ["deepseek-chat", "qwen-vl"]
@@ -521,7 +551,9 @@ async def test_model_command_clear_removes_profile_allowlist(tmp_path: Path, mon
     command, args = registry.lookup("/model clear")
     assert command is not None
 
-    result = await command.handler(args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    result = await command.handler(
+        args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     assert result.refresh_runtime is True
     assert load_settings().resolve_profile()[1].allowed_models == []
@@ -551,7 +583,9 @@ async def test_model_command_default_clears_profile_override(tmp_path: Path, mon
     command, args = registry.lookup("/model default")
     assert command is not None
 
-    result = await command.handler(args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    result = await command.handler(
+        args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     assert "reset to default" in result.message
     assert load_settings().resolve_profile()[1].last_model == ""
@@ -559,7 +593,9 @@ async def test_model_command_default_clears_profile_override(tmp_path: Path, mon
 
 
 @pytest.mark.asyncio
-async def test_turns_show_reports_unlimited_engine_when_session_is_unbounded(tmp_path: Path, monkeypatch):
+async def test_turns_show_reports_unlimited_engine_when_session_is_unbounded(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     registry = create_default_command_registry()
     context = _make_context(tmp_path)
@@ -589,7 +625,9 @@ async def test_turns_command_accepts_unlimited(tmp_path: Path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_provider_command_switches_profile_and_requests_runtime_refresh(tmp_path: Path, monkeypatch):
+async def test_provider_command_switches_profile_and_requests_runtime_refresh(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.setenv("CODELESS_CONFIG_DIR", str(tmp_path / "config"))
     save_settings(
         Settings().model_copy(
@@ -630,7 +668,9 @@ async def test_autopilot_command_add_list_and_complete(tmp_path: Path, monkeypat
     registry = create_default_command_registry()
     context = _make_context(tmp_path)
 
-    add_command, add_args = registry.lookup("/autopilot add idea Build unified queue :: intake from issues and prs")
+    add_command, add_args = registry.lookup(
+        "/autopilot add idea Build unified queue :: intake from issues and prs"
+    )
     assert add_command is not None
     add_result = await add_command.handler(add_args, context)
     assert "Queued autopilot card" in add_result.message
@@ -676,7 +716,9 @@ async def test_ship_command_queues_and_executes_card(tmp_path: Path, monkeypatch
     registry = create_default_command_registry()
     context = _make_context(tmp_path)
 
-    async def fake_run_agent_prompt(self, prompt: str, *, model, max_turns, permission_mode, cwd=None):
+    async def fake_run_agent_prompt(
+        self, prompt: str, *, model, max_turns, permission_mode, cwd=None
+    ):
         return "Implemented the requested feature."
 
     def fake_run_verification_steps(self, policies, *, cwd=None):
@@ -775,11 +817,7 @@ async def test_user_invocable_false_skill_is_not_slash_resolved(tmp_path: Path, 
     skill_dir = extra_root / "hidden"
     skill_dir.mkdir(parents=True)
     (skill_dir / "SKILL.md").write_text(
-        "---\n"
-        "description: Model-only helper.\n"
-        "user-invocable: false\n"
-        "---\n\n"
-        "# Hidden\n",
+        "---\ndescription: Model-only helper.\nuser-invocable: false\n---\n\n# Hidden\n",
         encoding="utf-8",
     )
     context = _make_context(tmp_path)
@@ -796,10 +834,7 @@ async def test_project_skill_registers_as_context_slash_command(tmp_path: Path, 
     skill_dir = repo / ".claude" / "skills" / "shipit"
     skill_dir.mkdir(parents=True)
     (skill_dir / "SKILL.md").write_text(
-        "---\n"
-        "description: Project ship workflow.\n"
-        "---\n\n"
-        "# Shipit\n\nShip this repo.\n",
+        "---\ndescription: Project ship workflow.\n---\n\n# Shipit\n\nShip this repo.\n",
         encoding="utf-8",
     )
     context = _make_context(repo)
@@ -887,7 +922,9 @@ async def test_model_command_rejects_values_outside_profile_allowlist(tmp_path: 
     command, args = registry.lookup("/model claude-opus-4-6")
     assert command is not None
 
-    result = await command.handler(args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path)))
+    result = await command.handler(
+        args, CommandContext(engine=_make_engine(tmp_path), cwd=str(tmp_path))
+    )
 
     assert "is not allowed for profile 'kimi-anthropic'" in result.message
 
@@ -1014,7 +1051,10 @@ async def test_compact_summary_and_usage_commands(tmp_path: Path, monkeypatch):
 
     summary_command, summary_args = registry.lookup("/summary 3")
     summary_result = await summary_command.handler(summary_args, context)
-    assert "assistant: alpha reply" in summary_result.message or "user: beta request" in summary_result.message
+    assert (
+        "assistant: alpha reply" in summary_result.message
+        or "user: beta request" in summary_result.message
+    )
 
     compact_command, compact_args = registry.lookup("/compact 2")
     compact_result = await compact_command.handler(compact_args, context)
@@ -1132,7 +1172,9 @@ async def test_auth_feedback_and_project_context_commands(tmp_path: Path, monkey
     pr_command, pr_args = registry.lookup("/pr_comments add src/app.py:12 :: simplify this branch")
     pr_result = await pr_command.handler(pr_args, context)
     assert "Added PR comment" in pr_result.message
-    assert "simplify this branch" in get_project_pr_comments_file(tmp_path).read_text(encoding="utf-8")
+    assert "simplify this branch" in get_project_pr_comments_file(tmp_path).read_text(
+        encoding="utf-8"
+    )
 
     feedback_command, feedback_args = registry.lookup("/feedback this workflow feels good")
     feedback_result = await feedback_command.handler(feedback_args, context)
@@ -1197,7 +1239,7 @@ async def test_agents_session_files_and_reload_plugins_commands(tmp_path: Path, 
         prompt="ready",
         description="test agent",
         cwd=tmp_path,
-        command="python -u -c \"import sys; print(sys.stdin.readline().strip())\"",
+        command='python -u -c "import sys; print(sys.stdin.readline().strip())"',
     )
     agents_command, agents_args = registry.lookup("/agents")
     agents_result = await agents_command.handler(agents_args, context)
@@ -1241,7 +1283,10 @@ async def test_init_and_bridge_commands(tmp_path: Path, monkeypatch):
 
     init_command, init_args = registry.lookup("/init")
     init_result = await init_command.handler(init_args, context)
-    assert "Initialized project files" in init_result.message or "already initialized" in init_result.message
+    assert (
+        "Initialized project files" in init_result.message
+        or "already initialized" in init_result.message
+    )
     assert (tmp_path / "CLAUDE.md").exists()
     assert (tmp_path / ".codeless" / "memory" / "MEMORY.md").exists()
 
@@ -1249,15 +1294,21 @@ async def test_init_and_bridge_commands(tmp_path: Path, monkeypatch):
     bridge_show_result = await bridge_show_command.handler(bridge_show_args, context)
     assert "Bridge summary:" in bridge_show_result.message
 
-    bridge_encode_command, bridge_encode_args = registry.lookup("/bridge encode https://api.example.com token123")
+    bridge_encode_command, bridge_encode_args = registry.lookup(
+        "/bridge encode https://api.example.com token123"
+    )
     bridge_encode_result = await bridge_encode_command.handler(bridge_encode_args, context)
     assert bridge_encode_result.message
 
-    bridge_decode_command, bridge_decode_args = registry.lookup(f"/bridge decode {bridge_encode_result.message}")
+    bridge_decode_command, bridge_decode_args = registry.lookup(
+        f"/bridge decode {bridge_encode_result.message}"
+    )
     bridge_decode_result = await bridge_decode_command.handler(bridge_decode_args, context)
     assert "api.example.com" in bridge_decode_result.message
 
-    bridge_sdk_command, bridge_sdk_args = registry.lookup("/bridge sdk https://api.example.com session123")
+    bridge_sdk_command, bridge_sdk_args = registry.lookup(
+        "/bridge sdk https://api.example.com session123"
+    )
     bridge_sdk_result = await bridge_sdk_command.handler(bridge_sdk_args, context)
     assert "session123" in bridge_sdk_result.message
 
@@ -1272,7 +1323,9 @@ async def test_init_and_bridge_commands(tmp_path: Path, monkeypatch):
 
     bridge_output_command, bridge_output_args = registry.lookup(f"/bridge output {session_id}")
     bridge_output_result = await bridge_output_command.handler(bridge_output_args, context)
-    assert "bridge-ok" in bridge_output_result.message or bridge_output_result.message == "(no output)"
+    assert (
+        "bridge-ok" in bridge_output_result.message or bridge_output_result.message == "(no output)"
+    )
 
     bridge_stop_command, bridge_stop_args = registry.lookup(f"/bridge stop {session_id}")
     bridge_stop_result = await bridge_stop_command.handler(bridge_stop_args, context)
@@ -1346,7 +1399,9 @@ async def test_mcp_and_voice_commands_report_richer_state(tmp_path: Path, monkey
     mcp_http_command, mcp_http_args = registry.lookup("/mcp auth http-demo secret-token")
     mcp_http_result = await mcp_http_command.handler(mcp_http_args, context)
     assert "Saved MCP auth for http-demo" in mcp_http_result.message
-    assert load_settings().mcp_servers["http-demo"].headers["Authorization"] == "Bearer secret-token"
+    assert (
+        load_settings().mcp_servers["http-demo"].headers["Authorization"] == "Bearer secret-token"
+    )
 
     mcp_stdio_command, mcp_stdio_args = registry.lookup("/mcp auth stdio-demo env DEMO_TOKEN")
     mcp_stdio_result = await mcp_stdio_command.handler(mcp_stdio_args, context)

@@ -10,7 +10,6 @@ from urllib.parse import ParseResult, urljoin, urlparse
 
 import httpx
 
-
 _DEFAULT_PORTS = {
     "http": 80,
     "https": 443,
@@ -88,7 +87,9 @@ def parse_synthetic_dns_cidrs(value: str | None = None) -> tuple[_IPNetwork, ...
         try:
             networks.append(ipaddress.ip_network(entry, strict=False))
         except ValueError as exc:
-            raise NetworkGuardError(f"invalid {_SYNTHETIC_DNS_CIDRS_SETTING} entry: {entry}") from exc
+            raise NetworkGuardError(
+                f"invalid {_SYNTHETIC_DNS_CIDRS_SETTING} entry: {entry}"
+            ) from exc
     return tuple(networks)
 
 
@@ -313,7 +314,9 @@ def _ensure_global_literal_ip(address: _IPAddress) -> None:
 
 
 def _ensure_not_local_hostname(hostname: str) -> None:
-    if hostname in _LOCAL_HOSTNAMES or any(hostname.endswith(suffix) for suffix in _LOCAL_HOST_SUFFIXES):
+    if hostname in _LOCAL_HOSTNAMES or any(
+        hostname.endswith(suffix) for suffix in _LOCAL_HOST_SUFFIXES
+    ):
         raise NetworkGuardError(f"local hostnames are not allowed: {hostname}")
     if "." not in hostname:
         raise NetworkGuardError(f"single-label hostnames are not allowed: {hostname}")

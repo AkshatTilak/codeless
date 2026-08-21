@@ -36,7 +36,9 @@ from pathlib import Path
 __all__ = ["atomic_write_bytes", "atomic_write_text"]
 
 
-def atomic_write_bytes(path: str | os.PathLike[str], data: bytes, *, mode: int | None = None) -> None:
+def atomic_write_bytes(
+    path: str | os.PathLike[str], data: bytes, *, mode: int | None = None
+) -> None:
     """Write ``data`` to ``path`` atomically.
 
     When ``mode`` is given, the final file is created with that POSIX mode
@@ -49,9 +51,7 @@ def atomic_write_bytes(path: str | os.PathLike[str], data: bytes, *, mode: int |
     dst.parent.mkdir(parents=True, exist_ok=True)
     target_mode = _resolve_target_mode(dst, mode)
 
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{dst.name}.", suffix=".tmp", dir=str(dst.parent)
-    )
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{dst.name}.", suffix=".tmp", dir=str(dst.parent))
     tmp_path = Path(tmp_name)
     try:
         with os.fdopen(fd, "wb") as tmp_file:

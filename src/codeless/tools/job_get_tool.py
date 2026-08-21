@@ -25,7 +25,9 @@ class JobGetTool(BaseTool):
         del arguments
         return True
 
-    async def execute(self, arguments: JobGetToolInput, context: ToolExecutionContext) -> ToolResult:
+    async def execute(
+        self, arguments: JobGetToolInput, context: ToolExecutionContext
+    ) -> ToolResult:
         del context
         task = get_task_manager().get_task(arguments.task_id)
         if task is None:

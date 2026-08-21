@@ -9,6 +9,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from codeless.abb.shadow import resolve_abb_workspace
+from codeless.abb.virtualization import is_abb_path, resolve_virtual_path
 from codeless.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
@@ -24,10 +26,6 @@ class GrepToolInput(BaseModel):
     case_sensitive: bool = Field(default=True)
     limit: int = Field(default=200, ge=1, le=2000)
     timeout_seconds: int = Field(default=20, ge=1, le=120)
-
-
-from codeless.abb.virtualization import is_abb_path, resolve_virtual_path
-from codeless.abb.shadow import resolve_abb_workspace
 
 
 class GrepTool(BaseTool):

@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from codeless.api.registry import detect_provider_from_registry
 from codeless.auth.external import describe_external_binding
 from codeless.auth.storage import load_external_binding
-from codeless.api.registry import detect_provider_from_registry
 from codeless.config.settings import Settings
 
 _AUTH_KIND: dict[str, str] = {
@@ -75,7 +75,9 @@ def detect_provider(settings: Settings) -> ProviderInfo:
             name=spec.name,
             auth_kind=_AUTH_KIND.get(backend, "api_key"),
             voice_supported=False,
-            voice_reason=_VOICE_REASON.get(backend, "voice mode is not supported for this provider"),
+            voice_reason=_VOICE_REASON.get(
+                backend, "voice mode is not supported for this provider"
+            ),
         )
 
     # Fallback: use api_format to pick a sensible default

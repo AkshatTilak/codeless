@@ -40,24 +40,25 @@ class AbbVerifyTool(BaseTool):
     )
     input_model = AbbVerifyToolInput
 
-
     async def execute(
         self,
+        arguments: AbbVerifyToolInput,
         context: ToolExecutionContext,
-        dry_run: bool = False,
-        include_lint: bool = False,
-        include_typecheck: bool = False,
     ) -> ToolResult:
+        dry_run = arguments.dry_run
+        include_lint = arguments.include_lint
+        include_typecheck = arguments.include_typecheck
         cwd = Path(context.cwd).resolve()
         try:
             abb_ws = resolve_abb_workspace(cwd, auto_init=False)
             stack_file = abb_ws / "STACK.md"
             if not stack_file.exists():
                 return ToolResult(
-                    error="No STACK.md found in ABB workspace. Cannot run verification."
+                    output="No STACK.md found in ABB workspace. Cannot run verification.",
+                    is_error=True,
                 )
         except Exception as exc:
-            return ToolResult(error=f"Failed to resolve ABB workspace: {exc}")
+            return ToolResult(output=f"Failed to resolve ABB workspace: {exc}", is_error=True)
 
         manifest = parse_verification_manifest(stack_file)
         if not manifest.track_1 and not manifest.track_2:

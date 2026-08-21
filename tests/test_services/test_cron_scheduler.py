@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -15,8 +15,8 @@ from codeless.services.cron_scheduler import (
     append_history,
     execute_job,
     load_history,
-    start_daemon,
     run_scheduler_loop,
+    start_daemon,
 )
 
 
@@ -181,7 +181,9 @@ class TestSchedulerLoop:
 
 
 class TestDaemonStartup:
-    def test_start_daemon_uses_portable_process_spawn(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_start_daemon_uses_portable_process_spawn(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Windows startup should use subprocess spawning instead of fork."""
         monkeypatch.setattr("codeless.services.cron_scheduler.get_platform", lambda: "windows")
         monkeypatch.setattr(subprocess, "DETACHED_PROCESS", 0x00000008, raising=False)
@@ -198,9 +200,12 @@ class TestDaemonStartup:
             spawned["kwargs"] = kwargs
             return fake_process
 
-        with patch("codeless.services.cron_scheduler.subprocess.Popen", side_effect=_fake_popen), patch(
-            "codeless.services.cron_scheduler.read_pid",
-            side_effect=[None, 4321],
+        with (
+            patch("codeless.services.cron_scheduler.subprocess.Popen", side_effect=_fake_popen),
+            patch(
+                "codeless.services.cron_scheduler.read_pid",
+                side_effect=[None, 4321],
+            ),
         ):
             pid = start_daemon()
 

@@ -15,7 +15,9 @@ from codeless.tools.image_generation_tool import ImageGenerationTool, ImageGener
 
 
 class _FakeStreamResponse:
-    def __init__(self, *, status_code: int = 200, lines: list[str] | None = None, body: str = "") -> None:
+    def __init__(
+        self, *, status_code: int = 200, lines: list[str] | None = None, body: str = ""
+    ) -> None:
         self.status_code = status_code
         self._lines = lines or []
         self._body = body.encode("utf-8")
@@ -75,7 +77,9 @@ async def test_execute_requires_api_key_for_openai(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_generate_writes_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+async def test_execute_generate_writes_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     image_bytes = b"fake-png"
     image_b64 = base64.b64encode(image_bytes).decode("ascii")
 
@@ -105,13 +109,16 @@ async def test_execute_generate_writes_file(monkeypatch: pytest.MonkeyPatch, tmp
 
 
 @pytest.mark.asyncio
-async def test_execute_codex_hosted_generation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+async def test_execute_codex_hosted_generation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     image_bytes = b"codex-png"
     image_b64 = base64.b64encode(image_bytes).decode("ascii")
     sink: dict[str, Any] = {}
     response = _FakeStreamResponse(
         lines=[
-            'data: {"type":"response.output_item.done","item":{"id":"ig_1","type":"image_generation_call","status":"completed","revised_prompt":"blue icon","result":"%s"}}' % image_b64,
+            'data: {"type":"response.output_item.done","item":{"id":"ig_1","type":"image_generation_call","status":"completed","revised_prompt":"blue icon","result":"%s"}}'
+            % image_b64,
             "",
             'data: {"type":"response.completed","response":{"status":"completed"}}',
             "",
@@ -147,7 +154,9 @@ async def test_execute_codex_hosted_generation(monkeypatch: pytest.MonkeyPatch, 
 
 
 @pytest.mark.asyncio
-async def test_auto_provider_prefers_codex_when_token_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+async def test_auto_provider_prefers_codex_when_token_available(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     image_b64 = base64.b64encode(b"codex").decode("ascii")
 
     async def fake_codex(self, arguments, config):
@@ -169,7 +178,9 @@ async def test_auto_provider_prefers_codex_when_token_available(monkeypatch: pyt
 
 
 @pytest.mark.asyncio
-async def test_execute_refuses_overwrite_by_default(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+async def test_execute_refuses_overwrite_by_default(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     out = tmp_path / "image.png"
     out.write_bytes(b"existing")
     image_b64 = base64.b64encode(b"new").decode("ascii")
@@ -182,7 +193,9 @@ async def test_execute_refuses_overwrite_by_default(monkeypatch: pytest.MonkeyPa
     tool = ImageGenerationTool()
     result = await tool.execute(
         ImageGenerationToolInput(prompt="a cat", output_path=str(out), provider="openai"),
-        ToolExecutionContext(cwd=tmp_path, metadata={"image_generation_config": {"api_key": "test"}}),
+        ToolExecutionContext(
+            cwd=tmp_path, metadata={"image_generation_config": {"api_key": "test"}}
+        ),
     )
 
     assert result.is_error

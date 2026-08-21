@@ -286,7 +286,9 @@ def is_memory_expired(metadata: dict[str, Any], *, now: datetime | None = None) 
     ttl_days = _as_optional_int(metadata.get("ttl_days"))
     if ttl_days is None or ttl_days <= 0:
         return False
-    base_time = parse_datetime(metadata.get("updated_at")) or parse_datetime(metadata.get("created_at"))
+    base_time = parse_datetime(metadata.get("updated_at")) or parse_datetime(
+        metadata.get("created_at")
+    )
     if base_time is None:
         return False
     return (now or utc_now()) >= base_time + timedelta(days=ttl_days)
@@ -351,7 +353,9 @@ def memory_metadata_from_path(
     updated["schema_version"] = coerce_int(updated.get("schema_version"), default=SCHEMA_VERSION)
     updated["id"] = memory_id
     updated["name"] = str(updated.get("name") or path.stem)
-    updated["description"] = str(updated.get("description") or first_content_line(body) or path.stem)
+    updated["description"] = str(
+        updated.get("description") or first_content_line(body) or path.stem
+    )
     updated["type"] = memory_type
     updated["category"] = category
     updated["importance"] = coerce_int(updated.get("importance"), default=0)

@@ -12,6 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from codeless.bridge import build_sdk_url, decode_work_secret, encode_work_secret, spawn_session
+from codeless.bridge.types import WorkSecret
 from codeless.commands.registry import CommandContext, create_default_command_registry
 from codeless.config.settings import Settings, load_settings
 from codeless.engine.messages import ConversationMessage, TextBlock
@@ -23,11 +25,8 @@ from codeless.permissions import PermissionChecker
 from codeless.plugins import load_plugins
 from codeless.plugins.installer import install_plugin_from_path, uninstall_plugin
 from codeless.state import AppState, AppStateStore
-from codeless.bridge import build_sdk_url, decode_work_secret, encode_work_secret, spawn_session
-from codeless.bridge.types import WorkSecret
 from codeless.tools import create_default_tool_registry
 from codeless.tools.base import ToolExecutionContext
-
 
 FIXTURE_SERVER = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "fake_mcp_server.py"
 
@@ -60,7 +59,9 @@ def _make_command_context(cwd: Path) -> CommandContext:
         cwd=str(cwd),
         tool_registry=tool_registry,
         app_state=AppStateStore(
-            AppState(model="claude-test", permission_mode="default", theme="default", keybindings={})
+            AppState(
+                model="claude-test", permission_mode="default", theme="default", keybindings={}
+            )
         ),
     )
 
@@ -133,7 +134,10 @@ async def _run_plugin_flow(temp_root: Path) -> None:
                 mcp_tool.input_model.model_validate({"name": "plugin"}),
                 ToolExecutionContext(cwd=project),
             )
-            if "Fixture skill content" not in skill_result.output or mcp_result.output != "fixture-hello:plugin":
+            if (
+                "Fixture skill content" not in skill_result.output
+                or mcp_result.output != "fixture-hello:plugin"
+            ):
                 raise AssertionError("plugin flow failed")
             print("[plugin] PASS")
         finally:
@@ -167,7 +171,9 @@ async def _run_bridge_flow(temp_root: Path) -> None:
         cwd=temp_root,
     )
     await handle.process.wait()
-    secret = WorkSecret(version=1, session_ingress_token="tok", api_base_url="http://localhost:8080")
+    secret = WorkSecret(
+        version=1, session_ingress_token="tok", api_base_url="http://localhost:8080"
+    )
     encoded = encode_work_secret(secret)
     decoded = decode_work_secret(encoded)
     url = build_sdk_url(decoded.api_base_url, "abc")

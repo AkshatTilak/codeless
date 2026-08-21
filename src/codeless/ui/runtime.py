@@ -33,15 +33,15 @@ from codeless.engine.query import MaxTurnsExceeded
 from codeless.engine.stream_events import StreamEvent
 from codeless.hooks import HookEvent, HookExecutionContext, HookExecutor, load_hook_registry
 from codeless.hooks.hot_reload import HookReloader
+from codeless.keybindings import load_keybindings
 from codeless.mcp.client import McpClientManager
 from codeless.mcp.config import load_mcp_server_configs
 from codeless.permissions import PermissionChecker
 from codeless.plugins import load_plugins
 from codeless.prompts import build_runtime_system_prompt
-from codeless.state import AppState, AppStateStore
 from codeless.services.session_backend import DEFAULT_SESSION_BACKEND, SessionBackend
+from codeless.state import AppState, AppStateStore
 from codeless.tools import ToolRegistry, create_default_tool_registry
-from codeless.keybindings import load_keybindings
 
 PermissionPrompt = Callable[[str, str], Awaitable[bool]]
 AskUserPrompt = Callable[[str], Awaitable[str]]
@@ -186,7 +186,9 @@ class RuntimeBundle:
             if status.tools:
                 lines.append(f"  tools: {', '.join(tool.name for tool in status.tools)}")
             if status.resources:
-                lines.append(f"  resources: {', '.join(resource.uri for resource in status.resources)}")
+                lines.append(
+                    f"  resources: {', '.join(resource.uri for resource in status.resources)}"
+                )
         return "\n".join(lines)
 
 
@@ -207,7 +209,8 @@ def _resolve_api_client_from_settings(settings) -> SupportsStreamingMessages:
 
         copilot_model = (
             COPILOT_DEFAULT_MODEL
-            if settings.model in {"claude-sonnet-4-20250514", "claude-sonnet-4-6", "sonnet", "default"}
+            if settings.model
+            in {"claude-sonnet-4-20250514", "claude-sonnet-4-6", "sonnet", "default"}
             else settings.model
         )
         return CopilotClient(model=copilot_model)
@@ -312,8 +315,12 @@ async def build_runtime(
     }
     settings = load_settings().merge_cli_overrides(**settings_overrides)
     cwd = str(Path(cwd).expanduser().resolve()) if cwd else str(Path.cwd())
-    normalized_skill_dirs = tuple(str(Path(path).expanduser().resolve()) for path in (extra_skill_dirs or ()))
-    normalized_plugin_roots = tuple(str(Path(path).expanduser().resolve()) for path in (extra_plugin_roots or ()))
+    normalized_skill_dirs = tuple(
+        str(Path(path).expanduser().resolve()) for path in (extra_skill_dirs or ())
+    )
+    normalized_plugin_roots = tuple(
+        str(Path(path).expanduser().resolve()) for path in (extra_plugin_roots or ())
+    )
     plugins = load_plugins(settings, cwd, extra_roots=normalized_plugin_roots)
     if api_client:
         resolved_api_client = api_client
@@ -347,7 +354,9 @@ async def build_runtime(
             fast_mode=settings.fast_mode,
             effort=settings.effort,
             passes=settings.passes,
-            mcp_connected=sum(1 for status in mcp_manager.list_statuses() if status.state == "connected"),
+            mcp_connected=sum(
+                1 for status in mcp_manager.list_statuses() if status.state == "connected"
+            ),
             mcp_failed=sum(1 for status in mcp_manager.list_statuses() if status.state == "failed"),
             bridge_sessions=len(bridge_manager.list_sessions()),
             output_style=settings.output_style,
@@ -356,7 +365,9 @@ async def build_runtime(
     )
     hook_reloader = HookReloader(get_config_file_path())
     hook_executor = HookExecutor(
-        hook_reloader.current_registry() if api_client is None else load_hook_registry(settings, plugins),
+        hook_reloader.current_registry()
+        if api_client is None
+        else load_hook_registry(settings, plugins),
         HookExecutionContext(
             cwd=Path(cwd).resolve(),
             api_client=resolved_api_client,
@@ -405,10 +416,10 @@ async def build_runtime(
         model=settings.model,
         system_prompt=system_prompt_text,
         max_tokens=settings.max_tokens,
-        context_window_tokens=settings.context_window_tokens or settings.memory.context_window_tokens,
+        context_window_tokens=settings.context_window_tokens
+        or settings.memory.context_window_tokens,
         auto_compact_threshold_tokens=(
-            settings.auto_compact_threshold_tokens
-            or settings.memory.auto_compact_threshold_tokens
+            settings.auto_compact_threshold_tokens or settings.memory.auto_compact_threshold_tokens
         ),
         max_turns=engine_max_turns,
         permission_prompt=permission_prompt,
@@ -452,10 +463,7 @@ async def build_runtime(
         engine=engine,
         commands=create_default_command_registry(
             plugin_commands=[
-                command
-                for plugin in plugins
-                if plugin.enabled
-                for command in plugin.commands
+                command for plugin in plugins if plugin.enabled for command in plugin.commands
             ]
         ),
         external_api_client=api_client is not None,
@@ -487,6 +495,7 @@ async def close_runtime(bundle: RuntimeBundle) -> None:
     # Extract local environment rules from session before closing
     try:
         from codeless.personalization.session_hook import update_rules_from_session
+
         update_rules_from_session(bundle.engine.messages)
     except Exception:
         pass  # personalization is best-effort, never block session end
@@ -553,9 +562,7 @@ def _format_pending_tool_results(messages: list[ConversationMessage]) -> str | N
                 f"- {tu.name} {_truncate(raw_input, 200)} -> {_truncate(tr.content.strip(), 400)}"
             )
         else:
-            lines.append(
-                f"- tool_result[{tr.tool_use_id}] -> {_truncate(tr.content.strip(), 400)}"
-            )
+            lines.append(f"- tool_result[{tr.tool_use_id}] -> {_truncate(tr.content.strip(), 400)}")
 
     if len(tool_results) > max_results:
         lines.append(f"(+{len(tool_results) - max_results} more tool results)")
@@ -585,8 +592,12 @@ def sync_app_state(bundle: RuntimeBundle) -> None:
         fast_mode=settings.fast_mode,
         effort=settings.effort,
         passes=settings.passes,
-        mcp_connected=sum(1 for status in bundle.mcp_manager.list_statuses() if status.state == "connected"),
-        mcp_failed=sum(1 for status in bundle.mcp_manager.list_statuses() if status.state == "failed"),
+        mcp_connected=sum(
+            1 for status in bundle.mcp_manager.list_statuses() if status.state == "connected"
+        ),
+        mcp_failed=sum(
+            1 for status in bundle.mcp_manager.list_statuses() if status.state == "failed"
+        ),
         bridge_sessions=len(get_bridge_manager().list_sessions()),
         output_style=settings.output_style,
         keybindings=load_keybindings(),
@@ -648,8 +659,10 @@ async def handle_line(
         memory_backend=bundle.memory_backend,
         include_project_memory=bundle.include_project_memory,
     )
-    parsed = None if user_message is not None else (
-        bundle.commands.lookup(line) or lookup_skill_slash_command(line, command_context)
+    parsed = (
+        None
+        if user_message is not None
+        else (bundle.commands.lookup(line) or lookup_skill_slash_command(line, command_context))
     )
     if parsed is not None:
         command, args = parsed
@@ -708,7 +721,11 @@ async def handle_line(
                 include_project_memory=bundle.include_project_memory,
             )
             bundle.engine.set_system_prompt(system_prompt)
-            turns = result.continue_turns if result.continue_turns is not None else bundle.engine.max_turns
+            turns = (
+                result.continue_turns
+                if result.continue_turns is not None
+                else bundle.engine.max_turns
+            )
             try:
                 async for event in bundle.engine.continue_pending(max_turns=turns):
                     await render_event(event)
@@ -784,8 +801,8 @@ async def _render_command_result(
         await clear_output()
     if result.replay_messages and render_event is not None:
         # Replay restored conversation messages as transcript events
-        from codeless.engine.stream_events import AssistantTextDelta, AssistantTurnComplete
         from codeless.api.usage import UsageSnapshot
+        from codeless.engine.stream_events import AssistantTextDelta, AssistantTurnComplete
 
         await clear_output()
         await print_system("Session restored:")

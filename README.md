@@ -3,9 +3,10 @@
 > **"Code less: you steer the base, the harness builds."**
 
 [![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
-[![Release](https://img.shields.io/badge/release-v0.2.0-green.svg)](https://github.com/)
+[![Release](https://img.shields.io/badge/release-v1.0.0-green.svg)](https://github.com/)
 [![Architecture](https://img.shields.io/badge/architecture-Agent%20Buildable%20Base%20(ABB)-orange.svg)](https://github.com/)
-[![Upstream](https://img.shields.io/badge/forked%20from-HKUDS%2FOpenHarness-9cf.svg)](https://github.com/HKUDS/OpenHarness)
+[![Code Quality](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Upstream](https://img.shields.io/badge/hard--forked%20from-HKUDS%2FOpenHarness-9cf.svg)](https://github.com/HKUDS/OpenHarness)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 ```
@@ -19,25 +20,34 @@
 
 **Codeless** is an autonomous agent execution harness engineered specifically to orchestrate, execute, and verify software projects governed by the **Agent Buildable Base (ABB)** paradigm.
 
-It bridges declarative, modular repository governance with autonomous AI agent execution, deterministic DAG dependency guardrails, zero-pollution shadow workspaces, unified prompt composition, and multi-track automated verification.
+It bridges declarative, modular repository governance with autonomous AI agent execution, deterministic DAG dependency guardrails, zero-pollution shadow workspaces, unified prompt composition, consolidated high-leverage tooling, and multi-track automated verification.
 
 ---
 
-## 🏛️ Upstream Heritage & Evolution
+## 📖 Why i made this
 
-Codeless is built upon the foundation of [**HKUDS/OpenHarness**](https://github.com/HKUDS/OpenHarness) (licensed under Apache 2.0).
+> *"I use agents and lots of harnesses like Claude Code, Antigravity, and Copilot. But all of them share a fundamental flaw: they dump unstructured `.md` files in repositories and have no well-defined mechanism for when and how to reference them across old and new sessions. That project context is vital, but without structure, the model simply loses track."*
+>
+> *"To solve this, I designed **Agent Buildable Base (ABB)** — a project-specific memory and lifecycle tracking system that organizes requirements, system designs, component specs, and topological tasks into a living, verifiable contract. I iterate on ABB continuously as I discover real-world agent bottlenecks."*
+>
+> *"Then I built **Codeless** — a fast, dedicated CLI harness to operationalize ABB effortlessly. Along the way, it solved another major challenge: making other AI harnesses also benefit from ABB simply by feeding them ABB's root `agent.md` governance prompt as a clean workaround."*
+>
+> *"I also hated the tool bloat common in existing harnesses, where dozens of fine-grained CRUD tools consume precious LLM context tokens. In Codeless, we consolidate tools into multi-action powerhouses (`cron`, `task`, `worktree`, `mcp_resource`, `web`) with dynamic action-level permission evaluation. Most importantly, Codeless manages code and feature changes through the entire Software Development Lifecycle (SDLC) — making it unmistakably clear **what** is being built, **why** it is being built, and **how** it is verified."*
 
-We hard-forked and evolved OpenHarness into a specialized, bloat-free runtime for **Agent Buildable Base (ABB)** development:
-- **Zero-Pollution Shadow Workspace Virtualization**: Isolates all agent governance files, logs, and sessions to user AppData storage.
+---
+
+## 🏛️ Key Capabilities & Innovations
+
+- **Zero-Pollution Shadow Workspace Virtualization**: Isolates all agent governance files, task DAGs, logs, and sessions in user AppData storage (`~/.codeless/projects/<project_hash>/abb_workspace/`), keeping target repositories 100% pristine.
 - **Unified Prompt Composer**: Single prompt composition authority fusing harness mechanics and ABB persona (`agent.md` + router) with zero redundant guidance.
 - **Five-Mode Operational Matrix**: Atomic mode authority (`AGENT`, `PLAN`, `ASK`, `CODEBASE`, `GOVERNANCE`) enforcing tool provisioning and strict domain write boundaries.
+- **Tool Consolidation & Action Permissions**: Consolidated multi-action tools (`cron`, `task`, `worktree`, `mcp_resource`, `web`) reducing token overhead by ~60% with dynamic action-level `is_read_only` permission evaluation.
+- **Unified Web Crawl Engine**: Structured Crawl4AI-inspired crawling, Markdown extraction, readability distillation, and CSS selector scoping.
+- **Cold-Start Exploration & Template Choice**: Autonomous project context exploration on empty-history sessions and open-source template strategy ingestion.
 - **Static Bash Mode Guard**: Pre-tool static syntax and command analysis intercepting unauthorized mutations before shell execution.
 - **Topological DAG Task Gating & Auto-Rollup**: Hierarchical task decomposition (`goal` → `base` → `sub`) with strict dependency enforcement.
 - **Two-Track Manifest-Driven Verification**: `STACK.md` test execution gates preventing subtask completion on test regressions.
-- **Read-Only ABB Native Tools**: In-session DAG querying (`abb_task`) and manifest test runner (`abb_verify`).
-- **ABB Native Agents**: Special-purpose `task-planner` and `abb-governance` agents with mode-aware spawning filters.
-- **Docker & Sandbox Coherence**: Read-write shadow ABB workspace mounts into Docker and `srt` sandboxes with `CODELESS_ABB_ROOT` environment coherence.
-- **React/Ink TUI Live Status**: Uppercase badges (`⚡ AGENT`, `📐 PLAN`, `💬 ASK`, `🔍 CODEBASE`, `🏛️ GOVERNANCE`), interactive `/mode` select modal, and live DAG visualizers.
+- **Multi-Harness Interoperability**: Export and feed `agent.md` to Claude Code, Copilot, or Antigravity to bring ABB governance into any agent environment.
 
 ---
 
@@ -48,7 +58,10 @@ Traditional AI coding assistants struggle with hallucination, scope creep, and c
 ```mermaid
 graph TD
     User([User Prompt]) --> Agent[agent.md: System Architect Persona]
-    Agent --> Router[workflows/router.md: Decision Tree]
+    Agent --> ColdStart{Cold Start Session?}
+    ColdStart -->|Yes| Inspect[Explore tasks/tasks.md + goal.md + CONVENTIONS.md]
+    ColdStart -->|No| Router[workflows/router.md: Decision Tree]
+    Inspect --> Router
     Router --> Skills[skills/skills.md: Skill Selection & Acceleration]
 
     Skills --> Mode{Five-Mode Matrix}
@@ -58,7 +71,7 @@ graph TD
     Mode -->|CODEBASE| Code[Source Code Implementation]
     Mode -->|GOVERNANCE| Gov[Meta-Specification Authoring]
 
-    Exec --> Tools[Virtualized Tools: read/write/edit/bash/abb_task/abb_verify]
+    Exec --> Tools[Consolidated Tools: cron / task / worktree / web / abb_task / abb_verify]
     Tools --> Shadow[(Shadow Workspace: ~/.codeless/projects/.../abb_workspace)]
     Tools --> Codebase[(Target Codebase Root)]
 
@@ -69,7 +82,7 @@ graph TD
 
 ### The Governance Loop: SRS → DDS → Tasks → Verify → Revise
 
-Codeless runs a closed, non-duplicating loop across the ABB governance layers. Each layer links to the next; nothing is copied between them.
+Codeless runs a closed, non-duplicating loop across the ABB governance layers:
 
 ```mermaid
 graph LR
@@ -86,69 +99,41 @@ graph LR
 - **SRS** (`tasks/goal/goal.md`): the Goal file is a versioned **Software Requirements Specification** — purpose, scope, constraints, and stable requirement IDs (`FR-###`, `NFR-###`, `IR-###`) that are never reused.
 - **DDS** (`design/design.md`): the **Design Document Specification** umbrella, split into **HLD** (architecture, stack, DB, major modules) and **LLD** (component logic, APIs, data structures, workflows).
 - **Tasks** (`tasks/base/`, `tasks/sub/`): execution units, each carrying `srs_refs` back to the requirements they satisfy.
-- **Revise** (`workflows/planning/extend_goal.md`): when a requirement changes, the SRS is version-bumped, an impact analysis finds every affected task via `srs_refs`, and the tree is restructured (add / improve / supersede / renumber).
+- **Revise** (`workflows/planning/extend_goal.md`): when a requirement changes, the SRS is version-bumped, an impact analysis finds every affected task via `srs_refs`, and the tree is restructured.
 
 ---
 
 ## 🔒 Five-Mode Operational Matrix
 
-Codeless provides 5 distinct operational modes. The active mode is the single authority for persona prompt composition, tool allow-lists, and domain write boundaries:
+Codeless provides 5 distinct operational modes. **Codeless sessions start in `[📐 PLAN]` mode by default** to review architecture, specs, and plans safely before code execution. The active mode is the single authority for persona prompt composition, tool allow-lists, and domain write boundaries:
 
 | Mode | Visual Badge | Allowed Tool Schemas | Domain Write Boundary |
 | :--- | :--- | :--- | :--- |
-| **`AGENT`** | `[⚡ AGENT]` | **All 41 tools** (`bash`, `read_file`, `write_file`, `edit_file`, `abb_task`, `abb_verify`, `lsp`, etc.) | **Unrestricted implementation & verification** across codebase and workspace (Two-Track verification gate active). |
-| **`PLAN`** | `[📐 PLAN]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `write_file`*, `edit_file`*, `abb_task`, `abb_verify` | **Planning only** (`tasks/` and `design/`). Production code mutations and mutating shell commands (`bash`) are blocked. |
-| **`ASK`** | `[💬 ASK]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `abb_task`, `ask_user_question` | **Read-only inquiry**. All file mutations and shell executions are blocked. |
-| **`CODEBASE`** | `[🔍 CODEBASE]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `abb_task`, `ask_user_question` | **Codebase exploration & memory queries**. Strictly read-only repository-wide. |
-| **`GOVERNANCE`** | `[🏛️ GOVERNANCE]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `write_file`*, `edit_file`*, `abb_task`, `abb_verify` | **Meta-spec maintenance** (`STACK.md`, `agent.md`, `features/`, `references/`, `workflows/`, `skills/`). Production code files are protected. |
+| **`PLAN` (Default)** | `[📐 PLAN]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `write_file`*, `edit_file`*, `cron` (read), `task` (read), `worktree` (read), `web`, `abb_task`, `abb_verify` | **Planning only** (`tasks/` and `design/`). Production code mutations and mutating shell commands (`bash`) are blocked. |
+| **`AGENT`** | `[⚡ AGENT]` | **All tools** (`bash`, `read_file`, `write_file`, `edit_file`, `cron`, `task`, `worktree`, `web`, `abb_task`, `abb_verify`, etc.) | **Unrestricted implementation & verification** across codebase and workspace (Two-Track verification gate active). |
+| **`ASK`** | `[💬 ASK]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `cron` (read), `task` (read), `worktree` (read), `web`, `abb_task`, `ask_user_question` | **Read-only inquiry**. All file mutations and shell executions are blocked. |
+| **`CODEBASE`** | `[🔍 CODEBASE]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `cron` (read), `task` (read), `worktree` (read), `web`, `abb_task`, `ask_user_question` | **Codebase exploration & memory queries**. Strictly read-only repository-wide. |
+| **`GOVERNANCE`** | `[🏛️ GOVERNANCE]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `write_file`*, `edit_file`*, `cron` (read), `task` (read), `worktree` (read), `web`, `abb_task`, `abb_verify` | **Meta-spec maintenance** (`STACK.md`, `agent.md`, `features/`, `references/`, `workflows/`, `skills/`). Production code files are protected. |
 
 ---
 
-## 🛡️ Core System Features
+## 🧰 Consolidated Multi-Action Tools
 
-### 1. 🛡️ Zero-Pollution Shadow Workspaces
-When you run Codeless on **any project directory**, Codeless computes a deterministic SHA-256 hash of the project path and automatically provisions an isolated ABB shadow workspace at:
+Instead of polluting LLM context with dozens of granular tools, Codeless consolidates operations into intuitive multi-action schemas:
+
 ```
-~/.codeless/projects/<project_hash>/abb_workspace/
+Consolidated Tool   Actions                           Dynamic is_read_only Evaluation
+-----------------   --------------------------------  ---------------------------------------------------------
+cron                create, list, delete, toggle      True if action == "list", else False
+task                create, get, list, stop, output   True if action in {"get", "list", "output"}, else False
+worktree            enter, exit, list                 True if action == "list", else False
+mcp_resource        list, read                        True (all queries are read-only)
+web                 crawl, search, fetch              True (all queries are read-only)
 ```
-Your target repository remains **100% pristine** — zero governance markdown files or temporary session states pollute your git commits. *(For template authors and framework developers, an in-repo dev override at `.codeless/abb_workspace/` is also supported).*
-
-### 2. 🛡️ Static Bash Mode Guard
-When operating in restricted modes (`PLAN`, `ASK`, `CODEBASE`, `GOVERNANCE`), the pre-tool lifecycle hook performs static syntax and argument analysis on all shell commands:
-- Intercepts redirection file writes (`>`, `>>`)
-- Intercepts file mutation commands (`rm`, `mv`, `cp`, `mkdir`, `touch`, `tee`, etc.)
-- Intercepts package and repository mutations (`git commit`, `git push`, `npm install`, `pip install`, etc.)
-Unauthorized commands are rejected with a clear domain violation message before any process is spawned.
-
-### 3. 🌲 Topological Task DAGs & Auto-Rollup
-Tasks are decomposed hierarchically with deterministic YAML frontmatter:
-- **`tasks/goal/`**: the **SRS** — master project vision, versioned requirements (`FR-###` / `NFR-###` / `IR-###`), and success criteria.
-- **`tasks/base/`**: major milestones and architecture deliverables, each carrying `srs_refs` to the requirements it satisfies.
-- **`tasks/sub/`**: atomic, testable units of work with explicit `depends_on` lists and optional `srs_refs`.
-
-The **DAG Gate Hook** strictly prevents subtasks from moving to `in_progress` until all dependency tasks are `status: done`. When all child subtasks complete, the parent base task automatically rolls up to `status: done`.
-
-### 4. 🧪 Two-Track Verification Gates (`STACK.md`)
-Every project defines a verification manifest in its `STACK.md`:
-```yaml
----
-verification:
-  track_1:
-    - pytest tests/unit/
-  track_2:
-    - pytest tests/e2e/
-    - npx tsc --noEmit
----
-```
-A subtask **cannot** transition to `status: done` unless both Track 1 (Fast Unit Tests) and Track 2 (Integration/E2E) suites execute and return exit code `0`.
-
-### 5. 🧰 Native Read-Only ABB Tools
-- **`abb_task`**: Inspect task DAG status inside the session (`list`, `show <task_id>`, `ready`, `blocked-by <task_id>`).
-- **`abb_verify`**: Execute Track 1 / Track 2 verification manifests in live or dry-run mode directly from agent workflows.
 
 ---
 
-## 💻 Installation & Setup
+## 💻 Installation & Quickstart
 
 ### Prerequisites
 - Python `3.11+`
@@ -157,10 +142,15 @@ A subtask **cannot** transition to `status: done` unless both Track 1 (Fast Unit
 
 ### Global CLI Installation
 
-From your local clone of Codeless:
 ```bash
 # Recommended: Isolated editable tool environment via uv
-uv tool install --editable .
+uv tool install --force --editable .
+
+# Sync local workspace & dev dependencies:
+uv sync --extra dev
+
+# Ensure frontend React terminal dependencies are installed:
+cd frontend/terminal && npm install && cd ../..
 
 # Or via standard pip:
 pip install -e .
@@ -170,91 +160,14 @@ This registers two global executables in your PATH:
 - **`codeless`** (Primary CLI)
 - **`clh`** (Fast alias)
 
----
+### Web Crawling & Scraping Engine
+Codeless includes Crawl4AI and a fast structured HTML-to-Markdown parser out-of-the-box. The `web` tool automatically uses Crawl4AI's `AsyncWebCrawler` for JavaScript-rendered SPAs, selector extraction, and deep crawls with automated fallback to the lightweight engine.
 
-## 🔑 Setting Up API Keys & Providers
-
-Codeless features a universal provider gateway supporting OpenAI, Anthropic, DeepInfra, OpenRouter, and local OpenAI-compatible endpoints (Ollama, vLLM, LM Studio).
-
-### Option 1: Saved Provider Profiles (Recommended)
-
-Save your provider profile once in `~/.codeless/settings.json` and credentials in `~/.codeless/credentials.json`:
-
-#### DeepInfra Example
-```powershell
-codeless provider add deepinfra `
-  --label "DeepInfra" `
-  --provider openai-compatible `
-  --api-format openai `
-  --auth-source api_key `
-  --base-url "https://api.deepinfra.com/v1/openai" `
-  --model "deepseek-ai/DeepSeek-V4-Flash-0731" `
-  --allowed-model "deepseek-ai/DeepSeek-V4-Flash-0731" `
-  --allowed-model "deepseek-ai/DeepSeek-V4-Pro" `
-  --allowed-model "Qwen/Qwen3.8-2.4T-A95B" `
-  --context-window-tokens 1048576 `
-  --api-key "YOUR_DEEPINFRA_API_KEY"
-
-# Activate deepinfra
-codeless provider use deepinfra
-```
-
-#### Official Anthropic (Claude) Example
-```powershell
-codeless provider add anthropic `
-  --label "Anthropic Claude" `
-  --provider anthropic `
-  --api-format anthropic `
-  --auth-source anthropic_api_key `
-  --model "claude-3-7-sonnet-20250219" `
-  --api-key "YOUR_ANTHROPIC_API_KEY"
-
-codeless provider use anthropic
-```
-
-#### Local LLM (Ollama / vLLM) Example
-```powershell
-codeless provider add local `
-  --label "Local Ollama" `
-  --provider openai-compatible `
-  --api-format openai `
-  --auth-source api_key `
-  --base-url "http://localhost:11434/v1" `
-  --model "qwen2.5-coder:32b" `
-  --api-key "none"
-
-codeless provider use local
-```
-
-### Option 2: Environment Variables (Current Terminal)
-```powershell
-# PowerShell:
-$env:OPENAI_API_KEY = "your-api-key"
-$env:OPENAI_BASE_URL = "https://api.deepinfra.com/v1/openai"
-```
+### Launching on Any Project
 ```bash
-# Bash / Linux / macOS:
-export OPENAI_API_KEY="your-api-key"
-export OPENAI_BASE_URL="https://api.deepinfra.com/v1/openai"
-```
-
----
-
-## 🚀 Usage Guide
-
-### 1. Launching the Interactive Session
-Navigate to **any directory** and launch Codeless:
-```bash
-cd C:\path\to\your\project
+cd /path/to/any/project
 codeless
 ```
-
-### 2. Keyboard Shortcuts in Interactive TUI
-- **`Tab`** (on empty prompt): Open the interactive **Operational Mode** selector modal (`AGENT`, `PLAN`, `ASK`, `CODEBASE`, `GOVERNANCE`).
-- **`/`**: Open the interactive slash command autocomplete menu.
-- **`Ctrl+C`**: Interrupt active generation or exit.
-- **`↑ / ↓`**: Navigate input history or modal selections.
-- **`Shift + Enter`**: Multi-line prompt input.
 
 ---
 
@@ -274,7 +187,6 @@ codeless
 | **`/drift`** | Run schema and file drift audit between code and meta-specs. |
 | **`/checkpoint`** | Create a safety git snapshot of current workspace state. |
 | **`/stack`** | View `STACK.md` technology stack and verification configuration. |
-| **`/prefs`** | View or update `USER_PREFERENCES.md`. |
 | **`/provider`** | Open interactive provider profile selector. |
 | **`/model`** | Open interactive model selector. |
 | **`/compact`** | Trigger an intelligent context-window compaction turn. |
@@ -283,16 +195,17 @@ codeless
 
 ---
 
-## 🧪 Verification & Development
+## 🧪 Verification & Quality Standard
 
-To run the complete Codeless test suite:
+Codeless maintains a **zero-error lint standard** backed by automated pre-commit tooling and extensive test suites:
 
 ```powershell
-# Run full test suite (1,106+ unit, ABB, UI, and integration tests)
-uv run pytest -q
+# Run Ruff lint & formatting checks
+uv run ruff check src tests scripts
+uv run ruff format --check src tests scripts
 
-# Run ABB and E2E suites specifically
-uv run pytest tests/abb/ -v
+# Run full test suite (1,112+ unit, ABB, UI, and integration tests)
+uv run pytest -q
 ```
 
 ---
@@ -301,4 +214,3 @@ uv run pytest tests/abb/ -v
 
 Codeless is open-source software licensed under the [Apache License 2.0](LICENSE).  
 Portions derived from [HKUDS/OpenHarness](https://github.com/HKUDS/OpenHarness) under Apache-2.0.
-

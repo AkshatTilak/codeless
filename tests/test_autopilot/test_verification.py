@@ -92,7 +92,9 @@ def test_unclosed_quote_surfaces_a_tokenization_error() -> None:
 
 
 def test_default_policy_parses_cleanly() -> None:
-    parsed = [_parse_verification_entry(entry) for entry in _DEFAULT_VERIFICATION_POLICY["commands"]]
+    parsed = [
+        _parse_verification_entry(entry) for entry in _DEFAULT_VERIFICATION_POLICY["commands"]
+    ]
     assert all(p.error is None for p in parsed), [p.error for p in parsed if p.error]
     assert parsed[0].shell is False
     assert parsed[1].shell is False

@@ -55,7 +55,9 @@ class _FakeApiClient:
     async def stream_message(self, request):
         self.requests.append(request)
         yield ApiMessageCompleteEvent(
-            message=ConversationMessage.from_user_text(self.text).model_copy(update={"role": "assistant"}),
+            message=ConversationMessage.from_user_text(self.text).model_copy(
+                update={"role": "assistant"}
+            ),
             usage=UsageSnapshot(input_tokens=1, output_tokens=1),
             stop_reason="end_turn",
         )
@@ -76,7 +78,9 @@ def test_relevance_formats_staleness(tmp_path: Path, monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
-    path = add_memory_entry(project, "Redis Rule", "Redis cache decisions matter.", memory_type="project")
+    path = add_memory_entry(
+        project, "Redis Rule", "Redis cache decisions matter.", memory_type="project"
+    )
     old = time.time() - 3 * 86_400
     os.utime(path, (old, old))
 
@@ -89,7 +93,9 @@ def test_relevance_formats_staleness(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 
 @pytest.mark.asyncio
-async def test_memory_extraction_writes_typed_note(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_memory_extraction_writes_typed_note(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
@@ -103,7 +109,9 @@ async def test_memory_extraction_writes_typed_note(tmp_path: Path, monkeypatch: 
         ConversationMessage.from_user_text("noted").model_copy(update={"role": "assistant"}),
     ]
 
-    result = await extract_memories_from_turn(cwd=project, api_client=api, model="claude-test", messages=messages)
+    result = await extract_memories_from_turn(
+        cwd=project, api_client=api, model="claude-test", messages=messages
+    )
 
     assert result.skipped is False
     assert len(result.written_paths) == 1
@@ -121,7 +129,9 @@ def test_memory_extraction_parser_and_tool_guard(tmp_path: Path) -> None:
     assert records[0].scope == "private"
 
     ok, _ = validate_extraction_tool_request("bash", {"command": "rg memory src"}, tmp_path)
-    denied, reason = validate_extraction_tool_request("write_file", {"path": "../x", "content": "x"}, tmp_path)
+    denied, reason = validate_extraction_tool_request(
+        "write_file", {"path": "../x", "content": "x"}, tmp_path
+    )
 
     assert ok is True
     assert denied is False
@@ -162,7 +172,9 @@ def test_session_memory_file_round_trip(tmp_path: Path, monkeypatch: pytest.Monk
     assert "finish memory runtime" in get_session_memory_content(path)
 
 
-def test_team_memory_guards_and_agent_memory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_team_memory_guards_and_agent_memory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
@@ -195,7 +207,9 @@ def test_agent_memory_snapshot_initializes(tmp_path: Path, monkeypatch: pytest.M
 
 
 @pytest.mark.asyncio
-async def test_memory_commands_expose_session_team_and_agent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_memory_commands_expose_session_team_and_agent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()
@@ -216,8 +230,12 @@ async def test_memory_commands_expose_session_team_and_agent(tmp_path: Path, mon
         result = await command.handler(args, context)
         assert result.message
 
-    command, args = registry.lookup("/memory add --type feedback --scope private Style :: Keep answers concise.")
+    command, args = registry.lookup(
+        "/memory add --type feedback --scope private Style :: Keep answers concise."
+    )
     assert command is not None
     result = await command.handler(args, context)
     assert "Added memory entry" in (result.message or "")
-    assert 'type: "feedback"' in (get_project_memory_dir(project) / "style.md").read_text(encoding="utf-8")
+    assert 'type: "feedback"' in (get_project_memory_dir(project) / "style.md").read_text(
+        encoding="utf-8"
+    )

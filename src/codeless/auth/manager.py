@@ -5,6 +5,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from codeless.auth.storage import (
+    clear_provider_credentials,
+    load_credential,
+    load_external_binding,
+    store_credential,
+)
 from codeless.config.settings import (
     ProviderProfile,
     auth_source_provider_name,
@@ -14,12 +20,6 @@ from codeless.config.settings import (
     default_auth_source_for_provider,
     display_label_for_profile,
     display_model_setting,
-)
-from codeless.auth.storage import (
-    clear_provider_credentials,
-    load_external_binding,
-    load_credential,
-    store_credential,
 )
 
 log = logging.getLogger(__name__)
@@ -132,7 +132,9 @@ class AuthManager:
                     configured = True
                     origin = "env"
                     state = "configured"
-                elif load_credential(storage_provider, "api_key") or getattr(self.settings, "api_key", ""):
+                elif load_credential(storage_provider, "api_key") or getattr(
+                    self.settings, "api_key", ""
+                ):
                     configured = True
                     origin = "file"
                     state = "configured"
@@ -210,7 +212,9 @@ class AuthManager:
                 if os.environ.get("ANTHROPIC_API_KEY"):
                     configured = True
                     source = "env"
-                elif load_credential("anthropic", "api_key") or getattr(self.settings, "api_key", ""):
+                elif load_credential("anthropic", "api_key") or getattr(
+                    self.settings, "api_key", ""
+                ):
                     configured = True
                     source = "file"
 
@@ -328,7 +332,9 @@ class AuthManager:
         profiles = self.settings.merged_profiles()
         if name not in profiles:
             raise ValueError(f"Unknown provider profile: {name!r}")
-        updated = self.settings.model_copy(update={"active_profile": name}).materialize_active_profile()
+        updated = self.settings.model_copy(
+            update={"active_profile": name}
+        ).materialize_active_profile()
         self._settings = updated
         self.save_settings()
         log.info("Switched active profile to %s", name)
@@ -369,11 +375,17 @@ class AuthManager:
             "provider": next_provider,
             "api_format": next_format,
             "base_url": base_url if base_url is not None else current.base_url,
-            "auth_source": auth_source or current.auth_source or default_auth_source_for_provider(next_provider, next_format),
+            "auth_source": auth_source
+            or current.auth_source
+            or default_auth_source_for_provider(next_provider, next_format),
             "default_model": default_model or current.default_model,
             "last_model": last_model if last_model is not None else current.last_model,
-            "credential_slot": credential_slot if credential_slot is not None else current.credential_slot,
-            "allowed_models": allowed_models if allowed_models is not None else current.allowed_models,
+            "credential_slot": credential_slot
+            if credential_slot is not None
+            else current.credential_slot,
+            "allowed_models": allowed_models
+            if allowed_models is not None
+            else current.allowed_models,
             "context_window_tokens": (
                 context_window_tokens
                 if context_window_tokens is not None
@@ -407,7 +419,9 @@ class AuthManager:
     def switch_auth_source(self, auth_source: str, *, profile_name: str | None = None) -> None:
         """Switch the auth source for a profile."""
         if auth_source not in _AUTH_SOURCES:
-            raise ValueError(f"Unknown auth source: {auth_source!r}. Known auth sources: {_AUTH_SOURCES}")
+            raise ValueError(
+                f"Unknown auth source: {auth_source!r}. Known auth sources: {_AUTH_SOURCES}"
+            )
         target = profile_name or self.get_active_profile()
         self.update_profile(target, auth_source=auth_source)
 
@@ -421,7 +435,11 @@ class AuthManager:
             self.use_profile(name)
             return
         if name in _KNOWN_PROVIDERS:
-            self.use_profile(_PROFILE_BY_PROVIDER.get(name, "openai-compatible" if name == "openai" else "claude-api"))
+            self.use_profile(
+                _PROFILE_BY_PROVIDER.get(
+                    name, "openai-compatible" if name == "openai" else "claude-api"
+                )
+            )
             return
         raise ValueError(
             f"Unknown provider or auth source: {name!r}. "
@@ -432,7 +450,9 @@ class AuthManager:
         """Store a credential for the given provider."""
         store_credential(provider, key, value)
         # Keep the flattened active settings snapshot aligned for compatibility.
-        if key == "api_key" and provider == auth_source_provider_name(self.settings.resolve_profile()[1].auth_source):
+        if key == "api_key" and provider == auth_source_provider_name(
+            self.settings.resolve_profile()[1].auth_source
+        ):
             try:
                 updated = self.settings.model_copy(update={"api_key": value})
                 self._settings = updated.materialize_active_profile()

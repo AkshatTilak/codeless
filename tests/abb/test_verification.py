@@ -1,8 +1,6 @@
 """Tests for Two-Track Verification runner, manifest parser, and completion gate."""
 
-import asyncio
 from pathlib import Path
-import pytest
 
 from codeless.abb.verification import (
     CommandReport,
@@ -15,7 +13,6 @@ from codeless.abb.verification import (
     run_command_sync,
     verify_subtask_gate,
 )
-from codeless.abb.hooks.bridge import pre_tool_use_abb_guard
 
 
 def test_parse_verification_manifest_string():
@@ -54,13 +51,15 @@ def test_run_command_sync_success(tmp_path: Path):
 
 
 def test_run_command_sync_failure(tmp_path: Path):
-    report = run_command_sync("python -c \"import sys; sys.exit(42)\"", tmp_path)
+    report = run_command_sync('python -c "import sys; sys.exit(42)"', tmp_path)
     assert not report.success
     assert report.exit_code == 42
 
 
 def test_run_command_sync_timeout(tmp_path: Path):
-    report = run_command_sync("python -c \"import time; time.sleep(2)\"", tmp_path, timeout_seconds=0.2)
+    report = run_command_sync(
+        'python -c "import time; time.sleep(2)"', tmp_path, timeout_seconds=0.2
+    )
     assert not report.success
     assert report.timed_out
     assert "timed out" in report.stderr
@@ -79,7 +78,7 @@ def test_execute_verification_manifest_passing(tmp_path: Path):
 
 def test_execute_verification_manifest_failing(tmp_path: Path):
     manifest = VerificationManifest(
-        track_1=["python -c \"import sys; sys.exit(1)\""],
+        track_1=['python -c "import sys; sys.exit(1)"'],
         track_2=["python -c \"print('should not run')\""],
     )
     report = execute_verification_manifest_sync(manifest, tmp_path)

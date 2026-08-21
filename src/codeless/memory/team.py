@@ -27,7 +27,11 @@ SECRET_RULES: tuple[tuple[str, str, re.Pattern[str]], ...] = (
     ("github-token", "GitHub token", re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b")),
     ("openai-key", "OpenAI API key", re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b")),
     ("anthropic-key", "Anthropic API key", re.compile(r"\bsk-ant-[A-Za-z0-9_-]{20,}\b")),
-    ("generic-secret", "secret assignment", re.compile(r"(?i)\b(secret|token|api[_-]?key|password)\s*[:=]\s*['\"]?[^'\"\s]{12,}")),
+    (
+        "generic-secret",
+        "secret assignment",
+        re.compile(r"(?i)\b(secret|token|api[_-]?key|password)\s*[:=]\s*['\"]?[^'\"\s]{12,}"),
+    ),
 )
 
 
@@ -48,7 +52,9 @@ def ensure_team_memory_vault(cwd: str | Path) -> Path:
     return team_dir
 
 
-def validate_team_memory_write_path(cwd: str | Path, candidate: str | Path) -> tuple[Path | None, str | None]:
+def validate_team_memory_write_path(
+    cwd: str | Path, candidate: str | Path
+) -> tuple[Path | None, str | None]:
     """Validate a write target against traversal and symlink escape."""
 
     team_dir = ensure_team_memory_vault(cwd).resolve()

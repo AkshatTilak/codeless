@@ -7,7 +7,6 @@ import shlex
 import shutil
 import sys
 
-
 # Environment variable to override the teammate command
 TEAMMATE_COMMAND_ENV_VAR = "CODELESS_TEAMMATE_COMMAND"
 
@@ -169,7 +168,9 @@ def build_inherited_cli_flags(
     # Agent definitions can carry a dedicated worker system prompt. Forward it
     # explicitly so subprocess teammates preserve their role/personality.
     if system_prompt:
-        prompt_flag = "--append-system-prompt" if system_prompt_mode == "append" else "--system-prompt"
+        prompt_flag = (
+            "--append-system-prompt" if system_prompt_mode == "append" else "--system-prompt"
+        )
         flags.extend([prompt_flag, shlex.quote(system_prompt)])
 
     # --- Settings path propagation ----------------------------------------

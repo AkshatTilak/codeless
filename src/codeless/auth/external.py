@@ -255,7 +255,10 @@ def _load_claude_payload(
 def _read_claude_credentials_from_keychain(
     binding: ExternalAuthBinding,
 ) -> tuple[dict[str, Any], Path, str, str | None]:
-    service = binding.source_path.removeprefix(_KEYCHAIN_BINDING_PREFIX).strip() or CLAUDE_KEYCHAIN_SERVICE
+    service = (
+        binding.source_path.removeprefix(_KEYCHAIN_BINDING_PREFIX).strip()
+        or CLAUDE_KEYCHAIN_SERVICE
+    )
     try:
         raw_payload = subprocess.check_output(
             ["security", "find-generic-password", "-w", "-s", service],
@@ -273,7 +276,9 @@ def _read_claude_credentials_from_keychain(
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid JSON in Claude Keychain secret for service: {service}") from exc
 
-    keychain_path = _extract_keychain_path(metadata) or (Path.home() / "Library/Keychains/login.keychain-db")
+    keychain_path = _extract_keychain_path(metadata) or (
+        Path.home() / "Library/Keychains/login.keychain-db"
+    )
     account = _extract_keychain_attr(metadata, "acct")
     return payload, keychain_path, service, account
 
@@ -393,10 +398,7 @@ def claude_oauth_betas() -> list[str]:
 def claude_attribution_header() -> str:
     """Return the Claude Code billing attribution prefix used in system prompts."""
     version = get_claude_code_version()
-    return (
-        "x-anthropic-billing-header: "
-        f"cc_version={version}; cc_entrypoint=cli;"
-    )
+    return f"x-anthropic-billing-header: cc_version={version}; cc_entrypoint=cli;"
 
 
 def claude_oauth_headers() -> dict[str, str]:

@@ -19,8 +19,8 @@ from typing import Any, Awaitable, Callable, Literal
 from uuid import uuid4
 
 from codeless.engine.messages import (
-    ConversationMessage,
     ContentBlock,
+    ConversationMessage,
     ImageBlock,
     TextBlock,
     ToolResultBlock,
@@ -29,8 +29,8 @@ from codeless.engine.messages import (
 )
 from codeless.engine.stream_events import CompactProgressEvent
 from codeless.hooks import HookEvent, HookExecutor
-from codeless.services.tool_outputs import is_microcompactable_tool_result
 from codeless.services.token_estimation import estimate_tokens
+from codeless.services.tool_outputs import is_microcompactable_tool_result
 
 log = logging.getLogger(__name__)
 
@@ -38,16 +38,18 @@ log = logging.getLogger(__name__)
 # Constants (from Claude Code microCompact.ts / autoCompact.ts)
 # ---------------------------------------------------------------------------
 
-COMPACTABLE_TOOLS: frozenset[str] = frozenset({
-    "read_file",
-    "bash",
-    "grep",
-    "glob",
-    "web_search",
-    "web_fetch",
-    "edit_file",
-    "write_file",
-})
+COMPACTABLE_TOOLS: frozenset[str] = frozenset(
+    {
+        "read_file",
+        "bash",
+        "grep",
+        "glob",
+        "web_search",
+        "web_fetch",
+        "edit_file",
+        "write_file",
+    }
+)
 
 TIME_BASED_MC_CLEARED_MESSAGE = "[Old tool result content cleared]"
 
@@ -112,6 +114,7 @@ class CompactionResult:
 # ---------------------------------------------------------------------------
 # Token estimation
 # ---------------------------------------------------------------------------
+
 
 def estimate_message_tokens(messages: list[ConversationMessage]) -> int:
     """Estimate total tokens for a conversation, including the 4/3 padding."""
@@ -402,7 +405,9 @@ def _extract_discovered_tools(messages: list[ConversationMessage]) -> list[str]:
     return discovered
 
 
-def _create_attachment(kind: str, title: str, lines: list[str], *, metadata: dict[str, Any] | None = None) -> CompactAttachment | None:
+def _create_attachment(
+    kind: str, title: str, lines: list[str], *, metadata: dict[str, Any] | None = None
+) -> CompactAttachment | None:
     filtered = [line.rstrip() for line in lines if line and line.strip()]
     if not filtered:
         return None
@@ -457,7 +462,9 @@ def create_compact_boundary_message(metadata: dict[str, Any]) -> ConversationMes
 
 def build_post_compact_messages(result: CompactionResult) -> list[ConversationMessage]:
     """Rebuild the post-compact message list in Claude Code's ordering."""
-    attachment_messages = [render_compact_attachment(attachment) for attachment in result.attachments]
+    attachment_messages = [
+        render_compact_attachment(attachment) for attachment in result.attachments
+    ]
     hook_messages = [render_compact_attachment(attachment) for attachment in result.hook_results]
     return [
         result.boundary_marker,
@@ -468,7 +475,9 @@ def build_post_compact_messages(result: CompactionResult) -> list[ConversationMe
     ]
 
 
-def _boundary_crosses_tool_pair(previous: ConversationMessage, current: ConversationMessage) -> bool:
+def _boundary_crosses_tool_pair(
+    previous: ConversationMessage, current: ConversationMessage
+) -> bool:
     """Return True when a preserve boundary would split a tool_use/result pair."""
 
     if previous.role != "assistant" or current.role != "user":
@@ -476,7 +485,9 @@ def _boundary_crosses_tool_pair(previous: ConversationMessage, current: Conversa
     pending_tool_ids = {block.id for block in previous.content if isinstance(block, ToolUseBlock)}
     if not pending_tool_ids:
         return False
-    result_ids = {block.tool_use_id for block in current.content if isinstance(block, ToolResultBlock)}
+    result_ids = {
+        block.tool_use_id for block in current.content if isinstance(block, ToolResultBlock)
+    }
     return bool(pending_tool_ids & result_ids)
 
 
@@ -495,7 +506,9 @@ def _split_preserving_tool_pairs(
         return [], sanitize_conversation_messages(list(messages))
 
     split_index = max(0, len(messages) - preserve_recent)
-    while split_index > 0 and _boundary_crosses_tool_pair(messages[split_index - 1], messages[split_index]):
+    while split_index > 0 and _boundary_crosses_tool_pair(
+        messages[split_index - 1], messages[split_index]
+    ):
         split_index -= 1
 
     older = list(messages[:split_index])
@@ -523,7 +536,8 @@ def _create_recent_attachments_attachment_if_needed(
     return _create_attachment(
         "recent_attachments",
         "Recent local attachments",
-        ["Keep these local attachment paths in working memory:"] + [f"- {path}" for path in attachment_paths],
+        ["Keep these local attachment paths in working memory:"]
+        + [f"- {path}" for path in attachment_paths],
         metadata={"paths": attachment_paths},
     )
 
@@ -560,7 +574,9 @@ def create_recent_files_attachment_if_needed(
         if preview:
             lines.append(f"  Preview: {preview}")
         entries.append({"path": path, "span": span, "preview": preview, "timestamp": timestamp})
-    return _create_attachment("recent_files", "Recently read files", lines, metadata={"entries": entries})
+    return _create_attachment(
+        "recent_files", "Recently read files", lines, metadata={"entries": entries}
+    )
 
 
 def create_task_focus_attachment_if_needed(
@@ -571,19 +587,13 @@ def create_task_focus_attachment_if_needed(
         return None
     goal = str(state.get("goal") or "").strip()
     recent_goals = [
-        str(item).strip()
-        for item in state.get("recent_goals", [])
-        if str(item).strip()
+        str(item).strip() for item in state.get("recent_goals", []) if str(item).strip()
     ]
     active_artifacts = [
-        str(item).strip()
-        for item in state.get("active_artifacts", [])
-        if str(item).strip()
+        str(item).strip() for item in state.get("active_artifacts", []) if str(item).strip()
     ]
     verified_state = [
-        str(item).strip()
-        for item in state.get("verified_state", [])
-        if str(item).strip()
+        str(item).strip() for item in state.get("verified_state", []) if str(item).strip()
     ]
     next_step = str(state.get("next_step") or "").strip()
     if not any((goal, recent_goals, active_artifacts, verified_state, next_step)):
@@ -627,7 +637,8 @@ def create_recent_verified_work_attachment_if_needed(
     return _create_attachment(
         "recent_verified_work",
         "Recently verified work",
-        ["These steps or conclusions were explicitly verified before compaction:"] + [f"- {entry}" for entry in entries],
+        ["These steps or conclusions were explicitly verified before compaction:"]
+        + [f"- {entry}" for entry in entries],
         metadata={"entries": entries},
     )
 
@@ -662,7 +673,10 @@ def create_invoked_skills_attachment_if_needed(
     return _create_attachment(
         "invoked_skills",
         "Skills used earlier in the session",
-        ["The following skills were invoked and may still shape the next step:", "- " + ", ".join(normalized)],
+        [
+            "The following skills were invoked and may still shape the next step:",
+            "- " + ", ".join(normalized),
+        ],
         metadata={"skills": normalized},
     )
 
@@ -694,7 +708,8 @@ def create_work_log_attachment_if_needed(
     return _create_attachment(
         "recent_work_log",
         "Recent execution checkpoints",
-        ["Recent work and verification steps taken in this session:"] + [f"- {entry}" for entry in entries],
+        ["Recent work and verification steps taken in this session:"]
+        + [f"- {entry}" for entry in entries],
         metadata={"entries": entries},
     )
 
@@ -737,7 +752,9 @@ def _finalize_compaction_result(result: CompactionResult) -> CompactionResult:
     _sanitize_compaction_segments(result)
     messages = build_post_compact_messages(result)
     result.compact_metadata.setdefault("post_compact_message_count", len(messages))
-    result.compact_metadata.setdefault("post_compact_token_count", estimate_message_tokens(messages))
+    result.compact_metadata.setdefault(
+        "post_compact_token_count", estimate_message_tokens(messages)
+    )
     result.boundary_marker = create_compact_boundary_message(result.compact_metadata)
     return result
 
@@ -748,7 +765,9 @@ def _metadata_has_checkpoint(metadata: dict[str, Any] | None, checkpoint: str) -
     checkpoints = metadata.get("compact_checkpoints")
     if not isinstance(checkpoints, list):
         return False
-    return any(isinstance(entry, dict) and entry.get("checkpoint") == checkpoint for entry in checkpoints)
+    return any(
+        isinstance(entry, dict) and entry.get("checkpoint") == checkpoint for entry in checkpoints
+    )
 
 
 def _build_passthrough_compaction_result(
@@ -781,6 +800,7 @@ def _build_passthrough_compaction_result(
 # ---------------------------------------------------------------------------
 # Microcompact — clear old tool results to reduce tokens cheaply
 # ---------------------------------------------------------------------------
+
 
 def _collect_compactable_tool_ids(messages: list[ConversationMessage]) -> list[str]:
     """Walk messages and collect tool_use IDs whose results are compactable."""
@@ -851,7 +871,9 @@ def microcompact_messages(
         msg.content = new_content
 
     if tokens_saved > 0:
-        log.info("Microcompact cleared %d tool results, saved ~%d tokens", len(clear_set), tokens_saved)
+        log.info(
+            "Microcompact cleared %d tool results, saved ~%d tokens", len(clear_set), tokens_saved
+        )
 
     return messages, tokens_saved
 
@@ -869,7 +891,9 @@ def _summarize_message_for_memory(message: ConversationMessage) -> str:
     return f"{message.role}: [non-text content]"
 
 
-def _build_session_memory_message(messages: list[ConversationMessage]) -> ConversationMessage | None:
+def _build_session_memory_message(
+    messages: list[ConversationMessage],
+) -> ConversationMessage | None:
     lines: list[str] = []
     total_chars = 0
     for message in messages:
@@ -877,7 +901,9 @@ def _build_session_memory_message(messages: list[ConversationMessage]) -> Conver
         if not line:
             continue
         projected = total_chars + len(line) + 1
-        if lines and (len(lines) >= SESSION_MEMORY_MAX_LINES or projected >= SESSION_MEMORY_MAX_CHARS):
+        if lines and (
+            len(lines) >= SESSION_MEMORY_MAX_LINES or projected >= SESSION_MEMORY_MAX_CHARS
+        ):
             lines.append("... earlier context condensed ...")
             break
         lines.append(line)
@@ -890,7 +916,9 @@ def _build_session_memory_message(messages: list[ConversationMessage]) -> Conver
     )
 
 
-def _build_file_session_memory_message(metadata: dict[str, Any] | None) -> ConversationMessage | None:
+def _build_file_session_memory_message(
+    metadata: dict[str, Any] | None,
+) -> ConversationMessage | None:
     """Build a compaction message from the persisted session-memory file."""
 
     if not metadata:
@@ -928,10 +956,9 @@ def try_session_memory_compaction(
     if summary_message is None:
         return None
     provisional = [summary_message, *newer]
-    if (
-        estimate_message_tokens(provisional) >= estimate_message_tokens(messages)
-        and len(provisional) >= len(messages)
-    ):
+    if estimate_message_tokens(provisional) >= estimate_message_tokens(messages) and len(
+        provisional
+    ) >= len(messages):
         return None
     compact_metadata = {
         "trigger": trigger,
@@ -1048,6 +1075,7 @@ def build_compact_summary_message(
 # Auto-compact tracking
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class AutoCompactState:
     """Mutable state that persists across query loop turns."""
@@ -1061,6 +1089,7 @@ class AutoCompactState:
 # ---------------------------------------------------------------------------
 # Context window helpers
 # ---------------------------------------------------------------------------
+
 
 def get_context_window(model: str, *, context_window_tokens: int | None = None) -> int:
     """Return the context window size for a model (conservative defaults)."""
@@ -1116,6 +1145,7 @@ def should_autocompact(
 # Full compact execution (calls the LLM)
 # ---------------------------------------------------------------------------
 
+
 async def compact_conversation(
     messages: list[ConversationMessage],
     *,
@@ -1150,7 +1180,7 @@ async def compact_conversation(
     Returns:
         Structured compaction result that can be rebuilt into post-compact messages.
     """
-    from codeless.api.client import ApiMessageRequest, ApiMessageCompleteEvent
+    from codeless.api.client import ApiMessageCompleteEvent, ApiMessageRequest
 
     if len(messages) <= preserve_recent:
         return _build_passthrough_compaction_result(
@@ -1397,9 +1427,7 @@ async def compact_conversation(
             },
         )
         hook_note = post_hook_result.reason or "\n".join(
-            result.output.strip()
-            for result in post_hook_result.results
-            if result.output.strip()
+            result.output.strip() for result in post_hook_result.results if result.output.strip()
         )
         hook_attachments = _create_hook_attachments(hook_note)
     else:
@@ -1414,7 +1442,9 @@ async def compact_conversation(
         "tokens_freed_by_microcompact": tokens_freed,
         "pre_compact_discovered_tools": discovered_tools,
         "used_head_truncation_retry": ptl_retries > 0,
-        "used_context_collapse": _metadata_has_checkpoint(carryover_metadata, "query_context_collapse_end"),
+        "used_context_collapse": _metadata_has_checkpoint(
+            carryover_metadata, "query_context_collapse_end"
+        ),
         "used_session_memory": False,
         "retry_attempts": max(0, attempt - 1 if "attempt" in locals() else 0),
         "attachments": attachment_paths,
@@ -1442,11 +1472,15 @@ async def compact_conversation(
     post_compact_tokens = estimate_message_tokens(post_compact_messages)
     compaction_result.compact_metadata["post_compact_message_count"] = len(post_compact_messages)
     compaction_result.compact_metadata["post_compact_token_count"] = post_compact_tokens
-    compaction_result.boundary_marker = create_compact_boundary_message(compaction_result.compact_metadata)
+    compaction_result.boundary_marker = create_compact_boundary_message(
+        compaction_result.compact_metadata
+    )
     log.info(
         "Compaction done: %d -> %d messages, ~%d -> ~%d tokens (saved ~%d)",
-        len(messages), len(post_compact_messages),
-        pre_compact_tokens, post_compact_tokens,
+        len(messages),
+        len(post_compact_messages),
+        pre_compact_tokens,
+        post_compact_tokens,
         pre_compact_tokens - post_compact_tokens,
     )
     await _emit_progress(
@@ -1478,6 +1512,7 @@ async def compact_conversation(
 # ---------------------------------------------------------------------------
 # Auto-compact integration (called from query loop)
 # ---------------------------------------------------------------------------
+
 
 async def auto_compact_if_needed(
     messages: list[ConversationMessage],
@@ -1664,6 +1699,7 @@ async def auto_compact_if_needed(
 # Legacy compat
 # ---------------------------------------------------------------------------
 
+
 def summarize_messages(
     messages: list[ConversationMessage],
     *,
@@ -1692,13 +1728,15 @@ def compact_messages(
     summary = summarize_messages(older)
     if not summary:
         return list(newer)
-    return sanitize_conversation_messages([
-        ConversationMessage(
-            role="user",
-            content=[TextBlock(text=f"[conversation summary]\n{summary}")],
-        ),
-        *newer,
-    ])
+    return sanitize_conversation_messages(
+        [
+            ConversationMessage(
+                role="user",
+                content=[TextBlock(text=f"[conversation summary]\n{summary}")],
+            ),
+            *newer,
+        ]
+    )
 
 
 __all__ = [

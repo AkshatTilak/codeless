@@ -3,24 +3,22 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
+
 import pytest
 
-from codeless.abb.commands import _mode_handler
 from codeless.abb.hooks.bridge import pre_tool_use_abb_guard
 from codeless.abb.permissions import TriMode, get_mode_engine
 from codeless.abb.shadow import resolve_abb_workspace
-from codeless.commands.registry import CommandContext
 from codeless.config import Settings
 from codeless.prompts.context import build_runtime_system_prompt
 from codeless.sandbox.adapter import build_sandbox_runtime_config
 from codeless.sandbox.docker_backend import DockerSandboxSession
 from codeless.tools import create_default_tool_registry
-from codeless.tools.abb_task_tool import AbbTaskTool
-from codeless.tools.abb_verify_tool import AbbVerifyTool
+from codeless.tools.abb_task_tool import AbbTaskTool, AbbTaskToolInput
+from codeless.tools.abb_verify_tool import AbbVerifyTool, AbbVerifyToolInput
 from codeless.tools.agent_tool import AgentTool, AgentToolInput
-from codeless.tools.bash_tool import BashTool, BashToolInput
 from codeless.tools.base import ToolExecutionContext
+from codeless.tools.bash_tool import BashTool, BashToolInput
 
 
 @pytest.fixture
@@ -79,7 +77,6 @@ async def test_scenario_2_mode_matrix_and_bash_guard(e2e_abb_workspace: Path):
     engine = get_mode_engine()
     ctx = ToolExecutionContext(cwd=e2e_abb_workspace)
     bash = BashTool()
-    abb_ws = e2e_abb_workspace / ".codeless" / "abb_workspace"
 
     # ASK mode: all writes blocked
     engine.set_mode(TriMode.ASK)
@@ -129,13 +126,13 @@ async def test_scenario_3_tools_inventory_and_abb_tools(e2e_abb_workspace: Path)
     # Execute abb_task ready
     ctx = ToolExecutionContext(cwd=e2e_abb_workspace)
     task_tool = AbbTaskTool()
-    ready_res = await task_tool.execute(ctx, action="ready")
+    ready_res = await task_tool.execute(AbbTaskToolInput(action="ready"), ctx)
     assert not ready_res.is_error
     assert "sub_002" in ready_res.output
 
     # Execute abb_verify dry-run
     verify_tool = AbbVerifyTool()
-    verify_res = await verify_tool.execute(ctx, dry_run=True)
+    verify_res = await verify_tool.execute(AbbVerifyToolInput(dry_run=True), ctx)
     assert not verify_res.is_error
     assert "python -c 'print(1)'" in verify_res.output
 
@@ -154,7 +151,7 @@ async def test_scenario_4_agent_mode_filtering(e2e_abb_workspace: Path, monkeypa
             description="explore",
             prompt="search",
             subagent_type="Explore",
-            command="python -u -c \"import sys; print(sys.stdin.readline().strip())\"",
+            command='python -u -c "import sys; print(sys.stdin.readline().strip())"',
         ),
         ctx,
     )
@@ -165,7 +162,7 @@ async def test_scenario_4_agent_mode_filtering(e2e_abb_workspace: Path, monkeypa
             description="gov",
             prompt="update",
             subagent_type="abb-governance",
-            command="python -u -c \"import sys; print(sys.stdin.readline().strip())\"",
+            command='python -u -c "import sys; print(sys.stdin.readline().strip())"',
         ),
         ctx,
     )
@@ -179,7 +176,9 @@ def test_scenario_5_sandbox_abb_coherence(e2e_abb_workspace: Path):
     settings.sandbox.enabled = True
     settings.sandbox.backend = "docker"
 
-    session = DockerSandboxSession(settings=settings, session_id="phase1_5_e2e", cwd=e2e_abb_workspace)
+    session = DockerSandboxSession(
+        settings=settings, session_id="phase1_5_e2e", cwd=e2e_abb_workspace
+    )
     argv = session._build_run_argv()
 
     # Assert CODELESS_ABB_ROOT in Docker env

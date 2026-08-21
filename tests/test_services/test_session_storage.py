@@ -38,7 +38,9 @@ def test_save_and_load_session_snapshot(tmp_path: Path, monkeypatch):
     assert snapshot["model"] == "claude-test"
     assert snapshot["usage"]["output_tokens"] == 2
     assert snapshot["tool_metadata"]["task_focus_state"]["goal"] == "Fix compact carry-over"
-    assert snapshot["tool_metadata"]["recent_verified_work"] == ["Focused session storage test passed"]
+    assert snapshot["tool_metadata"]["recent_verified_work"] == [
+        "Focused session storage test passed"
+    ]
 
 
 def test_export_session_markdown(tmp_path: Path, monkeypatch):
@@ -61,7 +63,9 @@ def test_export_session_markdown(tmp_path: Path, monkeypatch):
     assert "world" in content
 
 
-def test_load_session_snapshot_sanitizes_legacy_empty_assistant_messages(tmp_path: Path, monkeypatch):
+def test_load_session_snapshot_sanitizes_legacy_empty_assistant_messages(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     project = tmp_path / "repo"
     project.mkdir()

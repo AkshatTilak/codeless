@@ -13,7 +13,6 @@ from codeless.config import load_settings
 from codeless.config.settings import Settings
 from codeless.mcp.types import McpStdioServerConfig
 
-
 app = cli.app
 
 
@@ -73,7 +72,9 @@ def test_select_from_menu_uses_questionary_when_tty(monkeypatch):
             "value": value,
             "checked": checked,
         },
-        select=lambda title, choices, default=None: answers.append((title, choices, default)) or _Prompt(),
+        select=lambda title, choices, default=None: (
+            answers.append((title, choices, default)) or _Prompt()
+        ),
     )
 
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
@@ -104,7 +105,9 @@ def test_setup_flow_existing_api_key_profile_can_update_secret(tmp_path: Path, m
     manager.store_profile_credential("openai-compatible", "api_key", "old-key")
 
     selections = iter(["openai-compatible", "openai-compatible"])
-    monkeypatch.setattr("codeless.cli._select_setup_workflow", lambda *args, **kwargs: next(selections))
+    monkeypatch.setattr(
+        "codeless.cli._select_setup_workflow", lambda *args, **kwargs: next(selections)
+    )
     monkeypatch.setattr("codeless.cli._select_from_menu", lambda *args, **kwargs: next(selections))
     monkeypatch.setattr("codeless.cli._confirm_prompt", lambda *args, **kwargs: True)
     monkeypatch.setattr("codeless.auth.flows.ApiKeyFlow.run", lambda self: "new-key")
@@ -132,7 +135,9 @@ def test_setup_flow_creates_kimi_profile_with_profile_scoped_key(tmp_path: Path,
         ]
     )
 
-    monkeypatch.setattr("codeless.cli._select_setup_workflow", lambda *args, **kwargs: next(selections))
+    monkeypatch.setattr(
+        "codeless.cli._select_setup_workflow", lambda *args, **kwargs: next(selections)
+    )
     monkeypatch.setattr("codeless.cli._select_from_menu", lambda *args, **kwargs: next(selections))
     monkeypatch.setattr("codeless.cli._text_prompt", lambda *args, **kwargs: next(prompts))
     monkeypatch.setattr("codeless.auth.flows.ApiKeyFlow.run", lambda self: "sk-kimi-test")
@@ -343,7 +348,9 @@ def test_dry_run_rejects_continue_resume(monkeypatch):
     assert "--dry-run does not support --continue/--resume yet" in result.output
 
 
-def test_build_dry_run_preview_classifies_slash_command_and_flags_bad_mcp(monkeypatch, tmp_path: Path):
+def test_build_dry_run_preview_classifies_slash_command_and_flags_bad_mcp(
+    monkeypatch, tmp_path: Path
+):
     settings = Settings(
         api_key="sk-test",
         mcp_servers={
@@ -362,9 +369,16 @@ def test_build_dry_run_preview_classifies_slash_command_and_flags_bad_mcp(monkey
     )
     monkeypatch.setattr("codeless.api.provider.auth_status", lambda settings: "configured")
     monkeypatch.setattr("codeless.plugins.load_plugins", lambda settings, cwd: [])
-    monkeypatch.setattr("codeless.skills.load_skill_registry", lambda cwd, settings=None: _FakeSkillRegistry())
-    monkeypatch.setattr("codeless.prompts.context.build_runtime_system_prompt", lambda *args, **kwargs: "preview prompt")
-    monkeypatch.setattr("codeless.ui.runtime._resolve_api_client_from_settings", lambda settings: object())
+    monkeypatch.setattr(
+        "codeless.skills.load_skill_registry", lambda cwd, settings=None: _FakeSkillRegistry()
+    )
+    monkeypatch.setattr(
+        "codeless.prompts.context.build_runtime_system_prompt",
+        lambda *args, **kwargs: "preview prompt",
+    )
+    monkeypatch.setattr(
+        "codeless.ui.runtime._resolve_api_client_from_settings", lambda settings: object()
+    )
 
     preview = cli._build_dry_run_preview(
         prompt="/plugin list",
@@ -389,7 +403,9 @@ def test_build_dry_run_preview_classifies_slash_command_and_flags_bad_mcp(monkey
     assert "command not found in PATH" in preview["mcp_servers"][0]["issues"][0]
 
 
-def test_build_dry_run_preview_sets_blocked_when_model_prompt_lacks_auth(monkeypatch, tmp_path: Path):
+def test_build_dry_run_preview_sets_blocked_when_model_prompt_lacks_auth(
+    monkeypatch, tmp_path: Path
+):
     settings = Settings(api_key="")
 
     class _FakeSkillRegistry:
@@ -403,13 +419,20 @@ def test_build_dry_run_preview_sets_blocked_when_model_prompt_lacks_auth(monkeyp
     )
     monkeypatch.setattr("codeless.api.provider.auth_status", lambda settings: "missing")
     monkeypatch.setattr("codeless.plugins.load_plugins", lambda settings, cwd: [])
-    monkeypatch.setattr("codeless.skills.load_skill_registry", lambda cwd, settings=None: _FakeSkillRegistry())
-    monkeypatch.setattr("codeless.prompts.context.build_runtime_system_prompt", lambda *args, **kwargs: "preview prompt")
+    monkeypatch.setattr(
+        "codeless.skills.load_skill_registry", lambda cwd, settings=None: _FakeSkillRegistry()
+    )
+    monkeypatch.setattr(
+        "codeless.prompts.context.build_runtime_system_prompt",
+        lambda *args, **kwargs: "preview prompt",
+    )
 
     def fake_resolve_api_client(settings):
         raise SystemExit(1)
 
-    monkeypatch.setattr("codeless.ui.runtime._resolve_api_client_from_settings", fake_resolve_api_client)
+    monkeypatch.setattr(
+        "codeless.ui.runtime._resolve_api_client_from_settings", fake_resolve_api_client
+    )
 
     preview = cli._build_dry_run_preview(
         prompt="fix the failing tests",
@@ -427,7 +450,10 @@ def test_build_dry_run_preview_sets_blocked_when_model_prompt_lacks_auth(monkeyp
     assert preview["entrypoint"]["kind"] == "model_prompt"
     assert preview["readiness"]["level"] == "blocked"
     assert any("runtime client" in reason.lower() for reason in preview["readiness"]["reasons"])
-    assert any("authentication" in action.lower() or "profile" in action.lower() for action in preview["readiness"]["next_actions"])
+    assert any(
+        "authentication" in action.lower() or "profile" in action.lower()
+        for action in preview["readiness"]["next_actions"]
+    )
 
 
 def test_build_dry_run_preview_recommends_matching_skills_and_tools(monkeypatch, tmp_path: Path):
@@ -456,12 +482,18 @@ def test_build_dry_run_preview_recommends_matching_skills_and_tools(monkeypatch,
                 {
                     "name": "grep",
                     "description": "Search code for bug patterns and failing lines.",
-                    "input_schema": {"properties": {"pattern": {}, "root": {}}, "required": ["pattern"]},
+                    "input_schema": {
+                        "properties": {"pattern": {}, "root": {}},
+                        "required": ["pattern"],
+                    },
                 },
                 {
                     "name": "read_file",
                     "description": "Read files from disk.",
-                    "input_schema": {"properties": {"path": {}, "offset": {}}, "required": ["path"]},
+                    "input_schema": {
+                        "properties": {"path": {}, "offset": {}},
+                        "required": ["path"],
+                    },
                 },
             ]
 
@@ -472,10 +504,17 @@ def test_build_dry_run_preview_recommends_matching_skills_and_tools(monkeypatch,
     )
     monkeypatch.setattr("codeless.api.provider.auth_status", lambda settings: "configured")
     monkeypatch.setattr("codeless.plugins.load_plugins", lambda settings, cwd: [])
-    monkeypatch.setattr("codeless.skills.load_skill_registry", lambda cwd, settings=None: _FakeSkillRegistry())
+    monkeypatch.setattr(
+        "codeless.skills.load_skill_registry", lambda cwd, settings=None: _FakeSkillRegistry()
+    )
     monkeypatch.setattr("codeless.tools.create_default_tool_registry", lambda: _FakeToolRegistry())
-    monkeypatch.setattr("codeless.prompts.context.build_runtime_system_prompt", lambda *args, **kwargs: "preview prompt")
-    monkeypatch.setattr("codeless.ui.runtime._resolve_api_client_from_settings", lambda settings: object())
+    monkeypatch.setattr(
+        "codeless.prompts.context.build_runtime_system_prompt",
+        lambda *args, **kwargs: "preview prompt",
+    )
+    monkeypatch.setattr(
+        "codeless.ui.runtime._resolve_api_client_from_settings", lambda settings: object()
+    )
 
     preview = cli._build_dry_run_preview(
         prompt="review this bug fix and grep for failing tests",
@@ -494,7 +533,10 @@ def test_build_dry_run_preview_recommends_matching_skills_and_tools(monkeypatch,
     recommended_tools = [entry["name"] for entry in preview["recommendations"]["tools"]]
 
     assert preview["readiness"]["level"] == "ready"
-    assert any("you can run this prompt directly" in action.lower() for action in preview["readiness"]["next_actions"])
+    assert any(
+        "you can run this prompt directly" in action.lower()
+        for action in preview["readiness"]["next_actions"]
+    )
     assert "review" in recommended_skills
     assert "grep" in recommended_tools
 

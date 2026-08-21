@@ -50,22 +50,12 @@ def _write_plugin(root: Path) -> None:
         encoding="utf-8",
     )
     (plugin_dir / "hooks.json").write_text(
-        json.dumps(
-            {
-                "session_start": [
-                    {"type": "command", "command": "printf start"}
-                ]
-            }
-        ),
+        json.dumps({"session_start": [{"type": "command", "command": "printf start"}]}),
         encoding="utf-8",
     )
     (plugin_dir / "mcp.json").write_text(
         json.dumps(
-            {
-                "mcpServers": {
-                    "demo": {"type": "stdio", "command": "python", "args": ["demo.py"]}
-                }
-            }
+            {"mcpServers": {"demo": {"type": "stdio", "command": "python", "args": ["demo.py"]}}}
         ),
         encoding="utf-8",
     )

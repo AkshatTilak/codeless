@@ -31,12 +31,13 @@ def _env_settings() -> dict[str, str | None]:
 async def test_markdown_render() -> tuple[bool, str]:
     """Test that assistant output with markdown is rendered by rich."""
     from io import StringIO
+
     from rich.console import Console
 
-    from codeless.ui.output import OutputRenderer
-    from codeless.engine.stream_events import AssistantTextDelta, AssistantTurnComplete
-    from codeless.engine.messages import ConversationMessage, TextBlock
     from codeless.api.usage import UsageSnapshot
+    from codeless.engine.messages import ConversationMessage, TextBlock
+    from codeless.engine.stream_events import AssistantTextDelta, AssistantTurnComplete
+    from codeless.ui.output import OutputRenderer
 
     renderer = OutputRenderer(style_name="default")
     buffer = StringIO()
@@ -59,24 +60,29 @@ async def test_markdown_render() -> tuple[bool, str]:
 async def test_tool_output_format() -> tuple[bool, str]:
     """Test that tool output is formatted with panels."""
     from io import StringIO
+
     from rich.console import Console
 
+    from codeless.engine.stream_events import ToolExecutionCompleted, ToolExecutionStarted
     from codeless.ui.output import OutputRenderer
-    from codeless.engine.stream_events import ToolExecutionStarted, ToolExecutionCompleted
 
     renderer = OutputRenderer(style_name="default")
     buffer = StringIO()
     renderer.console = Console(file=buffer, force_terminal=True)
 
-    renderer.render_event(ToolExecutionStarted(
-        tool_name="Bash",
-        tool_input={"command": "echo hello"},
-    ))
-    renderer.render_event(ToolExecutionCompleted(
-        tool_name="Bash",
-        output="hello\n",
-        is_error=False,
-    ))
+    renderer.render_event(
+        ToolExecutionStarted(
+            tool_name="Bash",
+            tool_input={"command": "echo hello"},
+        )
+    )
+    renderer.render_event(
+        ToolExecutionCompleted(
+            tool_name="Bash",
+            output="hello\n",
+            is_error=False,
+        )
+    )
 
     output = buffer.getvalue()
     if "Bash" in output or "bash" in output.lower() or "echo" in output:
@@ -87,25 +93,30 @@ async def test_tool_output_format() -> tuple[bool, str]:
 async def test_spinner_display() -> tuple[bool, str]:
     """Test that spinner starts on tool execution."""
     from io import StringIO
+
     from rich.console import Console
 
+    from codeless.engine.stream_events import ToolExecutionCompleted, ToolExecutionStarted
     from codeless.ui.output import OutputRenderer
-    from codeless.engine.stream_events import ToolExecutionStarted, ToolExecutionCompleted
 
     renderer = OutputRenderer(style_name="default")
     buffer = StringIO()
     renderer.console = Console(file=buffer, force_terminal=True)
 
-    renderer.render_event(ToolExecutionStarted(
-        tool_name="Bash",
-        tool_input={"command": "sleep 1"},
-    ))
+    renderer.render_event(
+        ToolExecutionStarted(
+            tool_name="Bash",
+            tool_input={"command": "sleep 1"},
+        )
+    )
     has_spinner = renderer._spinner_status is not None
-    renderer.render_event(ToolExecutionCompleted(
-        tool_name="Bash",
-        output="done",
-        is_error=False,
-    ))
+    renderer.render_event(
+        ToolExecutionCompleted(
+            tool_name="Bash",
+            output="done",
+            is_error=False,
+        )
+    )
     spinner_stopped = renderer._spinner_status is None
 
     if has_spinner and spinner_stopped:

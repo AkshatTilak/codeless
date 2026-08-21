@@ -16,7 +16,11 @@ HOLDER_STALE_SECONDS = 60 * 60
 
 
 def _lock_path(cwd: str | Path, memory_dir: str | Path | None = None) -> Path:
-    return Path(memory_dir) / LOCK_FILE if memory_dir is not None else get_project_memory_dir(cwd) / LOCK_FILE
+    return (
+        Path(memory_dir) / LOCK_FILE
+        if memory_dir is not None
+        else get_project_memory_dir(cwd) / LOCK_FILE
+    )
 
 
 def read_last_consolidated_at(cwd: str | Path, memory_dir: str | Path | None = None) -> float:
@@ -49,7 +53,9 @@ def _is_process_running(pid: int) -> bool:
     return True
 
 
-def try_acquire_consolidation_lock(cwd: str | Path, memory_dir: str | Path | None = None) -> float | None:
+def try_acquire_consolidation_lock(
+    cwd: str | Path, memory_dir: str | Path | None = None
+) -> float | None:
     """Acquire the consolidation lock and return prior mtime, or None if held."""
 
     path = _lock_path(cwd, memory_dir)
@@ -111,10 +117,16 @@ def list_sessions_touched_since(
 ) -> list[str]:
     """Return saved session IDs whose snapshot files were touched after ``since_ts``."""
 
-    resolved_session_dir = Path(session_dir) if session_dir is not None else get_project_session_dir(cwd)
+    resolved_session_dir = (
+        Path(session_dir) if session_dir is not None else get_project_session_dir(cwd)
+    )
     session_ids: list[str] = []
     seen: set[str] = set()
-    for path in sorted(resolved_session_dir.glob("session-*.json"), key=lambda item: item.stat().st_mtime, reverse=True):
+    for path in sorted(
+        resolved_session_dir.glob("session-*.json"),
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    ):
         try:
             mtime = path.stat().st_mtime
         except OSError:

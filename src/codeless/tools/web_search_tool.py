@@ -42,7 +42,11 @@ class WebSearchTool(BaseTool):
         context: ToolExecutionContext,
     ) -> ToolResult:
         del context
-        endpoint = arguments.search_url or os.environ.get("CODELESS_WEB_SEARCH_URL") or "https://html.duckduckgo.com/html/"
+        endpoint = (
+            arguments.search_url
+            or os.environ.get("CODELESS_WEB_SEARCH_URL")
+            or "https://html.duckduckgo.com/html/"
+        )
         try:
             response = await fetch_public_http_response(
                 endpoint,

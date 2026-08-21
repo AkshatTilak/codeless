@@ -64,7 +64,9 @@ def select_relevant_memories(
     selected = _apply_selector(query, heuristic, selector=selector, max_results=max_results)
     result: list[RelevantMemory] = []
     for header in selected[:max_results]:
-        result.append(RelevantMemory(header=header, freshness=memory_freshness_text(header.modified_at)))
+        result.append(
+            RelevantMemory(header=header, freshness=memory_freshness_text(header.modified_at))
+        )
     return result
 
 
@@ -93,7 +95,9 @@ def format_relevant_memories(memories: Iterable[RelevantMemory], *, max_chars: i
         header = item.header
         content = header.path.read_text(encoding="utf-8", errors="replace").strip()
         if item.freshness:
-            lines.extend(["", f"## {header.relative_path or header.path.name}", f"> {item.freshness}"])
+            lines.extend(
+                ["", f"## {header.relative_path or header.path.name}", f"> {item.freshness}"]
+            )
         else:
             lines.extend(["", f"## {header.relative_path or header.path.name}"])
         lines.extend(["```md", content[:max_chars], "```"])
@@ -138,8 +142,6 @@ def _apply_selector(
         seen.add(path)
     if len(selected) < max_results:
         selected.extend(
-            header
-            for header in headers
-            if (header.relative_path or header.path.name) not in seen
+            header for header in headers if (header.relative_path or header.path.name) not in seen
         )
     return selected[:max_results]

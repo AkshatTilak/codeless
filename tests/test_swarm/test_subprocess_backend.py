@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -36,7 +36,9 @@ async def test_subprocess_backend_forwards_system_prompt_in_command(monkeypatch,
         )
 
     monkeypatch.setattr(BackgroundTaskManager, "create_agent_task", _fake_create_agent_task)
-    monkeypatch.setattr("codeless.swarm.subprocess_backend.get_teammate_command", lambda: "/usr/bin/python3")
+    monkeypatch.setattr(
+        "codeless.swarm.subprocess_backend.get_teammate_command", lambda: "/usr/bin/python3"
+    )
 
     backend = SubprocessBackend()
     config = TeammateSpawnConfig(
@@ -74,7 +76,9 @@ async def test_subprocess_backend_forwards_append_system_prompt_mode(monkeypatch
         )
 
     monkeypatch.setattr(BackgroundTaskManager, "create_agent_task", _fake_create_agent_task)
-    monkeypatch.setattr("codeless.swarm.subprocess_backend.get_teammate_command", lambda: "/usr/bin/python3")
+    monkeypatch.setattr(
+        "codeless.swarm.subprocess_backend.get_teammate_command", lambda: "/usr/bin/python3"
+    )
 
     backend = SubprocessBackend()
     config = TeammateSpawnConfig(
@@ -97,9 +101,7 @@ async def test_subprocess_backend_forwards_append_system_prompt_mode(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_subprocess_backend_passes_argv_list_not_shell_command(
-    monkeypatch, tmp_path: Path
-):
+async def test_subprocess_backend_passes_argv_list_not_shell_command(monkeypatch, tmp_path: Path):
     """Regression test for #230: teammate spawn must use the direct-exec
     ``argv`` path, not the shell-evaluated ``command`` path. Shell routing
     via Git Bash on Windows cannot reliably exec Windows-pathed binaries
@@ -146,9 +148,7 @@ async def test_subprocess_backend_passes_argv_list_not_shell_command(
 
 
 @pytest.mark.asyncio
-async def test_subprocess_backend_argv_preserves_windows_backslashes(
-    monkeypatch, tmp_path: Path
-):
+async def test_subprocess_backend_argv_preserves_windows_backslashes(monkeypatch, tmp_path: Path):
     """When ``get_teammate_command()`` returns a Windows path with
     backslashes, those backslashes must arrive at the manager intact.
     Using a list (``argv``) instead of a shell-evaluated string is what
@@ -192,9 +192,7 @@ async def test_subprocess_backend_argv_preserves_windows_backslashes(
 
 
 @pytest.mark.asyncio
-async def test_subprocess_backend_passes_env_via_kwarg(
-    monkeypatch, tmp_path: Path
-):
+async def test_subprocess_backend_passes_env_via_kwarg(monkeypatch, tmp_path: Path):
     """Inherited teammate env vars must flow through ``env=`` on
     ``create_agent_task`` and never be embedded in argv as ``KEY=val``
     tokens (which the OS would just pass to the child as plain args)."""

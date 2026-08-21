@@ -75,7 +75,7 @@ async def test_web_search_tool_reads_results(tmp_path, monkeypatch):
 
 def test_html_to_text_handles_large_html_quickly():
     html = "<html><head><style>.x{color:red}</style><script>var x=1;</script></head><body>"
-    html += ("<div><span>Issue item</span><a href='/x'>link</a></div>" * 6000)
+    html += "<div><span>Issue item</span><a href='/x'>link</a></div>" * 6000
     html += "</body></html>"
 
     started = time.time()
@@ -130,7 +130,9 @@ async def test_web_search_tool_uses_env_search_url(tmp_path, monkeypatch):
     monkeypatch.setitem(WebSearchTool.execute.__globals__, "fetch_public_http_response", fake_fetch)
 
     tool = WebSearchTool()
-    result = await tool.execute(WebSearchToolInput(query="codeless docs"), ToolExecutionContext(cwd=tmp_path))
+    result = await tool.execute(
+        WebSearchToolInput(query="codeless docs"), ToolExecutionContext(cwd=tmp_path)
+    )
 
     assert result.is_error is False
     assert calls[0][0] == "https://search.example.com/html"
@@ -158,10 +160,13 @@ async def test_fetch_public_http_response_uses_codeless_web_proxy(monkeypatch):
 
     monkeypatch.setenv("CODELESS_WEB_PROXY", "http://proxy.example.com:7890")
     monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
+
     async def fake_ensure_public_http_url(url: str) -> None:
         return None
 
-    monkeypatch.setattr("codeless.utils.network_guard.ensure_public_http_url", fake_ensure_public_http_url)
+    monkeypatch.setattr(
+        "codeless.utils.network_guard.ensure_public_http_url", fake_ensure_public_http_url
+    )
 
     response = await fetch_public_http_response("https://example.com/")
 

@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
-from codeless.abb.permissions import TriMode, ModeEngine, get_mode_engine
+from codeless.abb.permissions import ModeEngine, TriMode
 
 
 def test_five_modes_allowed_tools():
@@ -72,21 +71,20 @@ def test_domain_write_boundaries(tmp_path: Path):
     assert not allowed
     assert "plan mode blocks" in reason.lower()
 
-
     # 3. CODEBASE mode is strictly read-only codebase exploration
     engine.set_mode(TriMode.CODEBASE)
     allowed, reason = engine.evaluate_write_permission(tmp_path / "src" / "main.py", tmp_path)
     assert not allowed
     assert "strictly read-only" in reason.lower()
 
-
     # 4. GOVERNANCE mode allows meta ABB specs, protects project source code
     engine.set_mode(TriMode.GOVERNANCE)
     allowed, _ = engine.evaluate_write_permission(abb_ws / "STACK.md", tmp_path)
     assert allowed
-    allowed, _ = engine.evaluate_write_permission(abb_ws / "workflows" / "planning" / "planning.md", tmp_path)
+    allowed, _ = engine.evaluate_write_permission(
+        abb_ws / "workflows" / "planning" / "planning.md", tmp_path
+    )
     assert allowed
     allowed, reason = engine.evaluate_write_permission(tmp_path / "src" / "main.py", tmp_path)
     assert not allowed
     assert "governance mode blocks" in reason.lower()
-

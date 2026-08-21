@@ -150,7 +150,9 @@ def test_autopilot_run_card_marks_completed_after_verification(tmp_path: Path) -
         body="run next queued task and verify it",
     )
 
-    async def fake_run_agent_prompt(self, prompt: str, *, model, max_turns, permission_mode, cwd=None):
+    async def fake_run_agent_prompt(
+        self, prompt: str, *, model, max_turns, permission_mode, cwd=None
+    ):
         assert "Implement repo autopilot tick" in prompt
         return "Implemented the change and ran targeted checks."
 
@@ -193,7 +195,9 @@ def test_autopilot_run_card_marks_failed_when_verification_fails(tmp_path: Path)
         body="this should fail verification",
     )
 
-    async def fake_run_agent_prompt(self, prompt: str, *, model, max_turns, permission_mode, cwd=None):
+    async def fake_run_agent_prompt(
+        self, prompt: str, *, model, max_turns, permission_mode, cwd=None
+    ):
         return "Made a risky change."
 
     def fake_run_verification_steps(self, policies, *, cwd=None):
@@ -292,7 +296,9 @@ def test_autopilot_run_card_opens_pr_and_waits_for_ci(tmp_path: Path, monkeypatc
     async def fake_remove_worktree(self, slug):
         return True
 
-    async def fake_run_agent_prompt(self, prompt: str, *, model, max_turns, permission_mode, cwd=None):
+    async def fake_run_agent_prompt(
+        self, prompt: str, *, model, max_turns, permission_mode, cwd=None
+    ):
         assert cwd == worktree
         return "Implemented the requested feature."
 
@@ -301,16 +307,41 @@ def test_autopilot_run_card_opens_pr_and_waits_for_ci(tmp_path: Path, monkeypatc
         return [RepoVerificationStep(command="uv run pytest -q", returncode=0, status="success")]
 
     async def fake_wait_for_pr_ci(self, pr_number: int, policies):
-        return "success", "All reported remote checks passed.", {"url": "https://example/pr/17", "labels": [], "isDraft": False}, []
+        return (
+            "success",
+            "All reported remote checks passed.",
+            {"url": "https://example/pr/17", "labels": [], "isDraft": False},
+            [],
+        )
 
-    monkeypatch.setattr("codeless.autopilot.service.WorktreeManager.create_worktree", fake_create_worktree)
-    monkeypatch.setattr("codeless.autopilot.service.WorktreeManager.remove_worktree", fake_remove_worktree)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._is_git_repo", lambda self, cwd: True)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._run_agent_prompt", fake_run_agent_prompt)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._run_verification_steps", fake_run_verification_steps)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._sync_worktree_to_base", lambda self, cwd, *, base_branch, head_branch, reset: None)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._git_commit_all", lambda self, cwd, message: True)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._git_push_branch", lambda self, cwd, branch: None)
+    monkeypatch.setattr(
+        "codeless.autopilot.service.WorktreeManager.create_worktree", fake_create_worktree
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.WorktreeManager.remove_worktree", fake_remove_worktree
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._is_git_repo", lambda self, cwd: True
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._run_agent_prompt", fake_run_agent_prompt
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._run_verification_steps",
+        fake_run_verification_steps,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._sync_worktree_to_base",
+        lambda self, cwd, *, base_branch, head_branch, reset: None,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._git_commit_all",
+        lambda self, cwd, message: True,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._git_push_branch",
+        lambda self, cwd, branch: None,
+    )
     monkeypatch.setattr(
         "codeless.autopilot.service.RepoAutopilotStore._upsert_pull_request",
         lambda self, card, *, head_branch, base_branch, run_report_path, verification_report_path: {
@@ -318,9 +349,17 @@ def test_autopilot_run_card_opens_pr_and_waits_for_ci(tmp_path: Path, monkeypatc
             "url": "https://example/pr/17",
         },
     )
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._wait_for_pr_ci", fake_wait_for_pr_ci)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._automerge_eligible", lambda self, pr_snapshot, policies: False)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._comment_on_pr", lambda self, pr_number, comment: None)
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._wait_for_pr_ci", fake_wait_for_pr_ci
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._automerge_eligible",
+        lambda self, pr_snapshot, policies: False,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._comment_on_pr",
+        lambda self, pr_number, comment: None,
+    )
 
     import asyncio
 
@@ -334,7 +373,9 @@ def test_autopilot_run_card_opens_pr_and_waits_for_ci(tmp_path: Path, monkeypatc
     assert updated.metadata["human_gate_pending"] is True
 
 
-def test_autopilot_run_card_repairs_after_local_verification_failure(tmp_path: Path, monkeypatch) -> None:
+def test_autopilot_run_card_repairs_after_local_verification_failure(
+    tmp_path: Path, monkeypatch
+) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     worktree = tmp_path / "wt"
@@ -354,28 +395,59 @@ def test_autopilot_run_card_repairs_after_local_verification_failure(tmp_path: P
     async def fake_remove_worktree(self, slug):
         return True
 
-    async def fake_run_agent_prompt(self, prompt: str, *, model, max_turns, permission_mode, cwd=None):
+    async def fake_run_agent_prompt(
+        self, prompt: str, *, model, max_turns, permission_mode, cwd=None
+    ):
         return f"attempt for {cwd}"
 
     def fake_run_verification_steps(self, policies, *, cwd=None):
         verification_calls["count"] += 1
         if verification_calls["count"] == 1:
-            return [RepoVerificationStep(command="uv run pytest -q", returncode=1, status="failed", stderr="1 failed")]
+            return [
+                RepoVerificationStep(
+                    command="uv run pytest -q", returncode=1, status="failed", stderr="1 failed"
+                )
+            ]
         return [RepoVerificationStep(command="uv run pytest -q", returncode=0, status="success")]
 
     async def fake_wait_for_pr_ci(self, pr_number: int, policies):
-        return "success", "All reported remote checks passed.", {"url": "https://example/pr/23", "labels": ["autopilot:merge"], "isDraft": False}, []
+        return (
+            "success",
+            "All reported remote checks passed.",
+            {"url": "https://example/pr/23", "labels": ["autopilot:merge"], "isDraft": False},
+            [],
+        )
 
     merged = {"called": False}
 
-    monkeypatch.setattr("codeless.autopilot.service.WorktreeManager.create_worktree", fake_create_worktree)
-    monkeypatch.setattr("codeless.autopilot.service.WorktreeManager.remove_worktree", fake_remove_worktree)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._is_git_repo", lambda self, cwd: True)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._run_agent_prompt", fake_run_agent_prompt)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._run_verification_steps", fake_run_verification_steps)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._sync_worktree_to_base", lambda self, cwd, *, base_branch, head_branch, reset: None)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._git_commit_all", lambda self, cwd, message: True)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._git_push_branch", lambda self, cwd, branch: None)
+    monkeypatch.setattr(
+        "codeless.autopilot.service.WorktreeManager.create_worktree", fake_create_worktree
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.WorktreeManager.remove_worktree", fake_remove_worktree
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._is_git_repo", lambda self, cwd: True
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._run_agent_prompt", fake_run_agent_prompt
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._run_verification_steps",
+        fake_run_verification_steps,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._sync_worktree_to_base",
+        lambda self, cwd, *, base_branch, head_branch, reset: None,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._git_commit_all",
+        lambda self, cwd, message: True,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._git_push_branch",
+        lambda self, cwd, branch: None,
+    )
     monkeypatch.setattr(
         "codeless.autopilot.service.RepoAutopilotStore._upsert_pull_request",
         lambda self, card, *, head_branch, base_branch, run_report_path, verification_report_path: {
@@ -383,10 +455,21 @@ def test_autopilot_run_card_repairs_after_local_verification_failure(tmp_path: P
             "url": "https://example/pr/23",
         },
     )
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._wait_for_pr_ci", fake_wait_for_pr_ci)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._automerge_eligible", lambda self, pr_snapshot, policies: True)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._merge_pull_request", lambda self, pr_number: merged.__setitem__("called", True))
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._comment_on_pr", lambda self, pr_number, comment: None)
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._wait_for_pr_ci", fake_wait_for_pr_ci
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._automerge_eligible",
+        lambda self, pr_snapshot, policies: True,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._merge_pull_request",
+        lambda self, pr_number: merged.__setitem__("called", True),
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._comment_on_pr",
+        lambda self, pr_number, comment: None,
+    )
 
     import asyncio
 
@@ -416,25 +499,52 @@ def test_autopilot_run_card_reuses_existing_branch_progress(tmp_path: Path, monk
     async def fake_remove_worktree(self, slug):
         return True
 
-    async def fake_run_agent_prompt(self, prompt: str, *, model, max_turns, permission_mode, cwd=None):
+    async def fake_run_agent_prompt(
+        self, prompt: str, *, model, max_turns, permission_mode, cwd=None
+    ):
         return "A direct git commit already exists on the branch."
 
     def fake_run_verification_steps(self, policies, *, cwd=None):
         return [RepoVerificationStep(command="uv run pytest -q", returncode=0, status="success")]
 
     async def fake_wait_for_pr_ci(self, pr_number: int, policies):
-        return "success", "All reported remote checks passed.", {"url": "https://example/pr/29", "labels": [], "isDraft": False}, []
+        return (
+            "success",
+            "All reported remote checks passed.",
+            {"url": "https://example/pr/29", "labels": [], "isDraft": False},
+            [],
+        )
 
     pushed = {"called": False}
 
-    monkeypatch.setattr("codeless.autopilot.service.WorktreeManager.create_worktree", fake_create_worktree)
-    monkeypatch.setattr("codeless.autopilot.service.WorktreeManager.remove_worktree", fake_remove_worktree)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._is_git_repo", lambda self, cwd: True)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._run_agent_prompt", fake_run_agent_prompt)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._run_verification_steps", fake_run_verification_steps)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._sync_worktree_to_base", lambda self, cwd, *, base_branch, head_branch, reset: None)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._git_commit_all", lambda self, cwd, message: False)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._git_branch_has_progress", lambda self, cwd, *, base_branch: True)
+    monkeypatch.setattr(
+        "codeless.autopilot.service.WorktreeManager.create_worktree", fake_create_worktree
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.WorktreeManager.remove_worktree", fake_remove_worktree
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._is_git_repo", lambda self, cwd: True
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._run_agent_prompt", fake_run_agent_prompt
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._run_verification_steps",
+        fake_run_verification_steps,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._sync_worktree_to_base",
+        lambda self, cwd, *, base_branch, head_branch, reset: None,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._git_commit_all",
+        lambda self, cwd, message: False,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._git_branch_has_progress",
+        lambda self, cwd, *, base_branch: True,
+    )
     monkeypatch.setattr(
         "codeless.autopilot.service.RepoAutopilotStore._git_push_branch",
         lambda self, cwd, branch: pushed.__setitem__("called", True),
@@ -446,9 +556,17 @@ def test_autopilot_run_card_reuses_existing_branch_progress(tmp_path: Path, monk
             "url": "https://example/pr/29",
         },
     )
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._wait_for_pr_ci", fake_wait_for_pr_ci)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._automerge_eligible", lambda self, pr_snapshot, policies: False)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._comment_on_pr", lambda self, pr_number, comment: None)
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._wait_for_pr_ci", fake_wait_for_pr_ci
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._automerge_eligible",
+        lambda self, pr_snapshot, policies: False,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._comment_on_pr",
+        lambda self, pr_number, comment: None,
+    )
 
     import asyncio
 
@@ -475,14 +593,30 @@ def test_autopilot_existing_pr_card_can_auto_merge(tmp_path: Path, monkeypatch) 
 
     async def fake_wait_for_pr_ci(self, pr_number: int, policies):
         assert pr_number == 88
-        return "success", "All reported remote checks passed.", {"url": "https://example/pr/88", "labels": ["autopilot:merge"], "isDraft": False}, []
+        return (
+            "success",
+            "All reported remote checks passed.",
+            {"url": "https://example/pr/88", "labels": ["autopilot:merge"], "isDraft": False},
+            [],
+        )
 
     merged = {"called": False}
 
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._wait_for_pr_ci", fake_wait_for_pr_ci)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._automerge_eligible", lambda self, pr_snapshot, policies: True)
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._merge_pull_request", lambda self, pr_number: merged.__setitem__("called", True))
-    monkeypatch.setattr("codeless.autopilot.service.RepoAutopilotStore._comment_on_pr", lambda self, pr_number, comment: None)
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._wait_for_pr_ci", fake_wait_for_pr_ci
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._automerge_eligible",
+        lambda self, pr_snapshot, policies: True,
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._merge_pull_request",
+        lambda self, pr_number: merged.__setitem__("called", True),
+    )
+    monkeypatch.setattr(
+        "codeless.autopilot.service.RepoAutopilotStore._comment_on_pr",
+        lambda self, pr_number, comment: None,
+    )
 
     import asyncio
 
@@ -493,7 +627,9 @@ def test_autopilot_existing_pr_card_can_auto_merge(tmp_path: Path, monkeypatch) 
     assert merged["called"] is True
 
 
-def test_wait_for_pr_ci_allows_repos_with_no_remote_checks_after_grace(tmp_path: Path, monkeypatch) -> None:
+def test_wait_for_pr_ci_allows_repos_with_no_remote_checks_after_grace(
+    tmp_path: Path, monkeypatch
+) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     store = RepoAutopilotStore(repo)
@@ -515,7 +651,15 @@ def test_wait_for_pr_ci_allows_repos_with_no_remote_checks_after_grace(tmp_path:
     state, summary, snapshot, checks = asyncio.run(
         store._wait_for_pr_ci(
             31,
-            {"autopilot": {"github": {"ci_poll_interval_seconds": 1, "ci_timeout_seconds": 30, "no_checks_grace_seconds": 5}}},
+            {
+                "autopilot": {
+                    "github": {
+                        "ci_poll_interval_seconds": 1,
+                        "ci_timeout_seconds": 30,
+                        "no_checks_grace_seconds": 5,
+                    }
+                }
+            },
         )
     )
 
@@ -536,20 +680,32 @@ def test_wait_for_pr_ci_waits_for_check_settle_window(tmp_path: Path, monkeypatc
         {
             "url": "https://example/pr/33",
             "statusCheckRollup": [
-                {"name": "GitGuardian Security Checks", "status": "COMPLETED", "conclusion": "SUCCESS"}
+                {
+                    "name": "GitGuardian Security Checks",
+                    "status": "COMPLETED",
+                    "conclusion": "SUCCESS",
+                }
             ],
         },
         {
             "url": "https://example/pr/33",
             "statusCheckRollup": [
-                {"name": "GitGuardian Security Checks", "status": "COMPLETED", "conclusion": "SUCCESS"},
+                {
+                    "name": "GitGuardian Security Checks",
+                    "status": "COMPLETED",
+                    "conclusion": "SUCCESS",
+                },
                 {"name": "Python tests (3.10)", "status": "IN_PROGRESS", "conclusion": ""},
             ],
         },
         {
             "url": "https://example/pr/33",
             "statusCheckRollup": [
-                {"name": "GitGuardian Security Checks", "status": "COMPLETED", "conclusion": "SUCCESS"},
+                {
+                    "name": "GitGuardian Security Checks",
+                    "status": "COMPLETED",
+                    "conclusion": "SUCCESS",
+                },
                 {"name": "Python tests (3.10)", "status": "COMPLETED", "conclusion": "SUCCESS"},
             ],
         },
@@ -610,7 +766,9 @@ def test_merge_pull_request_does_not_request_branch_deletion(tmp_path: Path, mon
     monkeypatch.setattr(
         store,
         "_run_gh",
-        lambda args, *, cwd=None, check=False: captured.update({"args": args, "cwd": cwd, "check": check}),
+        lambda args, *, cwd=None, check=False: captured.update(
+            {"args": args, "cwd": cwd, "check": check}
+        ),
     )
 
     store._merge_pull_request(41)

@@ -124,7 +124,9 @@ def find_stale_memory_candidates(
     for header in headers:
         if header.importance > STALE_MAX_IMPORTANCE:
             continue
-        usage = get_memory_usage(cwd, header.id, memory_dir=resolved_memory_dir or header.path.parent)
+        usage = get_memory_usage(
+            cwd, header.id, memory_dir=resolved_memory_dir or header.path.parent
+        )
         if int(usage["use_count"]) > 0:
             continue
         updated_at = parse_datetime(header.updated_at) or parse_datetime(header.created_at)

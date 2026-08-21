@@ -4,17 +4,16 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
 from typer.testing import CliRunner
 
 from codeless.abb.shadow import (
     bootstrap_shadow_workspace,
     clean_shadow_projects,
     get_dir_size_bytes,
-    get_project_hash,
     list_shadow_projects,
 )
 from codeless.cli import app
-
 
 runner = CliRunner()
 

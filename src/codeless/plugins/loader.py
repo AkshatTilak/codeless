@@ -58,7 +58,9 @@ def _find_manifest(plugin_dir: Path) -> Path | None:
     return None
 
 
-def discover_plugin_paths(cwd: str | Path, extra_roots: Iterable[str | Path] | None = None) -> list[Path]:
+def discover_plugin_paths(
+    cwd: str | Path, extra_roots: Iterable[str | Path] | None = None
+) -> list[Path]:
     """Find plugin directories from user and project locations."""
     roots = [get_user_plugins_dir(), get_project_plugins_dir(cwd)]
     if extra_roots:
@@ -104,11 +106,14 @@ def discover_plugin_paths_for_settings(
     return paths
 
 
-def load_plugins(settings, cwd: str | Path, extra_roots: Iterable[str | Path] | None = None) -> list[LoadedPlugin]:
+def load_plugins(
+    settings, cwd: str | Path, extra_roots: Iterable[str | Path] | None = None
+) -> list[LoadedPlugin]:
     """Load plugins from disk."""
     project_plugins_dir = get_project_plugins_dir(cwd)
     if not getattr(settings, "allow_project_plugins", False) and any(
-        path.is_dir() and _find_manifest(path) is not None for path in sorted(project_plugins_dir.iterdir())
+        path.is_dir() and _find_manifest(path) is not None
+        for path in sorted(project_plugins_dir.iterdir())
     ):
         logger.warning(
             "Found project-local plugins in %s, but they are disabled by default. "
@@ -170,7 +175,7 @@ def _parse_frontmatter(content: str, path: Path) -> tuple[dict[str, Any], str]:
     if end_index == -1:
         return {}, content
     raw_frontmatter = content[4:end_index]
-    body = content[end_index + len(marker):]
+    body = content[end_index + len(marker) :]
     try:
         parsed = yaml.safe_load(raw_frontmatter) or {}
     except yaml.YAMLError:
@@ -356,7 +361,9 @@ def _load_plugin_commands(path: Path, manifest: PluginManifest) -> list[PluginCo
                 if command is not None:
                     commands.append(command)
             elif isinstance(content, str):
-                description = str(metadata.get("description") or f"Plugin command from {manifest.name}").strip()
+                description = str(
+                    metadata.get("description") or f"Plugin command from {manifest.name}"
+                ).strip()
                 commands.append(
                     PluginCommandDefinition(
                         name=f"{manifest.name}:{command_name}",
@@ -442,12 +449,18 @@ def _load_single_command_file(
             **frontmatter,
             **{
                 "description": metadata_override.get("description", frontmatter.get("description")),
-                "argument-hint": metadata_override.get("argumentHint", frontmatter.get("argument-hint")),
+                "argument-hint": metadata_override.get(
+                    "argumentHint", frontmatter.get("argument-hint")
+                ),
                 "model": metadata_override.get("model", frontmatter.get("model")),
-                "allowed-tools": metadata_override.get("allowedTools", frontmatter.get("allowed-tools")),
+                "allowed-tools": metadata_override.get(
+                    "allowedTools", frontmatter.get("allowed-tools")
+                ),
             },
         }
-    description = _extract_description(frontmatter, body, fallback=f"Plugin command from {command_name}")
+    description = _extract_description(
+        frontmatter, body, fallback=f"Plugin command from {command_name}"
+    )
     display_name = frontmatter.get("name")
     argument_hint = frontmatter.get("argument-hint")
     when_to_use = frontmatter.get("when_to_use")
@@ -480,13 +493,19 @@ def _load_plugin_agents(path: Path, manifest: PluginManifest) -> list[AgentDefin
     agents: list[AgentDefinition] = []
     seen: set[Path] = set()
     default_agents_dir = path / "agents"
-    agents.extend(_load_agents_from_directory(default_agents_dir, plugin_name=manifest.name, seen=seen))
+    agents.extend(
+        _load_agents_from_directory(default_agents_dir, plugin_name=manifest.name, seen=seen)
+    )
     for raw_path in _coerce_path_list(manifest.agents):
         agent_path = (path / raw_path).resolve()
         if agent_path.is_dir():
-            agents.extend(_load_agents_from_directory(agent_path, plugin_name=manifest.name, seen=seen))
+            agents.extend(
+                _load_agents_from_directory(agent_path, plugin_name=manifest.name, seen=seen)
+            )
         elif agent_path.is_file() and agent_path.suffix.lower() == ".md":
-            agent = _load_single_agent_file(agent_path, plugin_name=manifest.name, namespace=(), seen=seen)
+            agent = _load_single_agent_file(
+                agent_path, plugin_name=manifest.name, namespace=(), seen=seen
+            )
             if agent is not None:
                 agents.append(agent)
     return agents
@@ -532,7 +551,9 @@ def _load_single_agent_file(
 
     base_agent_name = str(frontmatter.get("name", "")).strip() or file_path.stem
     agent_name = ":".join([plugin_name, *namespace, base_agent_name])
-    description = str(frontmatter.get("description", "")).strip() or f"Agent from {plugin_name} plugin"
+    description = (
+        str(frontmatter.get("description", "")).strip() or f"Agent from {plugin_name} plugin"
+    )
     description = description.replace("\\n", "\n")
 
     tools = _parse_str_list(frontmatter.get("tools"))
@@ -564,21 +585,35 @@ def _load_single_agent_file(
     memory = memory_raw if isinstance(memory_raw, str) and memory_raw in MEMORY_SCOPES else None
 
     isolation_raw = frontmatter.get("isolation")
-    isolation = isolation_raw if isinstance(isolation_raw, str) and isolation_raw in ISOLATION_MODES else None
+    isolation = (
+        isolation_raw
+        if isinstance(isolation_raw, str) and isolation_raw in ISOLATION_MODES
+        else None
+    )
 
     max_turns_raw = frontmatter.get("maxTurns", frontmatter.get("max_turns"))
     max_turns = _parse_positive_int(max_turns_raw)
 
     permission_raw = frontmatter.get("permissionMode", frontmatter.get("permission_mode"))
     permission_mode = (
-        permission_raw if isinstance(permission_raw, str) and permission_raw in PERMISSION_MODES else None
+        permission_raw
+        if isinstance(permission_raw, str) and permission_raw in PERMISSION_MODES
+        else None
     )
 
     initial_prompt_raw = frontmatter.get("initialPrompt", frontmatter.get("initial_prompt"))
-    initial_prompt = initial_prompt_raw.strip() if isinstance(initial_prompt_raw, str) and initial_prompt_raw.strip() else None
+    initial_prompt = (
+        initial_prompt_raw.strip()
+        if isinstance(initial_prompt_raw, str) and initial_prompt_raw.strip()
+        else None
+    )
 
-    critical_raw = frontmatter.get("criticalSystemReminder", frontmatter.get("critical_system_reminder"))
-    critical_system_reminder = critical_raw.strip() if isinstance(critical_raw, str) and critical_raw.strip() else None
+    critical_raw = frontmatter.get(
+        "criticalSystemReminder", frontmatter.get("critical_system_reminder")
+    )
+    critical_system_reminder = (
+        critical_raw.strip() if isinstance(critical_raw, str) and critical_raw.strip() else None
+    )
 
     required_mcp_servers = _parse_str_list(
         frontmatter.get("requiredMcpServers", frontmatter.get("required_mcp_servers"))
@@ -668,12 +703,14 @@ def _load_plugin_hooks_structured(path: Path, plugin_root: Path) -> dict[str, li
             for hook in hook_list:
                 cmd = hook.get("command", "")
                 cmd = cmd.replace("${CLAUDE_PLUGIN_ROOT}", str(plugin_root))
-                parsed[event].append({
-                    "type": hook.get("type", "command"),
-                    "command": cmd,
-                    "matcher": matcher,
-                    "timeout": hook.get("timeout"),
-                })
+                parsed[event].append(
+                    {
+                        "type": hook.get("type", "command"),
+                        "command": cmd,
+                        "matcher": matcher,
+                        "timeout": hook.get("timeout"),
+                    }
+                )
     return parsed
 
 
@@ -726,5 +763,7 @@ def _load_plugin_tools(path: Path, manifest: PluginManifest) -> list:
                     tools.append(instance)
                     logger.debug("Loaded plugin tool: %s from %s", instance.name, py_file)
                 except Exception:
-                    logger.debug("Failed to instantiate tool %s from %s", attr_name, py_file, exc_info=True)
+                    logger.debug(
+                        "Failed to instantiate tool %s from %s", attr_name, py_file, exc_info=True
+                    )
     return tools

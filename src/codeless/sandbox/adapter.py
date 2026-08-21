@@ -66,7 +66,6 @@ def build_sandbox_runtime_config(settings: Settings, cwd: Path | None = None) ->
     }
 
 
-
 def get_sandbox_availability(settings: Settings | None = None) -> SandboxAvailability:
     """Return whether ``srt`` can be used for the current runtime."""
     resolved_settings = settings or load_settings()

@@ -75,14 +75,29 @@ class TestCRUD:
 
     def test_upsert_preserves_notify_target(self) -> None:
         notify = {"type": "feishu_dm", "user_open_id": "ou_test"}
-        upsert_cron_job({"name": "test-job", "schedule": "*/5 * * * *", "command": "echo hi", "notify": notify})
+        upsert_cron_job(
+            {"name": "test-job", "schedule": "*/5 * * * *", "command": "echo hi", "notify": notify}
+        )
         job = get_cron_job("test-job")
         assert job is not None
         assert job["notify"] == notify
 
     def test_upsert_preserves_agent_turn_payload(self) -> None:
-        payload = {"kind": "agent_turn", "message": "check GitHub", "deliver": True, "channel": "feishu", "to": "ou_test"}
-        upsert_cron_job({"name": "test-job", "schedule": "0 18 * * *", "timezone": "Asia/Hong_Kong", "payload": payload})
+        payload = {
+            "kind": "agent_turn",
+            "message": "check GitHub",
+            "deliver": True,
+            "channel": "feishu",
+            "to": "ou_test",
+        }
+        upsert_cron_job(
+            {
+                "name": "test-job",
+                "schedule": "0 18 * * *",
+                "timezone": "Asia/Hong_Kong",
+                "payload": payload,
+            }
+        )
         job = get_cron_job("test-job")
         assert job is not None
         assert job["payload"] == payload

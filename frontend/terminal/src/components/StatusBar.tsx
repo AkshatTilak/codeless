@@ -23,7 +23,7 @@ function StatusBarInner({
 }): React.JSX.Element {
 	const {theme} = useTheme();
 	const model = String(status.model ?? 'unknown');
-	const mode = String(status.permission_mode ?? 'agent');
+	const mode = String(status.permission_mode ?? 'plan');
 	const taskCount = tasks.length;
 	const mcpCount = Number(status.mcp_connected ?? 0);
 	const inputTokens = Number(status.input_tokens ?? 0);

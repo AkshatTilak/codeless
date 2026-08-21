@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 from codeless.swarm.types import (
     SpawnResult,
     TeammateExecutor,
@@ -10,7 +9,6 @@ from codeless.swarm.types import (
     TeammateMessage,
     TeammateSpawnConfig,
 )
-
 
 # ---------------------------------------------------------------------------
 # TeammateIdentity
@@ -128,14 +126,11 @@ def test_teammate_executor_is_protocol():
         def is_available(self) -> bool:
             return True
 
-        async def spawn(self, config):
-            ...
+        async def spawn(self, config): ...
 
-        async def send_message(self, agent_id, message):
-            ...
+        async def send_message(self, agent_id, message): ...
 
-        async def shutdown(self, agent_id, *, force=False):
-            ...
+        async def shutdown(self, agent_id, *, force=False): ...
 
     executor = MockExecutor()
     assert isinstance(executor, TeammateExecutor)

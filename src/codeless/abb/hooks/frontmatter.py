@@ -9,14 +9,16 @@ from typing import Any
 import yaml
 
 SEMVER_REGEX = re.compile(r"^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$")
-VALID_STATUSES = frozenset({
-    "not_started",
-    "pending",
-    "in_progress",
-    "done",
-    "blocked",
-    "failed",
-})
+VALID_STATUSES = frozenset(
+    {
+        "not_started",
+        "pending",
+        "in_progress",
+        "done",
+        "blocked",
+        "failed",
+    }
+)
 
 
 def parse_frontmatter(content: str) -> tuple[dict[str, Any], str]:
@@ -78,7 +80,9 @@ def validate_task_frontmatter(
     if not version or not isinstance(version, str):
         errors.append("Field 'version' is required (e.g. '1.0.0').")
     elif not SEMVER_REGEX.match(version.strip()):
-        errors.append(f"Field 'version' ('{version}') must follow semantic versioning (e.g. '1.0.0').")
+        errors.append(
+            f"Field 'version' ('{version}') must follow semantic versioning (e.g. '1.0.0')."
+        )
 
     # 3. Validate Status
     status = data.get("status")
@@ -95,10 +99,11 @@ def validate_task_frontmatter(
         errors.append("Field 'depends_on' must be a list of task IDs or paths.")
 
     # 5. Validate Parent (if subtask)
-    filename = task_path.name.lower() if task_path else ""
     is_subtask = "sub" in (str(task_path).replace("\\", "/").lower() if task_path else "")
     if is_subtask and "parent" not in data:
-        errors.append("Subtasks must define a 'parent' field linking to their base task ID (e.g. 'base_001').")
+        errors.append(
+            "Subtasks must define a 'parent' field linking to their base task ID (e.g. 'base_001')."
+        )
 
     # 6. Validate Links
     if "links" in data and not isinstance(data["links"], list):

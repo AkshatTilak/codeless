@@ -6,10 +6,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from codeless.state.app_state import AppState
 from codeless.bridge.manager import BridgeSessionRecord
-from codeless.mcp.types import McpConnectionStatus
 from codeless.jobs.types import TaskRecord
+from codeless.mcp.types import McpConnectionStatus
+from codeless.state.app_state import AppState
 
 
 class FrontendImageAttachment(BaseModel):
@@ -319,7 +319,6 @@ def _state_payload(state: AppState) -> dict[str, Any]:
         "mode": _format_permission_mode(state.permission_mode),
         "permission_mode": _format_permission_mode(state.permission_mode),
         "theme": state.theme,
-
         "vim_enabled": state.vim_enabled,
         "voice_enabled": state.voice_enabled,
         "voice_available": state.voice_available,

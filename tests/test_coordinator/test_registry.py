@@ -1,7 +1,5 @@
 """Tests verifying that removed legacy tools and registries are properly purged."""
 
-import pytest
-
 from codeless.tools import create_default_tool_registry
 
 
@@ -20,4 +18,3 @@ def test_removed_tools_not_in_registry():
     # Verify ABB tools added
     assert "abb_task" in tool_names
     assert "abb_verify" in tool_names
-

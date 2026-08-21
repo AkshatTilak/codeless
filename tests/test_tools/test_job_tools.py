@@ -11,9 +11,7 @@ from codeless.jobs import get_task_manager
 from codeless.tools.agent_tool import AgentTool, AgentToolInput
 from codeless.tools.base import ToolExecutionContext
 from codeless.tools.job_create_tool import JobCreateTool, JobCreateToolInput
-from codeless.tools.job_output_tool import JobOutputTool, JobOutputToolInput
 from codeless.tools.job_update_tool import JobUpdateTool, JobUpdateToolInput
-
 
 
 async def _wait_for_terminal_task(task_id: str, *, timeout_seconds: float = 2.0) -> None:
@@ -60,11 +58,8 @@ async def test_job_update_tool_updates_metadata(tmp_path: Path, monkeypatch):
     assert task.metadata["status_note"] == "waiting on verification"
 
 
-
 @pytest.mark.asyncio
-async def test_agent_tool_uses_subprocess_backend_and_task_is_pollable(
-    tmp_path: Path, monkeypatch
-):
+async def test_agent_tool_uses_subprocess_backend_and_task_is_pollable(tmp_path: Path, monkeypatch):
     """Regression test for #59 / PR #60.
 
     AgentTool must use the subprocess backend so the returned task_id is
@@ -105,6 +100,7 @@ async def test_agent_tool_uses_subprocess_backend_and_task_is_pollable(
     #    can query it without raising ValueError.
     #    Parse task_id from "Spawned agent X (task_id=Y, backend=Z)"
     import re
+
     m = re.search(r"task_id=(\S+?)[,)]", result.output)
     assert m, f"Could not parse task_id from output: {result.output}"
     task_id = m.group(1)
@@ -121,9 +117,7 @@ async def test_agent_tool_uses_subprocess_backend_and_task_is_pollable(
 
 
 @pytest.mark.asyncio
-async def test_send_message_swarm_path_uses_subprocess_backend(
-    tmp_path: Path, monkeypatch
-):
+async def test_send_message_swarm_path_uses_subprocess_backend(tmp_path: Path, monkeypatch):
     """SendMessageTool._send_swarm_message must route via SubprocessBackend.
 
     Before the fix, _send_swarm_message also hardcoded in_process, so even
@@ -159,8 +153,6 @@ async def test_send_message_swarm_path_uses_subprocess_backend(
     assert agent_id_arg == "worker@default"
 
 
-
-
 @pytest.mark.asyncio
 async def test_agent_tool_supports_remote_and_teammate_modes(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
@@ -173,7 +165,7 @@ async def test_agent_tool_supports_remote_and_teammate_modes(tmp_path: Path, mon
                 prompt="ready",
                 mode=mode,
                 subagent_type=f"test-worker-{i}",
-                command="python -u -c \"import sys; print(sys.stdin.readline().strip())\"",
+                command='python -u -c "import sys; print(sys.stdin.readline().strip())"',
             ),
             context,
         )

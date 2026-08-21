@@ -6,7 +6,11 @@ import time
 from pathlib import Path
 
 from codeless.config.settings import Settings
-from codeless.services.autodream.backup import create_memory_backup, diff_memory_dirs, restore_memory_backup
+from codeless.services.autodream.backup import (
+    create_memory_backup,
+    diff_memory_dirs,
+    restore_memory_backup,
+)
 from codeless.services.autodream.lock import (
     list_sessions_touched_since,
     read_last_consolidated_at,
@@ -69,7 +73,9 @@ def test_list_sessions_touched_since_supports_session_dir_override(tmp_path: Pat
     session_dir = tmp_path / "custom" / "sessions"
     cwd.mkdir()
     session_dir.mkdir(parents=True)
-    (session_dir / "session-custom.json").write_text(json.dumps({"session_id": "custom"}), encoding="utf-8")
+    (session_dir / "session-custom.json").write_text(
+        json.dumps({"session_id": "custom"}), encoding="utf-8"
+    )
 
     assert list_sessions_touched_since(cwd, 0, session_dir=session_dir) == ["custom"]
 
@@ -120,27 +126,31 @@ async def test_execute_auto_dream_skips_when_disabled(tmp_path: Path, monkeypatc
     assert await execute_auto_dream(cwd=cwd, settings=settings, model="test") is None
 
 
-async def test_consolidation_service_supports_custom_memory_and_session_dirs(tmp_path: Path, monkeypatch) -> None:
+async def test_consolidation_service_supports_custom_memory_and_session_dirs(
+    tmp_path: Path, monkeypatch
+) -> None:
     cwd = tmp_path / "repo"
     cwd.mkdir()
     memory_dir = tmp_path / ".custom" / "memory"
     session_dir = tmp_path / ".custom" / "sessions"
     memory_dir.mkdir(parents=True)
     session_dir.mkdir(parents=True)
-    (session_dir / "session-one.json").write_text(json.dumps({"session_id": "one"}), encoding="utf-8")
+    (session_dir / "session-one.json").write_text(
+        json.dumps({"session_id": "one"}), encoding="utf-8"
+    )
     (memory_dir / "old.md").write_text(
         "---\n"
         "schema_version: 1\n"
-        "id: \"mem-old\"\n"
-        "name: \"old\"\n"
-        "description: \"old note\"\n"
-        "type: \"project\"\n"
-        "category: \"knowledge\"\n"
+        'id: "mem-old"\n'
+        'name: "old"\n'
+        'description: "old note"\n'
+        'type: "project"\n'
+        'category: "knowledge"\n'
         "importance: 0\n"
-        "source: \"test\"\n"
-        "signature: \"sig-old\"\n"
-        "created_at: \"2020-01-01T00:00:00Z\"\n"
-        "updated_at: \"2020-01-01T00:00:00Z\"\n"
+        'source: "test"\n'
+        'signature: "sig-old"\n'
+        'created_at: "2020-01-01T00:00:00Z"\n'
+        'updated_at: "2020-01-01T00:00:00Z"\n'
         "ttl_days: null\n"
         "disabled: false\n"
         "supersedes: []\n"

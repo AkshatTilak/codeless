@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 import pytest
 
 from codeless.coordinator.agent_definitions import (
@@ -11,7 +10,6 @@ from codeless.coordinator.agent_definitions import (
     get_builtin_agent_definitions,
     load_agents_dir,
 )
-
 
 # ---------------------------------------------------------------------------
 # AgentDefinition model
@@ -119,6 +117,7 @@ def test_builtin_provider_agnostic_agents_use_inherit_or_none():
             f"Built-in agent {name!r} sets model={agent.model!r}; "
             "provider-agnostic agents should use None or 'inherit'."
         )
+
 
 # _parse_agent_frontmatter
 # ---------------------------------------------------------------------------

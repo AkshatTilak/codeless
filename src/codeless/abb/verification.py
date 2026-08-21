@@ -71,16 +71,13 @@ class VerificationReport:
     def format_failure_diagnostic(self) -> str:
         """Format an actionable diagnostic error message for model remediation."""
         lines = [f"❌ Verification Failed: {self.summary}"]
-        
-        all_failed = [
-            ("Track 1 (Unit)", r) for r in self.track_1_reports if not r.success
-        ] + [
-            ("Track 2 (System)", r) for r in self.track_2_reports if not r.success
-        ] + [
-            ("Lint", r) for r in self.lint_reports if not r.success
-        ] + [
-            ("Typecheck", r) for r in self.typecheck_reports if not r.success
-        ]
+
+        all_failed = (
+            [("Track 1 (Unit)", r) for r in self.track_1_reports if not r.success]
+            + [("Track 2 (System)", r) for r in self.track_2_reports if not r.success]
+            + [("Lint", r) for r in self.lint_reports if not r.success]
+            + [("Typecheck", r) for r in self.typecheck_reports if not r.success]
+        )
 
         for stage, report in all_failed:
             lines.append(f"\n--- {stage}: `{report.command}` ---")
@@ -224,7 +221,11 @@ async def execute_verification_manifest(
                 overall_success = False
                 break
 
-    summary = "All verification tracks passed." if overall_success else "One or more verification checks failed."
+    summary = (
+        "All verification tracks passed."
+        if overall_success
+        else "One or more verification checks failed."
+    )
     return VerificationReport(
         success=overall_success,
         track_1_reports=t1_reports,
@@ -266,8 +267,16 @@ def run_command_sync(
         )
     except subprocess.TimeoutExpired as exc:
         duration = time.perf_counter() - start_time
-        stdout_str = exc.stdout if isinstance(exc.stdout, str) else (exc.stdout.decode("utf-8", "replace") if exc.stdout else "")
-        stderr_str = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr.decode("utf-8", "replace") if exc.stderr else "")
+        stdout_str = (
+            exc.stdout
+            if isinstance(exc.stdout, str)
+            else (exc.stdout.decode("utf-8", "replace") if exc.stdout else "")
+        )
+        stderr_str = (
+            exc.stderr
+            if isinstance(exc.stderr, str)
+            else (exc.stderr.decode("utf-8", "replace") if exc.stderr else "")
+        )
         return CommandReport(
             command=command,
             exit_code=-1,
@@ -338,7 +347,11 @@ def execute_verification_manifest_sync(
                 overall_success = False
                 break
 
-    summary = "All verification tracks passed." if overall_success else "One or more verification checks failed."
+    summary = (
+        "All verification tracks passed."
+        if overall_success
+        else "One or more verification checks failed."
+    )
     return VerificationReport(
         success=overall_success,
         track_1_reports=t1_reports,

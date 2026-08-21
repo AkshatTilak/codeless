@@ -23,7 +23,9 @@ async def test_bridge_session_writes_output_in_cwd(tmp_path: Path):
 
 
 def test_bridge_secret_and_url_flow():
-    secret = WorkSecret(version=1, session_ingress_token="bridge-token", api_base_url="http://localhost:8080")
+    secret = WorkSecret(
+        version=1, session_ingress_token="bridge-token", api_base_url="http://localhost:8080"
+    )
     encoded = encode_work_secret(secret)
     decoded = decode_work_secret(encoded)
     url = build_sdk_url(decoded.api_base_url, "session-123")

@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import sys
+import warnings
 from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
@@ -15,7 +16,11 @@ from urllib.parse import urlparse
 
 import typer
 
-__version__ = "0.1.9"
+warnings.filterwarnings(
+    "ignore", message="urllib3 .* or chardet .* doesn't match a supported version!"
+)
+
+__version__ = "1.0.0"
 
 _PREVIEW_STOPWORDS = {
     "a",
@@ -75,10 +80,18 @@ def _mcp_transport_preview(config: object) -> dict[str, str]:
         transport = "unknown"
 
     if transport == "stdio":
-        command = getattr(config, "command", None) if not isinstance(config, dict) else config.get("command")
+        command = (
+            getattr(config, "command", None)
+            if not isinstance(config, dict)
+            else config.get("command")
+        )
         args = getattr(config, "args", None) if not isinstance(config, dict) else config.get("args")
-        rendered_args = " ".join(str(item) for item in args) if isinstance(args, list) and args else ""
-        target = " ".join(part for part in (str(command or "").strip(), rendered_args.strip()) if part).strip()
+        rendered_args = (
+            " ".join(str(item) for item in args) if isinstance(args, list) and args else ""
+        )
+        target = " ".join(
+            part for part in (str(command or "").strip(), rendered_args.strip()) if part
+        ).strip()
         return {"transport": "stdio", "target": target or "configured"}
     if transport in {"http", "ws"}:
         url = getattr(config, "url", None) if not isinstance(config, dict) else config.get("url")
@@ -93,8 +106,14 @@ def _validate_mcp_server(name: str, config: object) -> dict[str, object]:
     transport = preview["transport"]
 
     if transport == "stdio":
-        command = getattr(config, "command", None) if not isinstance(config, dict) else config.get("command")
-        raw_cwd = getattr(config, "cwd", None) if not isinstance(config, dict) else config.get("cwd")
+        command = (
+            getattr(config, "command", None)
+            if not isinstance(config, dict)
+            else config.get("command")
+        )
+        raw_cwd = (
+            getattr(config, "cwd", None) if not isinstance(config, dict) else config.get("cwd")
+        )
         command_text = str(command or "").strip()
         if not command_text:
             issues.append("missing command")
@@ -105,7 +124,9 @@ def _validate_mcp_server(name: str, config: object) -> dict[str, object]:
             if not resolved_cwd.exists():
                 issues.append(f"cwd does not exist: {resolved_cwd}")
     elif transport in {"http", "ws"}:
-        raw_url = getattr(config, "url", None) if not isinstance(config, dict) else config.get("url")
+        raw_url = (
+            getattr(config, "url", None) if not isinstance(config, dict) else config.get("url")
+        )
         parsed = urlparse(str(raw_url or "").strip())
         expected = {"http", "https"} if transport == "http" else {"ws", "wss"}
         if parsed.scheme not in expected or not parsed.netloc:
@@ -241,7 +262,9 @@ def _score_candidate_match(prompt: str, *fields: str) -> tuple[int, list[str]]:
     return score, reasons[:3]
 
 
-def _candidate_entry(name: str, description: str, *, score: int, reasons: list[str]) -> dict[str, object]:
+def _candidate_entry(
+    name: str, description: str, *, score: int, reasons: list[str]
+) -> dict[str, object]:
     return {
         "name": name,
         "description": description,
@@ -342,42 +365,71 @@ def _evaluate_dry_run_readiness(
 
     if entrypoint.get("kind") == "unknown_slash_command":
         level = "blocked"
-        reasons.append("The prompt starts with '/' but does not match any registered slash command.")
-        next_actions.append("Check the command name and run `codeless --dry-run -p \"/help\"` to inspect available slash commands.")
+        reasons.append(
+            "The prompt starts with '/' but does not match any registered slash command."
+        )
+        next_actions.append(
+            'Check the command name and run `codeless --dry-run -p "/help"` to inspect available slash commands.'
+        )
 
     api_client = validation.get("api_client")
     if isinstance(api_client, dict) and api_client.get("status") == "error":
         if entrypoint.get("kind") == "model_prompt":
             level = "blocked"
             detail = str(api_client.get("detail") or "").strip()
-            reasons.append(detail or "Runtime client resolution failed for a prompt that would require a model call.")
-            next_actions.append("Fix authentication or provider profile configuration before running this prompt.")
+            reasons.append(
+                detail
+                or "Runtime client resolution failed for a prompt that would require a model call."
+            )
+            next_actions.append(
+                "Fix authentication or provider profile configuration before running this prompt."
+            )
         elif level != "blocked":
             level = "warning"
-            reasons.append("Runtime client resolution failed. Interactive commands may still work, but model execution would fail.")
-            next_actions.append("If you expect a model call later, fix authentication or provider profile configuration first.")
+            reasons.append(
+                "Runtime client resolution failed. Interactive commands may still work, but model execution would fail."
+            )
+            next_actions.append(
+                "If you expect a model call later, fix authentication or provider profile configuration first."
+            )
 
     mcp_errors = int(validation.get("mcp_errors") or 0)
     if mcp_errors > 0 and level != "blocked":
         level = "warning"
         reasons.append(f"{mcp_errors} configured MCP server(s) have obvious configuration errors.")
-        next_actions.append("Fix or disable the broken MCP server configuration before relying on MCP-backed tools.")
+        next_actions.append(
+            "Fix or disable the broken MCP server configuration before relying on MCP-backed tools."
+        )
 
     auth_status = str(validation.get("auth_status") or "")
-    if auth_status.startswith("missing") and entrypoint.get("kind") in {"interactive_session", "model_prompt"} and level != "blocked":
+    if (
+        auth_status.startswith("missing")
+        and entrypoint.get("kind") in {"interactive_session", "model_prompt"}
+        and level != "blocked"
+    ):
         level = "warning"
-        reasons.append("Authentication is missing, so live model execution would not start successfully.")
-        next_actions.append("Run `codeless auth login` or configure the active profile credentials before executing.")
+        reasons.append(
+            "Authentication is missing, so live model execution would not start successfully."
+        )
+        next_actions.append(
+            "Run `codeless auth login` or configure the active profile credentials before executing."
+        )
 
     if not prompt and level == "ready":
         reasons.append("No prompt provided; dry-run only validated the session setup path.")
-        next_actions.append("Provide `-p/--print` for a single prompt preview, or start `codeless` normally to enter an interactive session.")
+        next_actions.append(
+            "Provide `-p/--print` for a single prompt preview, or start `codeless` normally to enter an interactive session."
+        )
     elif level == "ready":
-        reasons.append("Resolved configuration, prompt assembly, and static discovery checks all look usable.")
+        reasons.append(
+            "Resolved configuration, prompt assembly, and static discovery checks all look usable."
+        )
         if entrypoint.get("kind") == "slash_command":
-            next_actions.append(f"You can run `codeless -p \"{prompt}\"` directly.")
+            next_actions.append(f'You can run `codeless -p "{prompt}"` directly.')
         elif entrypoint.get("kind") == "model_prompt":
-            next_actions.append("You can run this prompt directly with `codeless -p '...'` or open the interactive UI with `codeless`.")
+            next_actions.append(
+                "You can run this prompt directly with `codeless -p '...'` or open the interactive UI with `codeless`."
+            )
         else:
             next_actions.append("You can run Codeless normally with the current configuration.")
 
@@ -434,10 +486,7 @@ def _build_dry_run_preview(
 
     plugins = load_plugins(settings, resolved_cwd)
     plugin_commands = [
-        command
-        for plugin in plugins
-        if plugin.enabled
-        for command in plugin.commands
+        command for plugin in plugins if plugin.enabled for command in plugin.commands
     ]
     command_registry = create_default_command_registry(plugin_commands=plugin_commands)
     command_match = command_registry.lookup(prompt) if prompt else None
@@ -461,7 +510,10 @@ def _build_dry_run_preview(
         with redirect_stderr(StringIO()):
             _resolve_api_client_from_settings(settings)
     except SystemExit:
-        client_validation = {"status": "error", "detail": "runtime client could not be resolved with current auth/config"}
+        client_validation = {
+            "status": "error",
+            "detail": "runtime client could not be resolved with current auth/config",
+        }
     except Exception as exc:  # pragma: no cover - defensive diagnostic path
         client_validation = {"status": "error", "detail": str(exc)}
 
@@ -471,7 +523,9 @@ def _build_dry_run_preview(
         appended = append_system_prompt.strip()
         if appended:
             existing = settings.system_prompt or ""
-            settings = settings.model_copy(update={"system_prompt": f"{existing}\n\n{appended}".strip()})
+            settings = settings.model_copy(
+                update={"system_prompt": f"{existing}\n\n{appended}".strip()}
+            )
     system_prompt_text = build_runtime_system_prompt(
         settings,
         cwd=resolved_cwd,
@@ -582,8 +636,7 @@ def _build_dry_run_preview(
             for plugin in plugins
         ],
         "mcp_servers": [
-            _validate_mcp_server(name, config)
-            for name, config in sorted(mcp_servers.items())
+            _validate_mcp_server(name, config) for name, config in sorted(mcp_servers.items())
         ],
         "system_prompt_preview": _safe_short(system_prompt_text, limit=600),
     }
@@ -597,6 +650,7 @@ def _build_dry_run_preview(
 
     try:
         from codeless.abb.dry_run import audit_abb_readiness
+
         abb_report = audit_abb_readiness(cwd)
         preview["abb_readiness"] = {
             "status": abb_report.overall_status,
@@ -622,7 +676,9 @@ def _format_dry_run_preview(preview: dict[str, object]) -> str:
     validation = preview.get("validation") if isinstance(preview.get("validation"), dict) else {}
     entrypoint = preview.get("entrypoint") if isinstance(preview.get("entrypoint"), dict) else {}
     readiness = preview.get("readiness") if isinstance(preview.get("readiness"), dict) else {}
-    recommendations = preview.get("recommendations") if isinstance(preview.get("recommendations"), dict) else {}
+    recommendations = (
+        preview.get("recommendations") if isinstance(preview.get("recommendations"), dict) else {}
+    )
     plugins = preview.get("plugins") if isinstance(preview.get("plugins"), list) else []
     skills = preview.get("skills") if isinstance(preview.get("skills"), list) else []
     commands = preview.get("commands") if isinstance(preview.get("commands"), list) else []
@@ -646,36 +702,36 @@ def _format_dry_run_preview(preview: dict[str, object]) -> str:
             lines.append(f"  - {action}")
     lines.extend(
         [
-        "",
-        "Execution",
-        f"- cwd: {preview.get('cwd')}",
-        f"- prompt: {preview.get('prompt_preview') or '(none)'}",
-        f"- entrypoint: {entrypoint.get('kind', 'unknown')}",
-        f"- detail: {entrypoint.get('detail', '')}",
-        "",
-        "Resolved Settings",
-        f"- profile: {settings.get('active_profile')} ({settings.get('profile_label')})",
-        f"- provider: {settings.get('provider')}",
-        f"- api_format: {settings.get('api_format')}",
-        f"- model: {settings.get('model')}",
-        f"- base_url: {settings.get('base_url') or '(default)'}",
-        f"- permission_mode: {settings.get('permission_mode')}",
-        f"- max_turns: {settings.get('max_turns')}",
-        f"- effort: {settings.get('effort')} / passes={settings.get('passes')}",
-        "",
-        "Validation",
-        f"- auth: {validation.get('auth_status')}",
-        f"- api client: {validation.get('api_client', {}).get('status', 'unknown')}",
-        f"- system prompt chars: {validation.get('system_prompt_chars')}",
-        f"- mcp: {validation.get('mcp_validation')}",
-        f"- mcp config errors: {validation.get('mcp_errors', 0)}",
-        "",
-        "Discovery",
-        f"- plugins: {len(plugins)}",
-        f"- skills: {len(skills)}",
-        f"- slash commands: {len(commands)}",
-        f"- built-in tools: {len(tools)}",
-        f"- configured mcp servers: {len(mcp_servers)}",
+            "",
+            "Execution",
+            f"- cwd: {preview.get('cwd')}",
+            f"- prompt: {preview.get('prompt_preview') or '(none)'}",
+            f"- entrypoint: {entrypoint.get('kind', 'unknown')}",
+            f"- detail: {entrypoint.get('detail', '')}",
+            "",
+            "Resolved Settings",
+            f"- profile: {settings.get('active_profile')} ({settings.get('profile_label')})",
+            f"- provider: {settings.get('provider')}",
+            f"- api_format: {settings.get('api_format')}",
+            f"- model: {settings.get('model')}",
+            f"- base_url: {settings.get('base_url') or '(default)'}",
+            f"- permission_mode: {settings.get('permission_mode')}",
+            f"- max_turns: {settings.get('max_turns')}",
+            f"- effort: {settings.get('effort')} / passes={settings.get('passes')}",
+            "",
+            "Validation",
+            f"- auth: {validation.get('auth_status')}",
+            f"- api client: {validation.get('api_client', {}).get('status', 'unknown')}",
+            f"- system prompt chars: {validation.get('system_prompt_chars')}",
+            f"- mcp: {validation.get('mcp_validation')}",
+            f"- mcp config errors: {validation.get('mcp_errors', 0)}",
+            "",
+            "Discovery",
+            f"- plugins: {len(plugins)}",
+            f"- skills: {len(skills)}",
+            f"- slash commands: {len(commands)}",
+            f"- built-in tools: {len(tools)}",
+            f"- configured mcp servers: {len(mcp_servers)}",
         ]
     )
 
@@ -711,13 +767,21 @@ def _format_dry_run_preview(preview: dict[str, object]) -> str:
     if skills:
         lines.extend(["", "Available Skills"])
         for entry in skills[:8]:
-            lines.append(f"- {entry.get('name')}: {_safe_short(str(entry.get('description') or ''), limit=100)}")
+            lines.append(
+                f"- {entry.get('name')}: {_safe_short(str(entry.get('description') or ''), limit=100)}"
+            )
         if len(skills) > 8:
             lines.append(f"- ... (+{len(skills) - 8} more)")
 
-    recommended_skills = recommendations.get("skills") if isinstance(recommendations.get("skills"), list) else []
-    recommended_tools = recommendations.get("tools") if isinstance(recommendations.get("tools"), list) else []
-    recommended_commands = recommendations.get("commands") if isinstance(recommendations.get("commands"), list) else []
+    recommended_skills = (
+        recommendations.get("skills") if isinstance(recommendations.get("skills"), list) else []
+    )
+    recommended_tools = (
+        recommendations.get("tools") if isinstance(recommendations.get("tools"), list) else []
+    )
+    recommended_commands = (
+        recommendations.get("commands") if isinstance(recommendations.get("commands"), list) else []
+    )
     if recommended_skills or recommended_tools or recommended_commands:
         lines.extend(["", "Likely Matches"])
         if recommended_skills:
@@ -763,8 +827,14 @@ def _format_dry_run_preview(preview: dict[str, object]) -> str:
         checks = abb_info.get("checks", [])
         if isinstance(checks, list):
             for c in checks:
-                status_icon = "✅" if c.get("status") == "ok" else ("⚠️" if c.get("status") == "warning" else "🚫")
-                lines.append(f"  {status_icon} [{c.get('status', '').upper()}] {c.get('name')}: {c.get('detail')}")
+                status_icon = (
+                    "✅"
+                    if c.get("status") == "ok"
+                    else ("⚠️" if c.get("status") == "warning" else "🚫")
+                )
+                lines.append(
+                    f"  {status_icon} [{c.get('status', '').upper()}] {c.get('name')}: {c.get('detail')}"
+                )
                 if c.get("hint"):
                     lines.append(f"     Hint: {c.get('hint')}")
 
@@ -818,6 +888,7 @@ app.add_typer(projects_app)
 
 # ---- projects subcommands ----
 
+
 def _format_bytes(num_bytes: int) -> str:
     """Format bytes into human-readable string."""
     if num_bytes < 1024:
@@ -864,7 +935,9 @@ def projects_list_cmd(
 @projects_app.command("clean")
 def projects_clean_cmd(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview deletions without deleting"),
-    clean_all: bool = typer.Option(False, "--all", help="Delete all shadow workspaces, not just orphans"),
+    clean_all: bool = typer.Option(
+        False, "--all", help="Delete all shadow workspaces, not just orphans"
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
 ) -> None:
     """Prune orphaned (or all) shadow workspaces."""
@@ -881,15 +954,19 @@ def projects_clean_cmd(
         return
 
     total_freed = sum(t["disk_size_bytes"] for t in targets)
-    print(f"{action_label} {len(targets)} shadow workspace(s) ({_format_bytes(total_freed)} freed):")
+    print(
+        f"{action_label} {len(targets)} shadow workspace(s) ({_format_bytes(total_freed)} freed):"
+    )
     for t in targets:
         orphan_label = "orphaned" if t["is_orphan"] else "active"
-        print(f"  • {t['project_name']} ({t['project_hash'][:12]}...) [{orphan_label}] - {_format_bytes(t['disk_size_bytes'])}")
+        print(
+            f"  • {t['project_name']} ({t['project_hash'][:12]}...) [{orphan_label}] - {_format_bytes(t['disk_size_bytes'])}"
+        )
         print(f"    Path: {t['storage_dir']}")
 
 
-
 # ---- mcp subcommands ----
+
 
 @mcp_app.command("list")
 def mcp_list() -> None:
@@ -948,6 +1025,7 @@ def mcp_remove(
 
 # ---- plugin subcommands ----
 
+
 @plugin_app.command("list")
 def plugin_list() -> None:
     """List installed plugins."""
@@ -990,6 +1068,7 @@ def plugin_uninstall(
 
 
 # ---- cron subcommands ----
+
 
 @cron_app.command("start")
 def cron_start() -> None:
@@ -1054,7 +1133,9 @@ def cron_list_cmd() -> None:
         notify = job.get("notify")
         if isinstance(notify, dict):
             notify_type = notify.get("type", "?")
-            target = notify.get("user_open_id") or notify.get("open_id") or notify.get("chat_id") or "?"
+            target = (
+                notify.get("user_open_id") or notify.get("open_id") or notify.get("chat_id") or "?"
+            )
             print(f"        notify: {notify_type} -> {target}")
         print(f"        last: {last}{status_indicator}  next: {job.get('next_run', 'n/a')[:19]}")
 
@@ -1116,6 +1197,7 @@ def cron_logs_cmd(
 
 # ---- autopilot subcommands ----
 
+
 @autopilot_app.command("status")
 def autopilot_status_cmd(
     cwd: str = typer.Option(str(Path.cwd()), "--cwd", help="Repository root"),
@@ -1172,7 +1254,9 @@ def autopilot_list_cmd(
 
 @autopilot_app.command("add")
 def autopilot_add_cmd(
-    source: str = typer.Argument("manual_idea", help="Source kind: idea, manual, issue, pr, claude"),
+    source: str = typer.Argument(
+        "manual_idea", help="Source kind: idea, manual, issue, pr, claude"
+    ),
     title: str = typer.Argument(..., help="Task title"),
     body: str = typer.Option("", "--body", help="Task body/details"),
     cwd: str = typer.Option(str(Path.cwd()), "--cwd", help="Repository root"),
@@ -1246,10 +1330,16 @@ def autopilot_scan_cmd(
         print(f"Scanned {len(store.scan_github_prs(limit=limit))} GitHub PRs.")
         return
     if target == "claude-code":
-        print(f"Scanned {len(store.scan_claude_code_candidates(limit=limit))} claude-code candidates.")
+        print(
+            f"Scanned {len(store.scan_claude_code_candidates(limit=limit))} claude-code candidates."
+        )
         return
     if target == "all":
-        print(json.dumps(store.scan_all_sources(issue_limit=limit, pr_limit=limit), ensure_ascii=False))
+        print(
+            json.dumps(
+                store.scan_all_sources(issue_limit=limit, pr_limit=limit), ensure_ascii=False
+            )
+        )
         return
     print(f"Unknown scan target: {target}", file=sys.stderr)
     raise typer.Exit(1)
@@ -1260,10 +1350,13 @@ def autopilot_run_next_cmd(
     cwd: str = typer.Option(str(Path.cwd()), "--cwd", help="Repository root"),
     model: str | None = typer.Option(None, "--model", help="Override execution model"),
     max_turns: int | None = typer.Option(None, "--max-turns", help="Override execution max turns"),
-    permission_mode: str | None = typer.Option(None, "--permission-mode", help="Override execution permission mode"),
+    permission_mode: str | None = typer.Option(
+        None, "--permission-mode", help="Override execution permission mode"
+    ),
 ) -> None:
     """Run the highest-priority queued autopilot card end-to-end."""
     import asyncio
+
     from codeless.autopilot import RepoAutopilotStore
 
     try:
@@ -1287,11 +1380,14 @@ def autopilot_tick_cmd(
     cwd: str = typer.Option(str(Path.cwd()), "--cwd", help="Repository root"),
     model: str | None = typer.Option(None, "--model", help="Override execution model"),
     max_turns: int | None = typer.Option(None, "--max-turns", help="Override execution max turns"),
-    permission_mode: str | None = typer.Option(None, "--permission-mode", help="Override execution permission mode"),
+    permission_mode: str | None = typer.Option(
+        None, "--permission-mode", help="Override execution permission mode"
+    ),
     limit: int = typer.Option(10, "--limit", "-n", help="Scan limit for issues/PRs"),
 ) -> None:
     """Scan sources and, if idle, run the next queued autopilot task."""
     import asyncio
+
     from codeless.autopilot import RepoAutopilotStore
 
     try:
@@ -1479,14 +1575,25 @@ def _prompt_model_for_profile(profile) -> str:
         if len(profile.allowed_models) == 1:
             return profile.allowed_models[0]
         options = [(value, value) for value in profile.allowed_models]
-        return _select_from_menu("Choose a model setting:", options, default_value=current if current in profile.allowed_models else profile.allowed_models[0])
+        return _select_from_menu(
+            "Choose a model setting:",
+            options,
+            default_value=current
+            if current in profile.allowed_models
+            else profile.allowed_models[0],
+        )
     if is_claude_family_provider(profile.provider):
-        options = [(value, f"{label} - {description}") for value, label, description in CLAUDE_MODEL_ALIAS_OPTIONS]
+        options = [
+            (value, f"{label} - {description}")
+            for value, label, description in CLAUDE_MODEL_ALIAS_OPTIONS
+        ]
         options.append(("__custom__", "Custom model ID"))
         selection = _select_from_menu(
             "Choose a model setting:",
             options,
-            default_value=current if any(value == current for value, _, _ in CLAUDE_MODEL_ALIAS_OPTIONS) else "__custom__",
+            default_value=current
+            if any(value == current for value, _, _ in CLAUDE_MODEL_ALIAS_OPTIONS)
+            else "__custom__",
         )
         if selection != "__custom__":
             return selection
@@ -1547,9 +1654,13 @@ def _select_setup_workflow(
                         ("", "  "),
                         (suffix_style, suffix.strip()),
                     ]
-            choices.append(questionary.Choice(title=title, value=name, checked=(name == default_value)))
+            choices.append(
+                questionary.Choice(title=title, value=name, checked=(name == default_value))
+            )
 
-        result = questionary.select("Choose a provider workflow:", choices=choices, default=default_value).ask()
+        result = questionary.select(
+            "Choose a provider workflow:", choices=choices, default=default_value
+        ).ask()
         if result is None:
             raise typer.Abort()
         return str(result)
@@ -1670,7 +1781,11 @@ def _specialize_setup_target(manager, target: str) -> str:
         if choice == "claude-api":
             return choice
         defaults = {
-            "kimi-anthropic": ("Kimi (Anthropic-compatible)", "https://api.moonshot.cn/anthropic", "kimi-k2.5"),
+            "kimi-anthropic": (
+                "Kimi (Anthropic-compatible)",
+                "https://api.moonshot.cn/anthropic",
+                "kimi-k2.5",
+            ),
             "glm-anthropic": ("GLM (Anthropic-compatible)", "", "glm-4.5"),
             "minimax-anthropic": ("MiniMax (Anthropic-compatible)", "", "MiniMax-M2.7"),
         }
@@ -1835,7 +1950,17 @@ def _login_provider(provider: str) -> None:
         _bind_external_provider(provider)
         return
 
-    if provider in ("anthropic", "openai", "dashscope", "bedrock", "vertex", "moonshot", "gemini", "minimax", "modelscope"):
+    if provider in (
+        "anthropic",
+        "openai",
+        "dashscope",
+        "bedrock",
+        "vertex",
+        "moonshot",
+        "gemini",
+        "minimax",
+        "modelscope",
+    ):
         label = _PROVIDER_LABELS.get(provider, provider)
         flow = ApiKeyFlow(provider=provider, prompt_text=f"Enter your {label} API key")
         try:
@@ -1915,7 +2040,9 @@ def setup_cmd(
 
 @auth_app.command("login")
 def auth_login(
-    provider: Optional[str] = typer.Argument(None, help="Provider name (anthropic, openai, copilot, …)"),
+    provider: Optional[str] = typer.Argument(
+        None, help="Provider name (anthropic, openai, copilot, …)"
+    ),
 ) -> None:
     """Interactively authenticate with a provider.
 
@@ -1968,12 +2095,16 @@ def auth_status_cmd() -> None:
     for name, info in profiles.items():
         status_str = "ready" if info["configured"] else info.get("auth_state", "missing auth")
         active_str = "<-- active" if info["active"] else ""
-        print(f"{name:<20} {info['provider']:<18} {info['auth_source']:<22} {status_str:<12} {active_str}")
+        print(
+            f"{name:<20} {info['provider']:<18} {info['auth_source']:<22} {status_str:<12} {active_str}"
+        )
 
 
 @auth_app.command("logout")
 def auth_logout(
-    provider: Optional[str] = typer.Argument(None, help="Provider to log out (default: active provider)"),
+    provider: Optional[str] = typer.Argument(
+        None, help="Provider to log out (default: active provider)"
+    ),
 ) -> None:
     """Clear stored authentication for a provider."""
     from codeless.auth.manager import AuthManager
@@ -2183,11 +2314,21 @@ def provider_add(
     auth_source: str = typer.Option(..., "--auth-source", help="Auth source name"),
     model: str = typer.Option(..., "--model", help="Default model"),
     base_url: str | None = typer.Option(None, "--base-url", help="Optional base URL"),
-    credential_slot: str | None = typer.Option(None, "--credential-slot", help="Optional profile-specific credential slot"),
+    credential_slot: str | None = typer.Option(
+        None, "--credential-slot", help="Optional profile-specific credential slot"
+    ),
     api_key: str | None = typer.Option(None, "--api-key", help="Set the profile API key"),
-    allowed_models: list[str] | None = typer.Option(None, "--allowed-model", help="Allowed model values for this profile"),
-    context_window_tokens: int | None = typer.Option(None, "--context-window-tokens", help="Optional context window override for auto-compact"),
-    auto_compact_threshold_tokens: int | None = typer.Option(None, "--auto-compact-threshold-tokens", help="Optional explicit auto-compact threshold override"),
+    allowed_models: list[str] | None = typer.Option(
+        None, "--allowed-model", help="Allowed model values for this profile"
+    ),
+    context_window_tokens: int | None = typer.Option(
+        None, "--context-window-tokens", help="Optional context window override for auto-compact"
+    ),
+    auto_compact_threshold_tokens: int | None = typer.Option(
+        None,
+        "--auto-compact-threshold-tokens",
+        help="Optional explicit auto-compact threshold override",
+    ),
 ) -> None:
     """Create a provider profile."""
     from codeless.auth.manager import AuthManager
@@ -2204,8 +2345,14 @@ def provider_add(
             default_model=model,
             last_model=model,
             base_url=base_url,
-            credential_slot=credential_slot or _default_credential_slot_for_profile(name, auth_source),
-            allowed_models=allowed_models or ([model] if credential_slot or _default_credential_slot_for_profile(name, auth_source) else []),
+            credential_slot=credential_slot
+            or _default_credential_slot_for_profile(name, auth_source),
+            allowed_models=allowed_models
+            or (
+                [model]
+                if credential_slot or _default_credential_slot_for_profile(name, auth_source)
+                else []
+            ),
             context_window_tokens=context_window_tokens,
             auto_compact_threshold_tokens=auto_compact_threshold_tokens,
         ),
@@ -2227,11 +2374,21 @@ def provider_edit(
     auth_source: str | None = typer.Option(None, "--auth-source", help="Auth source name"),
     model: str | None = typer.Option(None, "--model", help="Default model"),
     base_url: str | None = typer.Option(None, "--base-url", help="Optional base URL"),
-    credential_slot: str | None = typer.Option(None, "--credential-slot", help="Optional profile-specific credential slot"),
+    credential_slot: str | None = typer.Option(
+        None, "--credential-slot", help="Optional profile-specific credential slot"
+    ),
     api_key: str | None = typer.Option(None, "--api-key", help="Replace the profile API key"),
-    allowed_models: list[str] | None = typer.Option(None, "--allowed-model", help="Allowed model values for this profile"),
-    context_window_tokens: int | None = typer.Option(None, "--context-window-tokens", help="Optional context window override for auto-compact"),
-    auto_compact_threshold_tokens: int | None = typer.Option(None, "--auto-compact-threshold-tokens", help="Optional explicit auto-compact threshold override"),
+    allowed_models: list[str] | None = typer.Option(
+        None, "--allowed-model", help="Allowed model values for this profile"
+    ),
+    context_window_tokens: int | None = typer.Option(
+        None, "--context-window-tokens", help="Optional context window override for auto-compact"
+    ),
+    auto_compact_threshold_tokens: int | None = typer.Option(
+        None,
+        "--auto-compact-threshold-tokens",
+        help="Optional explicit auto-compact threshold override",
+    ),
 ) -> None:
     """Edit a provider profile."""
     from codeless.auth.manager import AuthManager
@@ -2279,9 +2436,11 @@ def provider_remove(
         raise typer.Exit(1)
     print(f"Removed provider profile: {name}", flush=True)
 
+
 # ---------------------------------------------------------------------------
 # Main command
 # ---------------------------------------------------------------------------
+
 
 @app.callback(invoke_without_command=True)
 def main(
@@ -2487,7 +2646,9 @@ def main(
         logging.getLogger("codeless").setLevel(logging.DEBUG)
     elif os.environ.get("CODELESS_LOG_LEVEL"):
         lvl = getattr(logging, os.environ["CODELESS_LOG_LEVEL"].upper(), logging.WARNING)
-        logging.basicConfig(level=lvl, format="%(asctime)s [%(name)s] %(levelname)s %(message)s", stream=sys.stderr)
+        logging.basicConfig(
+            level=lvl, format="%(asctime)s [%(name)s] %(levelname)s %(message)s", stream=sys.stderr
+        )
 
     if dangerously_skip_permissions:
         permission_mode = "full_auto"
@@ -2509,7 +2670,9 @@ def main(
     if dry_run:
         prompt = print_mode.strip() if print_mode is not None else None
         if print_mode is not None and not prompt:
-            print("Error: -p/--print requires a prompt value, e.g. -p 'your prompt'", file=sys.stderr)
+            print(
+                "Error: -p/--print requires a prompt value, e.g. -p 'your prompt'", file=sys.stderr
+            )
             raise typer.Exit(1)
         preview = _build_dry_run_preview(
             prompt=prompt,
@@ -2562,7 +2725,9 @@ def main(
                 raise typer.Exit(1)
             print("Saved sessions:")
             for i, s in enumerate(sessions, 1):
-                print(f"  {i}. [{s['session_id']}] {s.get('summary', '?')[:50]} ({s['message_count']} msgs)")
+                print(
+                    f"  {i}. [{s['session_id']}] {s.get('summary', '?')[:50]} ({s['message_count']} msgs)"
+                )
             choice = typer.prompt("Enter session number or ID")
             try:
                 idx = int(choice) - 1
@@ -2604,7 +2769,9 @@ def main(
     if print_mode is not None:
         prompt = print_mode.strip()
         if not prompt:
-            print("Error: -p/--print requires a prompt value, e.g. -p 'your prompt'", file=sys.stderr)
+            print(
+                "Error: -p/--print requires a prompt value, e.g. -p 'your prompt'", file=sys.stderr
+            )
             raise typer.Exit(1)
         asyncio.run(
             run_print_mode(

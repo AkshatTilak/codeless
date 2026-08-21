@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
 from codeless.config import Settings
 from codeless.sandbox.adapter import build_sandbox_runtime_config
@@ -22,7 +21,9 @@ def test_docker_sandbox_session_mounts_abb_workspace(tmp_path: Path):
     settings.sandbox.enabled = True
     settings.sandbox.backend = "docker"
 
-    session = DockerSandboxSession(settings=settings, session_id="test_session_123", cwd=project_dir)
+    session = DockerSandboxSession(
+        settings=settings, session_id="test_session_123", cwd=project_dir
+    )
     argv = session._build_run_argv()
 
     # Verify CODELESS_ABB_ROOT is passed via -e

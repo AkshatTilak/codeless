@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import builtins
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
-
-import sys
 
 from codeless.swarm import lockfile
 from codeless.utils import file_lock

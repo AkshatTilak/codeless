@@ -12,8 +12,8 @@ from codeless.auth.external import (
     CLAUDE_PROVIDER,
     CODEX_PROVIDER,
     ExternalAuthState,
-    describe_external_binding,
     default_binding_for_provider,
+    describe_external_binding,
     get_claude_code_version,
     load_external_credential,
     refresh_claude_oauth_credential,
@@ -134,7 +134,7 @@ def test_load_claude_external_credential_from_keychain(monkeypatch, tmp_path: Pa
         if args == ["security", "find-generic-password", "-s", "Claude Code-credentials"]:
             return (
                 f'keychain: "{login_keychain}"\n'
-                'attributes:\n'
+                "attributes:\n"
                 '    "acct"<blob>="yanchundong"\n'
                 '    "svce"<blob>="Claude Code-credentials"\n'
             )
@@ -380,7 +380,7 @@ def test_load_claude_external_credential_refreshes_expired_keychain(monkeypatch,
         if args == ["security", "find-generic-password", "-s", "Claude Code-credentials"]:
             return (
                 f'keychain: "{login_keychain}"\n'
-                'attributes:\n'
+                "attributes:\n"
                 '    "acct"<blob>="yanchundong"\n'
                 '    "svce"<blob>="Claude Code-credentials"\n'
             )
@@ -488,9 +488,11 @@ def test_settings_resolve_auth_rejects_third_party_base_url_for_claude_subscript
             profile_label="Claude CLI",
         )
     )
-    settings = Settings(active_profile="claude-subscription").model_copy(
-        update={"base_url": "https://api.moonshot.cn/anthropic"}
-    ).sync_active_profile_from_flat_fields()
+    settings = (
+        Settings(active_profile="claude-subscription")
+        .model_copy(update={"base_url": "https://api.moonshot.cn/anthropic"})
+        .sync_active_profile_from_flat_fields()
+    )
 
     with pytest.raises(ValueError, match="third-party"):
         settings.resolve_auth()
@@ -529,9 +531,7 @@ def test_describe_external_binding_reports_refreshable_claude_token(tmp_path: Pa
     )
 
 
-def test_describe_external_binding_reports_configured_claude_keychain(
-    monkeypatch, tmp_path: Path
-):
+def test_describe_external_binding_reports_configured_claude_keychain(monkeypatch, tmp_path: Path):
     login_keychain = tmp_path / "login.keychain-db"
 
     def _fake_check_output(args, text=True):
@@ -548,7 +548,7 @@ def test_describe_external_binding_reports_configured_claude_keychain(
         if args == ["security", "find-generic-password", "-s", "Claude Code-credentials"]:
             return (
                 f'keychain: "{login_keychain}"\n'
-                'attributes:\n'
+                "attributes:\n"
                 '    "acct"<blob>="yanchundong"\n'
                 '    "svce"<blob>="Claude Code-credentials"\n'
             )

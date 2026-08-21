@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import mimetypes
 from pathlib import Path
-from typing import Any, Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
@@ -89,9 +89,7 @@ class ConversationMessage(BaseModel):
     @property
     def text(self) -> str:
         """Return concatenated text blocks."""
-        return "".join(
-            block.text for block in self.content if isinstance(block, TextBlock)
-        )
+        return "".join(block.text for block in self.content if isinstance(block, TextBlock))
 
     @property
     def tool_uses(self) -> list[ToolUseBlock]:
@@ -116,7 +114,9 @@ class ConversationMessage(BaseModel):
         return True
 
 
-def sanitize_conversation_messages(messages: list[ConversationMessage]) -> list[ConversationMessage]:
+def sanitize_conversation_messages(
+    messages: list[ConversationMessage],
+) -> list[ConversationMessage]:
     """Normalize restored conversation history into a provider-safe sequence.
 
     This drops legacy empty assistant messages and trims malformed trailing tool
@@ -134,9 +134,11 @@ def sanitize_conversation_messages(messages: list[ConversationMessage]) -> list[
             continue
 
         tool_uses = message.tool_uses if message.role == "assistant" else []
-        tool_results = [
-            block for block in message.content if isinstance(block, ToolResultBlock)
-        ] if message.role == "user" else []
+        tool_results = (
+            [block for block in message.content if isinstance(block, ToolResultBlock)]
+            if message.role == "user"
+            else []
+        )
 
         matched_pending_tool_results = False
         if pending_tool_use_ids:
@@ -152,9 +154,7 @@ def sanitize_conversation_messages(messages: list[ConversationMessage]) -> list[
                 pending_tool_use_index = None
 
         if message.role == "user" and tool_results and not matched_pending_tool_results:
-            content = [
-                block for block in message.content if not isinstance(block, ToolResultBlock)
-            ]
+            content = [block for block in message.content if not isinstance(block, ToolResultBlock)]
             if not content:
                 continue
             message = ConversationMessage(role="user", content=content)
@@ -165,7 +165,11 @@ def sanitize_conversation_messages(messages: list[ConversationMessage]) -> list[
             pending_tool_use_ids = {block.id for block in tool_uses}
             pending_tool_use_index = len(sanitized) - 1
 
-    if pending_tool_use_ids and pending_tool_use_index is not None and pending_tool_use_index < len(sanitized):
+    if (
+        pending_tool_use_ids
+        and pending_tool_use_index is not None
+        and pending_tool_use_index < len(sanitized)
+    ):
         sanitized.pop(pending_tool_use_index)
 
     return sanitized

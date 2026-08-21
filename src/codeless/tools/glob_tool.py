@@ -8,6 +8,8 @@ from pathlib import Path
 
 from pydantic import AliasChoices, BaseModel, Field
 
+from codeless.abb.shadow import resolve_abb_workspace
+from codeless.abb.virtualization import is_abb_path, resolve_virtual_path
 from codeless.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
@@ -49,15 +51,11 @@ class GlobTool(BaseTool):
                             matches.append(m)
                             seen.add(m)
                     matches.sort()
-                    matches = matches[:arguments.limit]
+                    matches = matches[: arguments.limit]
 
         if not matches:
             return ToolResult(output="(no matches)")
         return ToolResult(output="\n".join(matches))
-
-
-from codeless.abb.virtualization import is_abb_path, resolve_virtual_path
-from codeless.abb.shadow import resolve_abb_workspace
 
 
 def _resolve_path(base: Path, candidate: str | None) -> Path:
@@ -193,7 +191,4 @@ async def _glob(root: Path, pattern: str, *, limit: int) -> list[str]:
         return lines
 
     # Fallback: non-recursive patterns are usually cheap; keep Python semantics.
-    return sorted(
-        str(path.relative_to(root))
-        for path in root.glob(pattern)
-    )[:limit]
+    return sorted(str(path.relative_to(root)) for path in root.glob(pattern))[:limit]

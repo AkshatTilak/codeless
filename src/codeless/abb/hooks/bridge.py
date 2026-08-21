@@ -20,6 +20,7 @@ def _extract_bash_write_targets(command: str) -> list[str]:
     Detects redirects (>, >>), rm, mv, cp, mkdir, touch, tee.
     """
     import re
+
     targets: list[str] = []
     # Match redirects > or >>
     redirect_matches = re.findall(r"(?:>>?)\s*([^\s;&|]+)", command)
@@ -52,6 +53,7 @@ def _extract_bash_write_targets(command: str) -> list[str]:
 def _is_general_state_mutation(command: str) -> bool:
     """Detect non-file-targeted state modifications like package managers or git commit/push."""
     import re
+
     mutation_patterns = [
         r"\bgit\s+(add|commit|push|merge|rebase|reset|restore)\b",
         r"\b(npm|pnpm|yarn|bun)\s+(install|add|remove|uninstall|update)\b",
@@ -86,12 +88,18 @@ def pre_tool_use_abb_guard(
         # Check general mutations (git commit, npm install, etc.)
         if _is_general_state_mutation(command):
             if mode in {TriMode.ASK, TriMode.PLAN, TriMode.GOVERNANCE}:
-                return False, f"ABB Mode Permission Blocked: Bash command alters repository/package state, which is disallowed in {mode.value.upper()} mode."
+                return (
+                    False,
+                    f"ABB Mode Permission Blocked: Bash command alters repository/package state, which is disallowed in {mode.value.upper()} mode.",
+                )
 
         # Extract file write targets
         write_targets = _extract_bash_write_targets(command)
         if mode == TriMode.ASK and write_targets:
-            return False, f"ABB Mode Permission Blocked: ASK mode is strictly read-only; bash command writes to {', '.join(write_targets)}."
+            return (
+                False,
+                f"ABB Mode Permission Blocked: ASK mode is strictly read-only; bash command writes to {', '.join(write_targets)}.",
+            )
 
         for target in write_targets:
             try:
@@ -110,7 +118,6 @@ def pre_tool_use_abb_guard(
 
         return True, "OK"
 
-
     if tool_name not in {"write_file", "edit_file"}:
         return True, "OK"
 
@@ -124,7 +131,6 @@ def pre_tool_use_abb_guard(
     mode_allowed, mode_reason = get_mode_engine().evaluate_write_permission(raw_path, cwd)
     if not mode_allowed:
         return False, f"ABB Mode Permission Blocked: {mode_reason}"
-
 
     # Check if target is a task file
     if not is_abb_path(path_str) or ("tasks/" not in path_str and not path_str.startswith("tasks")):

@@ -39,7 +39,9 @@ async def test_command_hook_executes(tmp_path: Path):
     )
     executor = HookExecutor(
         registry,
-        HookExecutionContext(cwd=tmp_path, api_client=FakeApiClient('{"ok": true}'), default_model="claude-test"),
+        HookExecutionContext(
+            cwd=tmp_path, api_client=FakeApiClient('{"ok": true}'), default_model="claude-test"
+        ),
     )
 
     result = await executor.execute(HookEvent.SESSION_START, {"event": "session_start"})

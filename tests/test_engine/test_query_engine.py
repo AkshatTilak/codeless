@@ -7,14 +7,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+from pydantic import BaseModel
 
 from codeless.api.client import ApiMessageCompleteEvent, ApiRetryEvent, ApiTextDeltaEvent
 from codeless.api.errors import RequestFailure
 from codeless.api.usage import UsageSnapshot
 from codeless.config.settings import PermissionSettings, Settings
-from codeless.engine.messages import ConversationMessage, TextBlock, ToolUseBlock
+from codeless.engine.messages import ConversationMessage, TextBlock, ToolResultBlock, ToolUseBlock
+from codeless.engine.query import QueryContext, _execute_tool_call, _is_prompt_too_long_error
 from codeless.engine.query_engine import QueryEngine
-from codeless.prompts.context import build_runtime_system_prompt
 from codeless.engine.stream_events import (
     AssistantTextDelta,
     AssistantTurnComplete,
@@ -24,18 +25,16 @@ from codeless.engine.stream_events import (
     ToolExecutionCompleted,
     ToolExecutionStarted,
 )
-from codeless.permissions import PermissionChecker, PermissionMode
+from codeless.hooks import HookEvent, HookExecutionContext, HookExecutor
+from codeless.hooks.loader import HookRegistry
+from codeless.hooks.schemas import PromptHookDefinition
 from codeless.jobs import get_task_manager
+from codeless.permissions import PermissionChecker, PermissionMode
+from codeless.prompts.context import build_runtime_system_prompt
 from codeless.tools import create_default_tool_registry
 from codeless.tools.base import BaseTool, ToolExecutionContext, ToolRegistry, ToolResult
 from codeless.tools.glob_tool import GlobTool
 from codeless.tools.grep_tool import GrepTool
-from pydantic import BaseModel
-from codeless.engine.messages import ToolResultBlock
-from codeless.hooks import HookExecutionContext, HookExecutor, HookEvent
-from codeless.hooks.loader import HookRegistry
-from codeless.hooks.schemas import PromptHookDefinition
-from codeless.engine.query import QueryContext, _execute_tool_call, _is_prompt_too_long_error
 
 
 @dataclass
@@ -99,13 +98,17 @@ class PromptTooLongThenSuccessApiClient:
             raise RequestFailure("prompt too long")
         if self._calls == 2:
             yield ApiMessageCompleteEvent(
-                message=ConversationMessage(role="assistant", content=[TextBlock(text="<summary>compressed</summary>")]),
+                message=ConversationMessage(
+                    role="assistant", content=[TextBlock(text="<summary>compressed</summary>")]
+                ),
                 usage=UsageSnapshot(input_tokens=1, output_tokens=1),
                 stop_reason=None,
             )
             return
         yield ApiMessageCompleteEvent(
-            message=ConversationMessage(role="assistant", content=[TextBlock(text="after reactive compact")]),
+            message=ConversationMessage(
+                role="assistant", content=[TextBlock(text="after reactive compact")]
+            ),
             usage=UsageSnapshot(input_tokens=1, output_tokens=1),
             stop_reason=None,
         )
@@ -137,7 +140,9 @@ class MaxTokensTooLargeThenSuccessApiClient:
                 "32000 completion tokens, whereas you provided 120000."
             )
         yield ApiMessageCompleteEvent(
-            message=ConversationMessage(role="assistant", content=[TextBlock(text="after token clamp")]),
+            message=ConversationMessage(
+                role="assistant", content=[TextBlock(text="after token clamp")]
+            ),
             usage=UsageSnapshot(input_tokens=1, output_tokens=1),
             stop_reason=None,
         )
@@ -184,7 +189,10 @@ class CoordinatorLoopApiClient:
             )
             return
         yield ApiMessageCompleteEvent(
-            message=ConversationMessage(role="assistant", content=[TextBlock(text="Worker launched; coordinator mode is active.")]),
+            message=ConversationMessage(
+                role="assistant",
+                content=[TextBlock(text="Worker launched; coordinator mode is active.")],
+            ),
             usage=UsageSnapshot(input_tokens=2, output_tokens=2),
             stop_reason=None,
         )
@@ -262,12 +270,17 @@ async def test_query_engine_clamps_oversized_max_tokens_before_request(tmp_path:
     events = [event async for event in engine.submit_message("hello")]
 
     assert client.requests[0].max_tokens == 128_000
-    assert any(isinstance(event, StatusEvent) and "safe per-request output cap" in event.message for event in events)
+    assert any(
+        isinstance(event, StatusEvent) and "safe per-request output cap" in event.message
+        for event in events
+    )
     assert isinstance(events[-1], AssistantTurnComplete)
 
 
 @pytest.mark.asyncio
-async def test_query_engine_retries_with_provider_completion_token_limit(tmp_path: Path, monkeypatch):
+async def test_query_engine_retries_with_provider_completion_token_limit(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.delenv("CLAUDE_CODE_COORDINATOR_MODE", raising=False)
     client = MaxTokensTooLargeThenSuccessApiClient()
     engine = QueryEngine(
@@ -284,7 +297,10 @@ async def test_query_engine_retries_with_provider_completion_token_limit(tmp_pat
     events = [event async for event in engine.submit_message("hello")]
 
     assert [request.max_tokens for request in client.requests] == [120_000, 32_000]
-    assert any(isinstance(event, StatusEvent) and "provider limit 32000" in event.message for event in events)
+    assert any(
+        isinstance(event, StatusEvent) and "provider limit 32000" in event.message
+        for event in events
+    )
     assert isinstance(events[-1], AssistantTurnComplete)
 
 
@@ -339,12 +355,16 @@ async def test_query_engine_executes_tool_calls(tmp_path: Path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_query_engine_coordinator_mode_uses_coordinator_prompt_and_runs_agent_loop(tmp_path: Path, monkeypatch):
+async def test_query_engine_coordinator_mode_uses_coordinator_prompt_and_runs_agent_loop(
+    tmp_path: Path, monkeypatch
+):
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("CLAUDE_CODE_COORDINATOR_MODE", "1")
 
     api_client = CoordinatorLoopApiClient()
-    system_prompt = build_runtime_system_prompt(Settings(), cwd=tmp_path, latest_user_prompt="investigate issue")
+    system_prompt = build_runtime_system_prompt(
+        Settings(), cwd=tmp_path, latest_user_prompt="investigate issue"
+    )
     engine = QueryEngine(
         api_client=api_client,
         tool_registry=create_default_tool_registry(),
@@ -361,12 +381,23 @@ async def test_query_engine_coordinator_mode_uses_coordinator_prompt_and_runs_ag
     assert "Coordinator User Context" not in api_client.requests[0].system_prompt
 
     coordinator_context_messages = [
-        msg for msg in api_client.requests[0].messages if msg.role == "user" and "Coordinator User Context" in msg.text
+        msg
+        for msg in api_client.requests[0].messages
+        if msg.role == "user" and "Coordinator User Context" in msg.text
     ]
     assert len(coordinator_context_messages) == 1
-    assert "Workers spawned via the agent tool have access to these tools" in coordinator_context_messages[0].text
-    assert any(isinstance(event, ToolExecutionStarted) and event.tool_name == "agent" for event in events)
-    agent_results = [event for event in events if isinstance(event, ToolExecutionCompleted) and event.tool_name == "agent"]
+    assert (
+        "Workers spawned via the agent tool have access to these tools"
+        in coordinator_context_messages[0].text
+    )
+    assert any(
+        isinstance(event, ToolExecutionStarted) and event.tool_name == "agent" for event in events
+    )
+    agent_results = [
+        event
+        for event in events
+        if isinstance(event, ToolExecutionCompleted) and event.tool_name == "agent"
+    ]
     assert len(agent_results) == 1
     assert isinstance(events[-1], AssistantTurnComplete)
     assert "coordinator mode is active" in events[-1].message.text
@@ -431,24 +462,34 @@ async def test_query_engine_surfaces_retry_status_events(tmp_path: Path):
 
     events = [event async for event in engine.submit_message("hello")]
 
-    assert any(isinstance(event, StatusEvent) and "retrying in 1.5s" in event.message for event in events)
+    assert any(
+        isinstance(event, StatusEvent) and "retrying in 1.5s" in event.message for event in events
+    )
     assert isinstance(events[-1], AssistantTurnComplete)
 
 
 @pytest.mark.asyncio
 async def test_query_engine_emits_compact_progress_before_reply(tmp_path: Path, monkeypatch):
     long_text = "alpha " * 50000
-    monkeypatch.setattr("codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
-    monkeypatch.setattr("codeless.services.compact.should_autocompact", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        "codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(
+        "codeless.services.compact.should_autocompact", lambda *args, **kwargs: True
+    )
     engine = QueryEngine(
         api_client=FakeApiClient(
             [
                 _FakeResponse(
-                    message=ConversationMessage(role="assistant", content=[TextBlock(text="<summary>trimmed</summary>")]),
+                    message=ConversationMessage(
+                        role="assistant", content=[TextBlock(text="<summary>trimmed</summary>")]
+                    ),
                     usage=UsageSnapshot(input_tokens=1, output_tokens=1),
                 ),
                 _FakeResponse(
-                    message=ConversationMessage(role="assistant", content=[TextBlock(text="after compact")]),
+                    message=ConversationMessage(
+                        role="assistant", content=[TextBlock(text="after compact")]
+                    ),
                     usage=UsageSnapshot(input_tokens=1, output_tokens=1),
                 ),
             ]
@@ -474,18 +515,34 @@ async def test_query_engine_emits_compact_progress_before_reply(tmp_path: Path, 
 
     events = [event async for event in engine.submit_message("hello")]
 
-    hooks_start_index = next(i for i, event in enumerate(events) if isinstance(event, CompactProgressEvent) and event.phase == "hooks_start")
-    compact_start_index = next(i for i, event in enumerate(events) if isinstance(event, CompactProgressEvent) and event.phase == "compact_start")
-    final_index = next(i for i, event in enumerate(events) if isinstance(event, AssistantTurnComplete))
+    hooks_start_index = next(
+        i
+        for i, event in enumerate(events)
+        if isinstance(event, CompactProgressEvent) and event.phase == "hooks_start"
+    )
+    compact_start_index = next(
+        i
+        for i, event in enumerate(events)
+        if isinstance(event, CompactProgressEvent) and event.phase == "compact_start"
+    )
+    final_index = next(
+        i for i, event in enumerate(events) if isinstance(event, AssistantTurnComplete)
+    )
     assert hooks_start_index < compact_start_index
     assert compact_start_index < final_index
-    assert any(isinstance(event, CompactProgressEvent) and event.phase == "compact_end" for event in events)
+    assert any(
+        isinstance(event, CompactProgressEvent) and event.phase == "compact_end" for event in events
+    )
 
 
 @pytest.mark.asyncio
 async def test_query_engine_reactive_compacts_after_prompt_too_long(tmp_path: Path, monkeypatch):
-    monkeypatch.setattr("codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
-    monkeypatch.setattr("codeless.services.compact.should_autocompact", lambda *args, **kwargs: False)
+    monkeypatch.setattr(
+        "codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(
+        "codeless.services.compact.should_autocompact", lambda *args, **kwargs: False
+    )
     engine = QueryEngine(
         api_client=PromptTooLongThenSuccessApiClient(),
         tool_registry=create_default_tool_registry(),
@@ -611,7 +668,9 @@ async def test_query_engine_tracks_async_agent_activity(tmp_path: Path, monkeypa
                     usage=UsageSnapshot(input_tokens=1, output_tokens=1),
                 ),
                 _FakeResponse(
-                    message=ConversationMessage(role="assistant", content=[TextBlock(text="spawned")]),
+                    message=ConversationMessage(
+                        role="assistant", content=[TextBlock(text="spawned")]
+                    ),
                     usage=UsageSnapshot(input_tokens=1, output_tokens=1),
                 ),
             ]
@@ -930,7 +989,9 @@ async def test_subagent_stop_hook_fires_when_spawned_agent_finishes(tmp_path: Pa
     assert task.status == "completed"
 
 
-def _tool_context(tmp_path: Path, registry: ToolRegistry, settings: PermissionSettings) -> QueryContext:
+def _tool_context(
+    tmp_path: Path, registry: ToolRegistry, settings: PermissionSettings
+) -> QueryContext:
     return QueryContext(
         api_client=_NoopApiClient(),
         tool_registry=registry,
@@ -991,7 +1052,9 @@ async def test_execute_tool_call_applies_path_rules_to_directory_roots(tmp_path:
 
 
 @pytest.mark.asyncio
-async def test_execute_tool_call_returns_actionable_reason_when_user_denies_confirmation(tmp_path: Path):
+async def test_execute_tool_call_returns_actionable_reason_when_user_denies_confirmation(
+    tmp_path: Path,
+):
     async def _deny(_tool_name: str, _reason: str) -> bool:
         return False
 
@@ -1275,7 +1338,9 @@ async def test_query_engine_persists_compacted_tool_turn_history(tmp_path: Path,
     """Compaction must not make a completed tool turn disappear from engine history."""
 
     monkeypatch.delenv("CLAUDE_CODE_COORDINATOR_MODE", raising=False)
-    monkeypatch.setattr("codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        "codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None
+    )
     should_calls = {"count": 0}
 
     def _should_compact_once(*args, **kwargs):
@@ -1326,14 +1391,18 @@ async def test_query_engine_persists_compacted_tool_turn_history(tmp_path: Path,
         [
             ConversationMessage.from_user_text(f"historical user request {index}")
             if index % 2 == 0
-            else ConversationMessage(role="assistant", content=[TextBlock(text=f"historical answer {index}")])
+            else ConversationMessage(
+                role="assistant", content=[TextBlock(text=f"historical answer {index}")]
+            )
             for index in range(8)
         ]
     )
 
     events = [event async for event in engine.submit_message("new request after compact")]
 
-    assert any(isinstance(event, CompactProgressEvent) and event.phase == "compact_end" for event in events)
+    assert any(
+        isinstance(event, CompactProgressEvent) and event.phase == "compact_end" for event in events
+    )
     assert any("This session is being continued" in message.text for message in engine.messages)
     assert any(
         isinstance(block, ToolUseBlock) and block.id == "toolu_ok_after_compact"
@@ -1405,10 +1474,14 @@ async def test_query_engine_synthesizes_tool_result_when_parallel_tool_raises(tm
     assert "boom" in completed_by_name["boom_tool"].output
 
     user_tool_messages = [
-        msg for msg in engine.messages if msg.role == "user" and any(isinstance(block, ToolResultBlock) for block in msg.content)
+        msg
+        for msg in engine.messages
+        if msg.role == "user" and any(isinstance(block, ToolResultBlock) for block in msg.content)
     ]
     assert len(user_tool_messages) == 1
-    result_blocks = [block for block in user_tool_messages[0].content if isinstance(block, ToolResultBlock)]
+    result_blocks = [
+        block for block in user_tool_messages[0].content if isinstance(block, ToolResultBlock)
+    ]
     assert {block.tool_use_id for block in result_blocks} == {"toolu_ok", "toolu_boom"}
 
     assert isinstance(events[-1], AssistantTurnComplete)
@@ -1425,13 +1498,15 @@ async def test_query_engine_sanitizes_dangling_tool_use_before_new_prompt(tmp_pa
         model="claude-test",
         system_prompt="system",
     )
-    engine.load_messages([
-        ConversationMessage.from_user_text("previous request"),
-        ConversationMessage(
-            role="assistant",
-            content=[ToolUseBlock(id="call_missing_output", name="ok_tool", input={})],
-        ),
-    ])
+    engine.load_messages(
+        [
+            ConversationMessage.from_user_text("previous request"),
+            ConversationMessage(
+                role="assistant",
+                content=[ToolUseBlock(id="call_missing_output", name="ok_tool", input={})],
+            ),
+        ]
+    )
 
     events = [event async for event in engine.submit_message("new prompt")]
 
@@ -1454,13 +1529,15 @@ async def test_query_engine_continue_pending_sanitizes_dangling_tool_use(tmp_pat
         model="claude-test",
         system_prompt="system",
     )
-    engine.load_messages([
-        ConversationMessage.from_user_text("previous request"),
-        ConversationMessage(
-            role="assistant",
-            content=[ToolUseBlock(id="call_missing_output", name="ok_tool", input={})],
-        ),
-    ])
+    engine.load_messages(
+        [
+            ConversationMessage.from_user_text("previous request"),
+            ConversationMessage(
+                role="assistant",
+                content=[ToolUseBlock(id="call_missing_output", name="ok_tool", input={})],
+            ),
+        ]
+    )
 
     events = [event async for event in engine.continue_pending()]
 
@@ -1519,14 +1596,20 @@ async def test_query_engine_offloads_large_tool_result_outputs(tmp_path: Path, m
     assert "snapshot-line" in completed[0].output
 
     user_tool_messages = [
-        msg for msg in engine.messages if msg.role == "user" and any(isinstance(block, ToolResultBlock) for block in msg.content)
+        msg
+        for msg in engine.messages
+        if msg.role == "user" and any(isinstance(block, ToolResultBlock) for block in msg.content)
     ]
-    result_blocks = [block for block in user_tool_messages[0].content if isinstance(block, ToolResultBlock)]
+    result_blocks = [
+        block for block in user_tool_messages[0].content if isinstance(block, ToolResultBlock)
+    ]
     inline = result_blocks[0].content
     assert "Full output saved to:" in inline
     assert "Original size:" in inline
     assert inline.count("snapshot-line") < 40
-    artifact_line = next(line for line in inline.splitlines() if line.startswith("Full output saved to:"))
+    artifact_line = next(
+        line for line in inline.splitlines() if line.startswith("Full output saved to:")
+    )
     artifact_path = Path(artifact_line.removeprefix("Full output saved to:").strip())
     assert artifact_path.exists()
     assert artifact_path.read_text(encoding="utf-8") == "snapshot-line\n" * 40

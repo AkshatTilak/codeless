@@ -1,8 +1,9 @@
 """Tests for ABB Slash Command Pack registration and execution."""
 
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
+
+import pytest
 
 from codeless.commands.registry import CommandContext, create_default_command_registry
 
@@ -55,7 +56,7 @@ def mock_context(tmp_path: Path) -> CommandContext:
 @pytest.mark.asyncio
 async def test_abb_commands_registered():
     registry = create_default_command_registry()
-    
+
     # Check all 14 commands and aliases
     expected_commands = [
         ("plan", "p"),

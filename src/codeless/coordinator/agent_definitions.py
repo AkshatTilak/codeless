@@ -132,7 +132,9 @@ class AgentDefinition(BaseModel):
     permissions: list[str] = Field(default_factory=list)  # extra permission rules
     subagent_type: str = "general-purpose"  # routing key used by the harness
     source: Literal["builtin", "user", "plugin"] = "builtin"
-    modes: list[str] = Field(default_factory=list)  # TriMode filters: plan, agent, ask, codebase, governance
+    modes: list[str] = Field(
+        default_factory=list
+    )  # TriMode filters: plan, agent, ask, codebase, governance
 
 
 # ---------------------------------------------------------------------------
@@ -378,7 +380,6 @@ _BUILTIN_AGENTS: list[AgentDefinition] = [
 ]
 
 
-
 def get_builtin_agent_definitions() -> list[AgentDefinition]:
     """Return the built-in agent definitions."""
     return list(_BUILTIN_AGENTS)
@@ -506,9 +507,7 @@ def load_agents_dir(directory: Path) -> list[AgentDefinition]:
             tools = _parse_str_list(frontmatter.get("tools"))
 
             # --- disallowed tools ---
-            disallowed_raw = frontmatter.get(
-                "disallowedTools", frontmatter.get("disallowed_tools")
-            )
+            disallowed_raw = frontmatter.get("disallowedTools", frontmatter.get("disallowed_tools"))
             disallowed_tools = _parse_str_list(disallowed_raw)
 
             # --- model ---
@@ -604,9 +603,7 @@ def load_agents_dir(directory: Path) -> list[AgentDefinition]:
                 critical_system_reminder = csr_raw
 
             # --- requiredMcpServers ---
-            rms_raw = frontmatter.get(
-                "requiredMcpServers", frontmatter.get("required_mcp_servers")
-            )
+            rms_raw = frontmatter.get("requiredMcpServers", frontmatter.get("required_mcp_servers"))
             required_mcp_servers = _parse_str_list(rms_raw)
 
             # --- modes (TriMode filter) ---
@@ -691,8 +688,8 @@ def get_all_agent_definitions() -> list[AgentDefinition]:
 
     # 3. Plugin agents — loaded lazily to avoid import cycles
     try:
-        from codeless.plugins.loader import load_plugins  # noqa: PLC0415
         from codeless.config.settings import load_settings  # noqa: PLC0415
+        from codeless.plugins.loader import load_plugins  # noqa: PLC0415
 
         settings = load_settings()
         import os  # noqa: PLC0415

@@ -6,6 +6,7 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
+from codeless.jobs.manager import get_task_manager
 from codeless.swarm.spawn_utils import (
     build_inherited_cli_flags,
     build_inherited_env_vars,
@@ -17,7 +18,6 @@ from codeless.swarm.types import (
     TeammateMessage,
     TeammateSpawnConfig,
 )
-from codeless.jobs.manager import get_task_manager
 
 if TYPE_CHECKING:
     pass

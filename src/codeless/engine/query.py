@@ -40,8 +40,7 @@ from codeless.engine.stream_events import (
 from codeless.hooks import HookEvent, HookExecutor
 from codeless.permissions.checker import PermissionChecker
 from codeless.services.tool_outputs import tool_output_inline_chars, tool_output_preview_chars
-from codeless.tools.base import ToolExecutionContext
-from codeless.tools.base import ToolRegistry
+from codeless.tools.base import ToolExecutionContext, ToolRegistry
 
 AUTO_COMPACT_STATUS_MESSAGE = "Auto-compacting conversation memory to keep things fast and focused."
 REACTIVE_COMPACT_STATUS_MESSAGE = "Prompt too long; compacting conversation memory and retrying."
@@ -120,9 +119,8 @@ def _extract_completion_token_limit(exc: Exception) -> int | None:
 
 def _is_completion_token_limit_error(exc: Exception) -> bool:
     text = str(exc).lower()
-    return (
-        ("max_tokens" in text or "max_completion_tokens" in text)
-        and ("too large" in text or "at most" in text or "completion tokens" in text)
+    return ("max_tokens" in text or "max_completion_tokens" in text) and (
+        "too large" in text or "at most" in text or "completion tokens" in text
     )
 
 
@@ -443,7 +441,9 @@ def _record_tool_carryover(
             output=tool_output,
             result_metadata=tool_result_metadata,
         )
-        description = str(tool_input.get("description") or tool_input.get("prompt") or tool_name).strip()
+        description = str(
+            tool_input.get("description") or tool_input.get("prompt") or tool_name
+        ).strip()
         _remember_verified_work(
             context.tool_metadata,
             f"Confirmed async-agent activity via {tool_name}: {description[:180]}",
@@ -464,7 +464,10 @@ def _record_tool_carryover(
     elif tool_name == "grep":
         pattern = str(tool_input.get("pattern") or "").strip()
         if pattern:
-            _remember_verified_work(context.tool_metadata, f"Checked repository matches for grep pattern {pattern[:180]}")
+            _remember_verified_work(
+                context.tool_metadata,
+                f"Checked repository matches for grep pattern {pattern[:180]}",
+            )
     elif tool_name == "bash":
         command = str(tool_input.get("command") or "").strip()
         summary = tool_output.splitlines()[0].strip() if tool_output.strip() else "no output"
@@ -502,7 +505,6 @@ def _record_tool_carryover(
         )
 
 
-
 def _tool_artifact_dir() -> Path:
     artifact_dir = get_data_dir() / "tool_artifacts"
     artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -529,7 +531,7 @@ def _offload_tool_output_if_needed(
         / f"{time.strftime('%Y%m%d-%H%M%S')}-{_safe_tool_artifact_name(tool_name)}-{uuid4().hex[:12]}.txt"
     )
     artifact_path.write_text(output, encoding="utf-8", errors="replace")
-    preview = output[:tool_output_preview_chars()]
+    preview = output[: tool_output_preview_chars()]
     omitted = max(0, len(output) - len(preview))
     inline = (
         "[Tool output truncated]\n"
@@ -588,14 +590,18 @@ async def _preprocess_images_in_messages(
     async def _describe(msg_idx: int, blk_idx: int, block: ImageBlock) -> tuple[int, int, str]:
         tool = context.tool_registry.get("image_to_text")
         if tool is None:
-            return msg_idx, blk_idx, "[Image: could not describe — image_to_text tool not available]"
+            return (
+                msg_idx,
+                blk_idx,
+                "[Image: could not describe — image_to_text tool not available]",
+            )
 
         # Build tool input
         tool_input_data: dict[str, object] = {
             "image_data": block.data,
             "media_type": block.media_type,
             "prompt": "Describe this image in detail, including any text, "
-                      "UI elements, code, diagrams, or visual information present.",
+            "UI elements, code, diagrams, or visual information present.",
         }
 
         try:
@@ -694,13 +700,16 @@ async def run_query(
         turn_count += 1
         if effective_max_tokens != context.max_tokens and not reported_token_clamp:
             reported_token_clamp = True
-            yield StatusEvent(
-                message=(
-                    "Requested max_tokens="
-                    f"{context.max_tokens} exceeds the safe per-request output cap; "
-                    f"using {effective_max_tokens}."
-                )
-            ), None
+            yield (
+                StatusEvent(
+                    message=(
+                        "Requested max_tokens="
+                        f"{context.max_tokens} exceeds the safe per-request output cap; "
+                        f"using {effective_max_tokens}."
+                    )
+                ),
+                None,
+            )
         # --- auto-compact check before calling the model ---------------
         async for event, usage in _stream_compaction(trigger="auto"):
             yield event, usage
@@ -718,7 +727,7 @@ async def run_query(
         usage = UsageSnapshot()
 
         try:
-            from codeless.abb.permissions import get_mode_engine, TriMode
+            from codeless.abb.permissions import TriMode, get_mode_engine
 
             mode_engine = get_mode_engine()
             allowed_tool_names = (
@@ -741,12 +750,15 @@ async def run_query(
                     yield AssistantTextDelta(text=event.text), None
                     continue
                 if isinstance(event, ApiRetryEvent):
-                    yield StatusEvent(
-                        message=(
-                            f"Request failed; retrying in {event.delay_seconds:.1f}s "
-                            f"(attempt {event.attempt + 1} of {event.max_attempts}): {event.message}"
-                        )
-                    ), None
+                    yield (
+                        StatusEvent(
+                            message=(
+                                f"Request failed; retrying in {event.delay_seconds:.1f}s "
+                                f"(attempt {event.attempt + 1} of {event.max_attempts}): {event.message}"
+                            )
+                        ),
+                        None,
+                    )
                     continue
 
                 if isinstance(event, ApiMessageCompleteEvent):
@@ -759,12 +771,15 @@ async def run_query(
                 if supported_limit is not None and effective_max_tokens > supported_limit:
                     previous_max_tokens = effective_max_tokens
                     effective_max_tokens = supported_limit
-                    yield StatusEvent(
-                        message=(
-                            f"Model rejected max_tokens={previous_max_tokens}; "
-                            f"retrying with provider limit {effective_max_tokens}."
-                        )
-                    ), None
+                    yield (
+                        StatusEvent(
+                            message=(
+                                f"Model rejected max_tokens={previous_max_tokens}; "
+                                f"retrying with provider limit {effective_max_tokens}."
+                            )
+                        ),
+                        None,
+                    )
                     turn_count = max(0, turn_count - 1)
                     continue
             if not reactive_compact_attempted and _is_prompt_too_long_error(exc):
@@ -777,8 +792,17 @@ async def run_query(
                     messages[:] = compacted_messages
                 if was_compacted:
                     continue
-            if "connect" in error_msg.lower() or "timeout" in error_msg.lower() or "network" in error_msg.lower():
-                yield ErrorEvent(message=f"Network error: {error_msg}. Check your internet connection and try again."), None
+            if (
+                "connect" in error_msg.lower()
+                or "timeout" in error_msg.lower()
+                or "network" in error_msg.lower()
+            ):
+                yield (
+                    ErrorEvent(
+                        message=f"Network error: {error_msg}. Check your internet connection and try again."
+                    ),
+                    None,
+                )
             else:
                 yield ErrorEvent(message=f"API error: {error_msg}"), None
             return
@@ -788,17 +812,24 @@ async def run_query(
 
         coordinator_context_message: ConversationMessage | None = None
         if context.system_prompt.startswith("You are a **coordinator**."):
-            if messages and messages[-1].role == "user" and messages[-1].text.startswith("# Coordinator User Context"):
+            if (
+                messages
+                and messages[-1].role == "user"
+                and messages[-1].text.startswith("# Coordinator User Context")
+            ):
                 coordinator_context_message = messages.pop()
 
         if final_message.role == "assistant" and final_message.is_effectively_empty():
             log.warning("dropping empty assistant message from provider response")
-            yield ErrorEvent(
-                message=(
-                    "Model returned an empty assistant message. "
-                    "The turn was ignored to keep the session healthy."
-                )
-            ), usage
+            yield (
+                ErrorEvent(
+                    message=(
+                        "Model returned an empty assistant message. "
+                        "The turn was ignored to keep the session healthy."
+                    )
+                ),
+                usage,
+            )
             return
 
         messages.append(final_message)
@@ -833,12 +864,15 @@ async def run_query(
                     content=f"Tool {tc.name} failed: {type(exc).__name__}: {exc}",
                     is_error=True,
                 )
-            yield ToolExecutionCompleted(
-                tool_name=tc.name,
-                output=result.content,
-                is_error=result.is_error,
-                metadata=result.result_metadata,
-            ), None
+            yield (
+                ToolExecutionCompleted(
+                    tool_name=tc.name,
+                    output=result.content,
+                    is_error=result.is_error,
+                    metadata=result.result_metadata,
+                ),
+                None,
+            )
             tool_results = [result]
         else:
             # Multiple tools: execute concurrently, emit events after
@@ -872,12 +906,15 @@ async def run_query(
                 tool_results.append(result)
 
             for tc, result in zip(tool_calls, tool_results):
-                yield ToolExecutionCompleted(
-                    tool_name=tc.name,
-                    output=result.content,
-                    is_error=result.is_error,
-                    metadata=result.result_metadata,
-                ), None
+                yield (
+                    ToolExecutionCompleted(
+                        tool_name=tc.name,
+                        output=result.content,
+                        is_error=result.is_error,
+                        metadata=result.result_metadata,
+                    ),
+                    None,
+                )
 
         messages.append(ConversationMessage(role="user", content=tool_results))
 
@@ -895,7 +932,11 @@ async def _execute_tool_call(
     if context.hook_executor is not None:
         pre_hooks = await context.hook_executor.execute(
             HookEvent.PRE_TOOL_USE,
-            {"tool_name": tool_name, "tool_input": tool_input, "event": HookEvent.PRE_TOOL_USE.value},
+            {
+                "tool_name": tool_name,
+                "tool_input": tool_input,
+                "event": HookEvent.PRE_TOOL_USE.value,
+            },
         )
         if pre_hooks.blocked:
             return ToolResultBlock(
@@ -930,8 +971,13 @@ async def _execute_tool_call(
     # directory-scoped roots such as `glob`/`grep`.
     _file_path = _resolve_permission_file_path(context.cwd, tool_input, parsed_input)
     _command = _extract_permission_command(tool_input, parsed_input)
-    log.debug("permission check: %s read_only=%s path=%s cmd=%s",
-              tool_name, tool.is_read_only(parsed_input), _file_path, _command and _command[:80])
+    log.debug(
+        "permission check: %s read_only=%s path=%s cmd=%s",
+        tool_name,
+        tool.is_read_only(parsed_input),
+        _file_path,
+        _command and _command[:80],
+    )
     decision = context.permission_checker.evaluate(
         tool_name,
         is_read_only=tool.is_read_only(parsed_input),
@@ -982,8 +1028,13 @@ async def _execute_tool_call(
         ),
     )
     elapsed = time.monotonic() - t0
-    log.debug("executed %s in %.2fs err=%s output_len=%d",
-              tool_name, elapsed, result.is_error, len(result.output or ""))
+    log.debug(
+        "executed %s in %.2fs err=%s output_len=%d",
+        tool_name,
+        elapsed,
+        result.is_error,
+        len(result.output or ""),
+    )
     inline_output, artifact_path = _offload_tool_output_if_needed(
         tool_name=tool_name,
         tool_use_id=tool_use_id,

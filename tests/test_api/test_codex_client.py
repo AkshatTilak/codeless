@@ -5,18 +5,26 @@ from typing import Any
 
 import pytest
 
-from codeless.api.client import ApiMessageRequest, ApiMessageCompleteEvent, ApiTextDeltaEvent
+from codeless.api.client import ApiMessageCompleteEvent, ApiMessageRequest, ApiTextDeltaEvent
 from codeless.api.codex_client import (
     CodexApiClient,
     _convert_messages_to_codex,
     _format_codex_stream_error,
     _resolve_codex_url,
 )
-from codeless.engine.messages import ConversationMessage, ImageBlock, TextBlock, ToolResultBlock, ToolUseBlock
+from codeless.engine.messages import (
+    ConversationMessage,
+    ImageBlock,
+    TextBlock,
+    ToolResultBlock,
+    ToolUseBlock,
+)
 
 
 class _FakeStreamResponse:
-    def __init__(self, *, status_code: int = 200, lines: list[str] | None = None, body: str = "") -> None:
+    def __init__(
+        self, *, status_code: int = 200, lines: list[str] | None = None, body: str = ""
+    ) -> None:
         self.status_code = status_code
         self._lines = lines or []
         self._body = body.encode("utf-8")
@@ -119,7 +127,6 @@ def test_convert_user_message_with_tool_result_before_text_to_codex():
     ]
 
 
-
 def test_convert_multimodal_user_message_to_codex():
     messages = [
         ConversationMessage(
@@ -133,17 +140,22 @@ def test_convert_multimodal_user_message_to_codex():
 
     converted = _convert_messages_to_codex(messages)
 
-    assert converted == [{
-        "role": "user",
-        "content": [
-            {"type": "input_text", "text": "What is in this image?"},
-            {"type": "input_image", "image_url": "data:image/png;base64,YWJj"},
-        ],
-    }]
+    assert converted == [
+        {
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": "What is in this image?"},
+                {"type": "input_image", "image_url": "data:image/png;base64,YWJj"},
+            ],
+        }
+    ]
 
 
 def test_resolve_codex_url_ignores_unrelated_base_url():
-    assert _resolve_codex_url("https://api.moonshot.cn/anthropic") == "https://chatgpt.com/backend-api/codex/responses"
+    assert (
+        _resolve_codex_url("https://api.moonshot.cn/anthropic")
+        == "https://chatgpt.com/backend-api/codex/responses"
+    )
 
 
 def test_format_codex_stream_error_includes_code_and_request_id():
@@ -164,19 +176,19 @@ async def test_codex_client_streams_text(monkeypatch):
     sink: dict[str, Any] = {}
     response = _FakeStreamResponse(
         lines=[
-            'event: response.output_item.added',
+            "event: response.output_item.added",
             'data: {"type":"response.output_item.added","item":{"id":"msg_1","type":"message","content":[],"role":"assistant"}}',
             "",
-            'event: response.output_text.delta',
+            "event: response.output_text.delta",
             'data: {"type":"response.output_text.delta","delta":"CODE"}',
             "",
-            'event: response.output_text.delta',
+            "event: response.output_text.delta",
             'data: {"type":"response.output_text.delta","delta":"X_OK"}',
             "",
-            'event: response.output_item.done',
+            "event: response.output_item.done",
             'data: {"type":"response.output_item.done","item":{"id":"msg_1","type":"message","content":[{"type":"output_text","text":"CODEX_OK","annotations":[]}]}}',
             "",
-            'event: response.completed',
+            "event: response.completed",
             'data: {"type":"response.completed","response":{"status":"completed","usage":{"input_tokens":12,"output_tokens":3}}}',
             "",
         ]
@@ -195,7 +207,10 @@ async def test_codex_client_streams_text(monkeypatch):
     )
     events = [event async for event in client.stream_message(request)]
 
-    assert [event.text for event in events if isinstance(event, ApiTextDeltaEvent)] == ["CODE", "X_OK"]
+    assert [event.text for event in events if isinstance(event, ApiTextDeltaEvent)] == [
+        "CODE",
+        "X_OK",
+    ]
     complete = next(event for event in events if isinstance(event, ApiMessageCompleteEvent))
     assert complete.message.text == "CODEX_OK"
     assert complete.usage.input_tokens == 12

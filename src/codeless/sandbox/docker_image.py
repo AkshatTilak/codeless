@@ -50,7 +50,15 @@ async def build_default_image(image: str = _DEFAULT_IMAGE) -> bool:
     dockerfile_path = Path(__file__).parent / "Dockerfile"
 
     if dockerfile_path.exists():
-        cmd = [docker, "build", "-t", image, "-f", str(dockerfile_path), str(dockerfile_path.parent)]
+        cmd = [
+            docker,
+            "build",
+            "-t",
+            image,
+            "-f",
+            str(dockerfile_path),
+            str(dockerfile_path.parent),
+        ]
     else:
         # Fallback: pipe Dockerfile content via stdin
         cmd = [docker, "build", "-t", image, "-"]

@@ -157,8 +157,13 @@ def audit_abb_readiness(cwd: Path | str) -> DryRunReport:
         task_index = index_tasks(tasks_dir)
         missing_deps: list[str] = []
         schema_errs: list[str] = []
+        seen_paths: set[Path] = set()
 
         for tid, (path, fm) in task_index.items():
+            if path in seen_paths or path.name == "tasks.md":
+                continue
+            seen_paths.add(path)
+
             errs = validate_task_frontmatter(fm, path)
             if errs:
                 schema_errs.append(f"{tid} ({len(errs)} schema error(s))")

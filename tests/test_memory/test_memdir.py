@@ -111,7 +111,7 @@ def test_migrate_memory_backfills_schema(tmp_path: Path, monkeypatch):
     assert applied.backup_dir
     migrated = legacy.read_text(encoding="utf-8")
     assert "schema_version: 1" in migrated
-    assert "source: \"migration\"" in migrated
+    assert 'source: "migration"' in migrated
     assert "Legacy deployment note." in migrated
 
     rerun = migrate_memory(project_dir, apply=False)
@@ -126,16 +126,16 @@ def test_usage_index_marks_recalled_memories_and_stale_candidates(tmp_path: Path
     (memory_dir / "old.md").write_text(
         "---\n"
         "schema_version: 1\n"
-        "id: \"mem-old\"\n"
-        "name: \"old\"\n"
-        "description: \"old note\"\n"
-        "type: \"project\"\n"
-        "category: \"knowledge\"\n"
+        'id: "mem-old"\n'
+        'name: "old"\n'
+        'description: "old note"\n'
+        'type: "project"\n'
+        'category: "knowledge"\n'
         "importance: 1\n"
-        "source: \"test\"\n"
-        "signature: \"sig-old\"\n"
-        "created_at: \"2020-01-01T00:00:00Z\"\n"
-        "updated_at: \"2020-01-01T00:00:00Z\"\n"
+        'source: "test"\n'
+        'signature: "sig-old"\n'
+        'created_at: "2020-01-01T00:00:00Z"\n'
+        'updated_at: "2020-01-01T00:00:00Z"\n'
         "ttl_days: null\n"
         "disabled: false\n"
         "supersedes: []\n"
@@ -215,7 +215,7 @@ def test_parse_frontmatter_skips_headings_for_description(tmp_path: Path):
 def test_parse_frontmatter_handles_quoted_values(tmp_path: Path):
     path = tmp_path / "quoted.md"
     path.write_text(
-        '---\nname: "my-project"\ndescription: \'A quoted desc\'\ntype: feedback\n---\nBody.\n',
+        "---\nname: \"my-project\"\ndescription: 'A quoted desc'\ntype: feedback\n---\nBody.\n",
         encoding="utf-8",
     )
 

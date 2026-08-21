@@ -4,6 +4,19 @@ All notable changes to Codeless should be recorded in this file.
 
 The format is based on Keep a Changelog, and this project currently tracks changes in a lightweight, repository-oriented way.
 
+## [1.0.0] - 2026-08-21
+
+### Added
+- **Consolidated Multi-Action Tooling**: Consolidated fine-grained CRUD tools into lean, high-leverage multi-action tools (`cron`, `task`, `worktree`, `mcp_resource`, `web`) reducing tool count and token bloat by ~60%.
+- **Action-Level Dynamic Permissions**: Enhanced `BaseTool.is_read_only(arguments)` to dynamically evaluate read-only vs mutating actions per-invocation. In `PLAN`, `ASK`, `CODEBASE`, and `GOVERNANCE` modes, read actions (`cron list`, `task get/list/output`, `worktree list`, `web crawl/search/fetch`) execute seamlessly without confirmation while mutating actions are gated.
+- **Tool Registry Deduplication & Alias Separation**: Refactored `ToolRegistry` and `create_default_tool_registry()` to emit only primary consolidated tools into active LLM API schemas (~26 tools), eliminating redundant tool schemas while maintaining backward-compatible `.get()` access for legacy tools.
+- **Unified Web Crawling & Search Engine**: High-performance structured web tool with HTML-to-Markdown distillation, metadata parsing, link discovery, CSS selector scoping, and Crawl4AI acceleration support.
+- **Cold-Start Exploration & Template Choice**: Injected cold-start context assimilation protocol in ABB governance (`agent.md`, router) and runtime prompt composer (`context.py`), guiding autonomous agents on empty-history turns and asking users for open-source template strategy.
+- **Async Response Stream Teardown**: Explicit try/finally stream closing on streaming completions preventing unhandled `httpcore2` generator exit tracebacks on Windows.
+- **Zero-Error Ruff Quality Standard**: Configured automated Ruff linting, formatting, pre-commit hooks, and format scripts across 370+ files.
+- **Personal Creator Narrative**: Comprehensive README overhaul articulating the vision behind Codeless, ABB memory management, multi-harness interoperability, and SDLC tracking.
+- **Package & Version 1.0.0 Consistency**: Unified all `/version` and `/upgrade` command handlers, CLI entry points, and User-Agent headers to `1.0.0`.
+
 ## [Unreleased]
 
 ### Added

@@ -6,12 +6,23 @@ from pathlib import Path
 from typing import AsyncIterator
 
 from codeless.api.client import SupportsStreamingMessages
-from codeless.engine.cost_tracker import CostTracker
-from codeless.coordinator.coordinator_mode import get_coordinator_user_context
-from codeless.engine.messages import ConversationMessage, TextBlock, ToolResultBlock, sanitize_conversation_messages
-from codeless.engine.query import AskUserPrompt, PermissionPrompt, QueryContext, remember_user_goal, run_query
-from codeless.engine.stream_events import AssistantTurnComplete, StreamEvent
 from codeless.config.settings import Settings
+from codeless.coordinator.coordinator_mode import get_coordinator_user_context
+from codeless.engine.cost_tracker import CostTracker
+from codeless.engine.messages import (
+    ConversationMessage,
+    TextBlock,
+    ToolResultBlock,
+    sanitize_conversation_messages,
+)
+from codeless.engine.query import (
+    AskUserPrompt,
+    PermissionPrompt,
+    QueryContext,
+    remember_user_goal,
+    run_query,
+)
+from codeless.engine.stream_events import AssistantTurnComplete, StreamEvent
 from codeless.hooks import HookEvent, HookExecutor
 from codeless.permissions.checker import PermissionChecker
 from codeless.services.autodream.service import schedule_auto_dream
@@ -231,7 +242,9 @@ class QueryEngine:
             if isinstance(prompt, ConversationMessage)
             else ConversationMessage.from_user_text(prompt)
         )
-        if user_message.text.strip() and not self._tool_metadata.pop("_suppress_next_user_goal", False):
+        if user_message.text.strip() and not self._tool_metadata.pop(
+            "_suppress_next_user_goal", False
+        ):
             remember_user_goal(self._tool_metadata, user_message.text)
         self._prepare_session_memory()
         self._messages = sanitize_conversation_messages(self._messages)

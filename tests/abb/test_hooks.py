@@ -1,17 +1,16 @@
 """Tests for ABB Lifecycle Hooks, Frontmatter Validator, DAG Guard, and Rollup."""
 
 from pathlib import Path
+
 import pytest
 
+from codeless.abb.hooks.dag_guard import check_dag_dependencies
 from codeless.abb.hooks.frontmatter import (
-    dump_with_frontmatter,
     parse_frontmatter,
     validate_task_frontmatter,
 )
-from codeless.abb.hooks.dag_guard import check_dag_dependencies, index_tasks
 from codeless.abb.hooks.rollup import rollup_task_completion
 from codeless.tools.base import ToolExecutionContext
-from codeless.tools.file_edit_tool import FileEditTool, FileEditToolInput
 from codeless.tools.file_write_tool import FileWriteTool, FileWriteToolInput
 
 
@@ -225,7 +224,6 @@ async def test_tool_hook_integration(tmp_path, monkeypatch):
 
     ctx = ToolExecutionContext(cwd=project_root)
     write_tool = FileWriteTool()
-    edit_tool = FileEditTool()
 
     # 1. Attempt writing task with invalid frontmatter (missing id/version)
     bad_task = """---

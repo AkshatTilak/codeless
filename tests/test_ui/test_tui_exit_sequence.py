@@ -44,6 +44,5 @@ def test_tui_exit_handler_registered_for_all_signals() -> None:
 
     for signal in ("exit", "SIGINT", "SIGTERM"):
         assert f"process.on('{signal}'" in source, (
-            f"The TUI exit cleanup must be registered for '{signal}'. "
-            f"Check {_frontend_index()}."
+            f"The TUI exit cleanup must be registered for '{signal}'. Check {_frontend_index()}."
         )

@@ -24,7 +24,6 @@ from codeless.permissions.modes import PermissionMode
 from codeless.utils.file_lock import exclusive_file_lock
 from codeless.utils.fs import atomic_write_text
 
-
 # ANSI escape sequence pattern
 _ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -50,7 +49,7 @@ class PathRuleConfig(BaseModel):
 class PermissionSettings(BaseModel):
     """Permission mode configuration."""
 
-    mode: PermissionMode = PermissionMode.DEFAULT
+    mode: PermissionMode = PermissionMode.PLAN
     allowed_tools: list[str] = Field(default_factory=list)
     denied_tools: list[str] = Field(default_factory=list)
     path_rules: list[PathRuleConfig] = Field(default_factory=list)
@@ -186,7 +185,7 @@ def normalize_anthropic_model_name(model: str) -> str:
     normalized = model.strip()
     lower = normalized.lower()
     if lower.startswith("anthropic/"):
-        normalized = normalized[len("anthropic/"):]
+        normalized = normalized[len("anthropic/") :]
         lower = normalized.lower()
     if lower.startswith("claude-"):
         return normalized.replace(".", "-")
@@ -473,12 +472,11 @@ def _profile_from_flat_settings(settings: "Settings") -> tuple[str, ProviderProf
     defaults = default_provider_profiles()
     name = _infer_profile_name_from_flat_settings(settings)
     existing = defaults.get(name)
-    if existing is not None and (
-        existing.provider == settings.provider or not settings.provider
-    ) and (
-        existing.api_format == settings.api_format
-    ) and (
-        existing.base_url == settings.base_url
+    if (
+        existing is not None
+        and (existing.provider == settings.provider or not settings.provider)
+        and (existing.api_format == settings.api_format)
+        and (existing.base_url == settings.base_url)
     ):
         profile = existing.model_copy(
             update={
@@ -487,19 +485,27 @@ def _profile_from_flat_settings(settings: "Settings") -> tuple[str, ProviderProf
         )
         return name, profile
 
-    provider = settings.provider or ("copilot" if settings.api_format == "copilot" else ("openai" if settings.api_format == "openai" else "anthropic"))
+    provider = settings.provider or (
+        "copilot"
+        if settings.api_format == "copilot"
+        else ("openai" if settings.api_format == "openai" else "anthropic")
+    )
     profile = ProviderProfile(
         label=f"Imported {provider}",
         provider=provider,
         api_format=settings.api_format,
         auth_source=default_auth_source_for_provider(provider, settings.api_format),
-        default_model=settings.model or defaults.get("claude-api", ProviderProfile(
-            label="Claude API",
-            provider="anthropic",
-            api_format="anthropic",
-            auth_source="anthropic_api_key",
-            default_model="sonnet",
-        )).default_model,
+        default_model=settings.model
+        or defaults.get(
+            "claude-api",
+            ProviderProfile(
+                label="Claude API",
+                provider="anthropic",
+                api_format="anthropic",
+                auth_source="anthropic_api_key",
+                default_model="sonnet",
+            ),
+        ).default_model,
         last_model=settings.model or None,
         base_url=settings.base_url,
     )
@@ -520,8 +526,7 @@ class ImageGenerationConfig(BaseModel):
     def from_env(cls) -> "ImageGenerationConfig":
         """Load image generation config from environment variables."""
         return cls(
-            provider=os.environ.get("CODELESS_IMAGE_GENERATION_PROVIDER", "auto").strip()
-            or "auto",
+            provider=os.environ.get("CODELESS_IMAGE_GENERATION_PROVIDER", "auto").strip() or "auto",
             model=os.environ.get("CODELESS_IMAGE_GENERATION_MODEL", "gpt-image-2").strip()
             or "gpt-image-2",
             api_key=os.environ.get("CODELESS_IMAGE_GENERATION_API_KEY", "").strip(),
@@ -629,7 +634,9 @@ class Settings(BaseModel):
     def resolve_profile(self, name: str | None = None) -> tuple[str, ProviderProfile]:
         """Return the active provider profile."""
         profiles = self.merged_profiles()
-        profile_name = (name or self.active_profile or os.environ.get("CODELESS_PROFILE") or "").strip() or "claude-api"
+        profile_name = (
+            name or self.active_profile or os.environ.get("CODELESS_PROFILE") or ""
+        ).strip() or "claude-api"
         if profile_name not in profiles:
             fallback_name, fallback = _profile_from_flat_settings(self)
             profiles[fallback_name] = fallback
@@ -672,9 +679,21 @@ class Settings(BaseModel):
             and (self.api_format or "").strip() == profile.api_format
             and self.base_url == profile.base_url
         )
-        next_provider = profile.provider if flat_profile_fields_match_profile else (self.provider or "").strip() or profile.provider
-        next_api_format = profile.api_format if flat_profile_fields_match_profile else (self.api_format or "").strip() or profile.api_format
-        next_base_url = profile.base_url if flat_profile_fields_match_profile else (self.base_url if self.base_url is not None else profile.base_url)
+        next_provider = (
+            profile.provider
+            if flat_profile_fields_match_profile
+            else (self.provider or "").strip() or profile.provider
+        )
+        next_api_format = (
+            profile.api_format
+            if flat_profile_fields_match_profile
+            else (self.api_format or "").strip() or profile.api_format
+        )
+        next_base_url = (
+            profile.base_url
+            if flat_profile_fields_match_profile
+            else (self.base_url if self.base_url is not None else profile.base_url)
+        )
         next_context_window_tokens = (
             self.context_window_tokens
             if self.context_window_tokens is not None
@@ -696,7 +715,9 @@ class Settings(BaseModel):
             next_model = flat_model
         else:
             next_model = profile.last_model
-        current_default_auth = default_auth_source_for_provider(profile.provider, profile.api_format)
+        current_default_auth = default_auth_source_for_provider(
+            profile.provider, profile.api_format
+        )
         next_auth_source = profile.auth_source
         if not next_auth_source or next_auth_source == current_default_auth:
             next_auth_source = default_auth_source_for_provider(next_provider, next_api_format)
@@ -760,7 +781,9 @@ class Settings(BaseModel):
         """Resolve auth for the current provider, including subscription bridges."""
         profile_name, profile = self.resolve_profile()
         provider = profile.provider.strip()
-        auth_source = profile.auth_source.strip() or default_auth_source_for_provider(provider, profile.api_format)
+        auth_source = profile.auth_source.strip() or default_auth_source_for_provider(
+            provider, profile.api_format
+        )
         if auth_source in {"codex_subscription", "claude_subscription"}:
             env_auth_token = os.environ.get("ANTHROPIC_AUTH_TOKEN", "").strip()
             if auth_source == "claude_subscription" and env_auth_token:
@@ -777,7 +800,9 @@ class Settings(BaseModel):
             )
             from codeless.auth.storage import load_external_binding
 
-            if auth_source == "claude_subscription" and is_third_party_anthropic_endpoint(profile.base_url):
+            if auth_source == "claude_subscription" and is_third_party_anthropic_endpoint(
+                profile.base_url
+            ):
                 raise ValueError(
                     "Claude subscription auth only supports direct Anthropic/Claude endpoints. "
                     "Use an API-key-backed Anthropic-compatible profile for third-party base URLs."
@@ -885,7 +910,11 @@ class Settings(BaseModel):
         if "model" in updates and isinstance(updates["model"], str):
             updates["model"] = strip_ansi_escape_sequences(updates["model"])
         if "effort" in updates and isinstance(updates["effort"], str):
-            updates["effort"] = "xhigh" if updates["effort"].strip().lower() == "max" else updates["effort"].strip().lower()
+            updates["effort"] = (
+                "xhigh"
+                if updates["effort"].strip().lower() == "max"
+                else updates["effort"].strip().lower()
+            )
         merged = apply_permission_mode(self.model_copy(update=updates))
         if not updates:
             return merged
@@ -909,7 +938,9 @@ class Settings(BaseModel):
                 for key, value in updates.items()
                 if key not in profile_keys or key in {"active_profile", "profiles"}
             }
-            switched = apply_permission_mode(self.model_copy(update=switch_updates)).materialize_active_profile()
+            switched = apply_permission_mode(
+                self.model_copy(update=switch_updates)
+            ).materialize_active_profile()
             remaining_profile_updates = {
                 key: value
                 for key, value in updates.items()
@@ -939,7 +970,9 @@ def _apply_env_overrides(settings: Settings) -> Settings:
     _, active_profile = settings.resolve_profile()
     profile_has_base_url = active_profile.base_url is not None
     profile_explicit_model = (active_profile.last_model or "").strip()
-    profile_has_explicit_model = bool(profile_explicit_model) and profile_explicit_model.lower() not in {"", "default"}
+    profile_has_explicit_model = bool(
+        profile_explicit_model
+    ) and profile_explicit_model.lower() not in {"", "default"}
 
     # --- model ---
     codeless_model = os.environ.get("CODELESS_MODEL")
@@ -1027,9 +1060,7 @@ def _apply_env_overrides(settings: Settings) -> Settings:
     web_synthetic_dns_cidrs = os.environ.get("CODELESS_WEB_SYNTHETIC_DNS_CIDRS")
     if web_synthetic_dns_cidrs:
         web_updates["synthetic_dns_cidrs"] = [
-            entry.strip()
-            for entry in web_synthetic_dns_cidrs.split(",")
-            if entry.strip()
+            entry.strip() for entry in web_synthetic_dns_cidrs.split(",") if entry.strip()
         ]
     if web_updates:
         updates["web"] = settings.web.model_copy(update=web_updates)

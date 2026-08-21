@@ -6,9 +6,9 @@ import logging
 
 from pydantic import BaseModel, Field
 
+from codeless.jobs.manager import get_task_manager
 from codeless.swarm.registry import get_backend_registry
 from codeless.swarm.types import TeammateMessage
-from codeless.jobs.manager import get_task_manager
 from codeless.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,9 @@ class SendMessageTool(BaseTool):
     description = "Send a follow-up message to a running local agent task."
     input_model = SendMessageToolInput
 
-    async def execute(self, arguments: SendMessageToolInput, context: ToolExecutionContext) -> ToolResult:
+    async def execute(
+        self, arguments: SendMessageToolInput, context: ToolExecutionContext
+    ) -> ToolResult:
         del context
         # Swarm agents use agent_id format (name@team); legacy tasks use plain task IDs
         if "@" in arguments.task_id:

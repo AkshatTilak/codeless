@@ -39,7 +39,9 @@ class ImageGenerationToolInput(BaseModel):
         default_factory=list,
         description="Local image paths to edit or use as references. OpenAI provider uses image edit mode. Codex hosted generation currently treats these as visual context.",
     )
-    mask_path: str | None = Field(default=None, description="Optional PNG mask path for OpenAI edit mode.")
+    mask_path: str | None = Field(
+        default=None, description="Optional PNG mask path for OpenAI edit mode."
+    )
     output_path: str | None = Field(
         default=None,
         description="Optional output path. For multiple images, numeric suffixes are added.",
@@ -50,13 +52,19 @@ class ImageGenerationToolInput(BaseModel):
     )
     model: str | None = Field(default=None, description="OpenAI image model override.")
     n: int = Field(default=1, ge=1, le=10, description="Number of images to generate.")
-    size: str = Field(default="auto", description="OpenAI image size, e.g. auto, 1024x1024, 1536x1024.")
-    quality: str = Field(default="medium", description="OpenAI image quality, e.g. low, medium, high, auto.")
+    size: str = Field(
+        default="auto", description="OpenAI image size, e.g. auto, 1024x1024, 1536x1024."
+    )
+    quality: str = Field(
+        default="medium", description="OpenAI image quality, e.g. low, medium, high, auto."
+    )
     background: Literal["transparent", "opaque", "auto"] | None = Field(
         default=None,
         description="Optional OpenAI background mode when supported by the provider.",
     )
-    output_format: Literal["png", "jpeg", "webp"] = Field(default="png", description="Output image format.")
+    output_format: Literal["png", "jpeg", "webp"] = Field(
+        default="png", description="Output image format."
+    )
     output_compression: int | None = Field(
         default=None,
         ge=0,
@@ -68,7 +76,9 @@ class ImageGenerationToolInput(BaseModel):
         description="Optional OpenAI edit input fidelity when supported by the provider.",
     )
     moderation: str | None = Field(default=None, description="Optional OpenAI moderation setting.")
-    overwrite: bool = Field(default=False, description="Whether to overwrite existing output files.")
+    overwrite: bool = Field(
+        default=False, description="Whether to overwrite existing output files."
+    )
 
 
 class ImageGenerationTool(BaseTool):
@@ -84,7 +94,9 @@ class ImageGenerationTool(BaseTool):
     )
     input_model = ImageGenerationToolInput
 
-    async def execute(self, arguments: ImageGenerationToolInput, context: ToolExecutionContext) -> ToolResult:
+    async def execute(
+        self, arguments: ImageGenerationToolInput, context: ToolExecutionContext
+    ) -> ToolResult:
         config = context.metadata.get("image_generation_config", {})
         if not isinstance(config, dict):
             config = {}
@@ -122,10 +134,17 @@ class ImageGenerationTool(BaseTool):
                 f"[Image generation via {model} ({mode}, openai)]\n"
                 + "\n".join(f"Wrote {path}" for path in written)
             ),
-            metadata={"paths": [str(path) for path in written], "model": model, "mode": mode, "provider": "openai"},
+            metadata={
+                "paths": [str(path) for path in written],
+                "model": model,
+                "mode": mode,
+                "provider": "openai",
+            },
         )
 
-    async def _generate_with_openai(self, arguments: ImageGenerationToolInput, config: dict[str, object]) -> list[str]:
+    async def _generate_with_openai(
+        self, arguments: ImageGenerationToolInput, config: dict[str, object]
+    ) -> list[str]:
         model = (arguments.model or str(config.get("model") or _DEFAULT_MODEL)).strip()
         api_key = str(config.get("api_key") or "").strip()
         base_url = str(config.get("base_url") or "").strip()
@@ -172,11 +191,16 @@ class ImageGenerationTool(BaseTool):
             async with client.stream("POST", url, headers=headers, json=body) as response:
                 if response.status_code >= 400:
                     payload = await response.aread()
-                    raise RuntimeError(payload.decode("utf-8", "replace") or f"Codex request failed: {response.status_code}")
+                    raise RuntimeError(
+                        payload.decode("utf-8", "replace")
+                        or f"Codex request failed: {response.status_code}"
+                    )
                 async for event in _iter_sse_events(response):
                     if event.get("type") != "response.output_item.done":
                         if event.get("type") == "response.failed":
-                            raise RuntimeError(json.dumps(event.get("response") or event, ensure_ascii=False))
+                            raise RuntimeError(
+                                json.dumps(event.get("response") or event, ensure_ascii=False)
+                            )
                         if event.get("type") == "error":
                             raise RuntimeError(json.dumps(event, ensure_ascii=False))
                         continue
@@ -194,7 +218,9 @@ class ImageGenerationTool(BaseTool):
         return image_results, revised_prompt
 
     @staticmethod
-    async def _generate_images(arguments: ImageGenerationToolInput, model: str, api_key: str, base_url: str) -> list[str]:
+    async def _generate_images(
+        arguments: ImageGenerationToolInput, model: str, api_key: str, base_url: str
+    ) -> list[str]:
         client = AsyncOpenAI(
             api_key=api_key,
             base_url=_normalize_openai_base_url(base_url),
@@ -204,14 +230,22 @@ class ImageGenerationTool(BaseTool):
         return _extract_b64_images(result)
 
     @staticmethod
-    async def _edit_images(arguments: ImageGenerationToolInput, model: str, api_key: str, base_url: str) -> list[str]:
+    async def _edit_images(
+        arguments: ImageGenerationToolInput, model: str, api_key: str, base_url: str
+    ) -> list[str]:
         client = AsyncOpenAI(
             api_key=api_key,
             base_url=_normalize_openai_base_url(base_url),
             default_headers={"Authorization": f"Bearer {api_key}"},
         )
-        image_handles = [Path(path).expanduser().resolve().open("rb") for path in arguments.image_paths]
-        mask_handle = Path(arguments.mask_path).expanduser().resolve().open("rb") if arguments.mask_path else None
+        image_handles = [
+            Path(path).expanduser().resolve().open("rb") for path in arguments.image_paths
+        ]
+        mask_handle = (
+            Path(arguments.mask_path).expanduser().resolve().open("rb")
+            if arguments.mask_path
+            else None
+        )
         try:
             payload = _image_payload(arguments, model)
             payload["image"] = image_handles if len(image_handles) > 1 else image_handles[0]
@@ -243,10 +277,14 @@ class ImageGenerationTool(BaseTool):
             base = base.with_suffix(suffix)
         if arguments.n == 1:
             return [base]
-        return [base.with_name(f"{base.stem}-{idx}{base.suffix}") for idx in range(1, arguments.n + 1)]
+        return [
+            base.with_name(f"{base.stem}-{idx}{base.suffix}") for idx in range(1, arguments.n + 1)
+        ]
 
     @staticmethod
-    def _write_images(images: list[str], output_paths: list[Path], *, overwrite: bool) -> list[Path]:
+    def _write_images(
+        images: list[str], output_paths: list[Path], *, overwrite: bool
+    ) -> list[Path]:
         written: list[Path] = []
         for image_b64, output_path in zip(images, output_paths, strict=False):
             if output_path.exists() and not overwrite:
@@ -291,7 +329,9 @@ def _codex_prompt(arguments: ImageGenerationToolInput) -> str:
     if arguments.n > 1:
         lines.append(f"Generate {arguments.n} distinct variants.")
     if arguments.image_paths:
-        lines.append("Use the attached image(s) as visual context/reference for the generation or edit.")
+        lines.append(
+            "Use the attached image(s) as visual context/reference for the generation or edit."
+        )
     return "\n".join(line for line in lines if line.strip())
 
 

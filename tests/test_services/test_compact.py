@@ -8,7 +8,13 @@ import pytest
 
 from codeless.api.client import ApiMessageCompleteEvent
 from codeless.api.usage import UsageSnapshot
-from codeless.engine.messages import ConversationMessage, ImageBlock, TextBlock, ToolResultBlock, ToolUseBlock
+from codeless.engine.messages import (
+    ConversationMessage,
+    ImageBlock,
+    TextBlock,
+    ToolResultBlock,
+    ToolUseBlock,
+)
 from codeless.hooks import HookEvent
 from codeless.services import (
     build_post_compact_messages,
@@ -23,12 +29,14 @@ from codeless.services.compact import (
     AutoCompactState,
     _is_prompt_too_long_error,
     auto_compact_if_needed,
-    estimate_message_tokens as estimate_compact_message_tokens,
     get_autocompact_threshold,
     microcompact_messages,
     should_autocompact,
     try_context_collapse,
     try_session_memory_compaction,
+)
+from codeless.services.compact import (
+    estimate_message_tokens as estimate_compact_message_tokens,
 )
 
 
@@ -138,7 +146,9 @@ def test_try_session_memory_compaction_reduces_long_history():
     messages = [
         ConversationMessage(role="user", content=[TextBlock(text=(f"user {index} " * 200).strip())])
         if index % 2 == 0
-        else ConversationMessage(role="assistant", content=[TextBlock(text=(f"assistant {index} " * 200).strip())])
+        else ConversationMessage(
+            role="assistant", content=[TextBlock(text=(f"assistant {index} " * 200).strip())]
+        )
         for index in range(20)
     ]
 
@@ -175,7 +185,11 @@ def test_try_context_collapse_trims_oversized_tool_results():
         ConversationMessage.from_user_text("open page"),
         ConversationMessage(
             role="assistant",
-            content=[ToolUseBlock(id="toolu_snapshot", name="mcp__playwright__browser_snapshot", input={})],
+            content=[
+                ToolUseBlock(
+                    id="toolu_snapshot", name="mcp__playwright__browser_snapshot", input={}
+                )
+            ],
         ),
         ConversationMessage(
             role="user",
@@ -252,7 +266,9 @@ def test_microcompact_compacts_large_non_allowlisted_results(monkeypatch):
         ),
         ConversationMessage(
             role="user",
-            content=[ToolResultBlock(tool_use_id="toolu_custom_0", content="A" * 512, is_error=False)],
+            content=[
+                ToolResultBlock(tool_use_id="toolu_custom_0", content="A" * 512, is_error=False)
+            ],
         ),
         ConversationMessage(
             role="assistant",
@@ -260,7 +276,9 @@ def test_microcompact_compacts_large_non_allowlisted_results(monkeypatch):
         ),
         ConversationMessage(
             role="user",
-            content=[ToolResultBlock(tool_use_id="toolu_custom_1", content="B" * 512, is_error=False)],
+            content=[
+                ToolResultBlock(tool_use_id="toolu_custom_1", content="B" * 512, is_error=False)
+            ],
         ),
     ]
 
@@ -288,7 +306,9 @@ def test_compact_token_estimate_counts_images(monkeypatch):
     messages = [
         ConversationMessage(
             role="user",
-            content=[ImageBlock(media_type="image/png", data="YWJj", source_path="/tmp/screen.png")],
+            content=[
+                ImageBlock(media_type="image/png", data="YWJj", source_path="/tmp/screen.png")
+            ],
         )
     ]
 
@@ -300,16 +320,21 @@ def test_should_autocompact_counts_image_tokens(monkeypatch):
     messages = [
         ConversationMessage(
             role="user",
-            content=[ImageBlock(media_type="image/png", data="YWJj", source_path="/tmp/screen.png")],
+            content=[
+                ImageBlock(media_type="image/png", data="YWJj", source_path="/tmp/screen.png")
+            ],
         )
     ]
 
-    assert should_autocompact(
-        messages,
-        "local-vision",
-        AutoCompactState(),
-        auto_compact_threshold_tokens=7000,
-    ) is True
+    assert (
+        should_autocompact(
+            messages,
+            "local-vision",
+            AutoCompactState(),
+            auto_compact_threshold_tokens=7000,
+        )
+        is True
+    )
 
 
 @pytest.mark.asyncio
@@ -341,7 +366,9 @@ async def test_compact_conversation_replaces_images_in_summary_request():
     messages = [
         ConversationMessage(role="user", content=[image]),
         ConversationMessage(role="assistant", content=[TextBlock(text="I can see the screenshot")]),
-        ConversationMessage(role="user", content=[TextBlock(text="Please summarize before moving on")]),
+        ConversationMessage(
+            role="user", content=[TextBlock(text="Please summarize before moving on")]
+        ),
         ConversationMessage(role="assistant", content=[TextBlock(text="Working")]),
     ]
     client = _CompactApiClient(["<summary>image context preserved</summary>"])
@@ -377,7 +404,9 @@ async def test_compact_conversation_runs_hooks_and_preserves_carryover_state(tmp
     hook_executor = _HookExecutorStub()
     messages = [
         ConversationMessage(role="user", content=[ImageBlock.from_path(image_path)]),
-        ConversationMessage(role="assistant", content=[TextBlock(text="Looking at the attachment")]),
+        ConversationMessage(
+            role="assistant", content=[TextBlock(text="Looking at the attachment")]
+        ),
         ConversationMessage(
             role="assistant",
             content=[ToolUseBlock(name="read_file", input={"path": str(image_path)})],
@@ -426,7 +455,10 @@ async def test_compact_conversation_runs_hooks_and_preserves_carryover_state(tmp
         },
     )
 
-    assert [event for event, _payload in hook_executor.events] == [HookEvent.PRE_COMPACT, HookEvent.POST_COMPACT]
+    assert [event for event, _payload in hook_executor.events] == [
+        HookEvent.PRE_COMPACT,
+        HookEvent.POST_COMPACT,
+    ]
     rebuilt = build_post_compact_messages(compacted)
     joined = "\n\n".join(message.text for message in rebuilt)
     assert rebuilt[0].text.startswith("[Compact boundary marker]")
@@ -536,7 +568,9 @@ async def test_compact_post_messages_keep_boundary_summary_recent_then_attachmen
                 "verified_state": ["Focused compact test fixture prepared"],
                 "next_step": "Run the focused compact tests",
             },
-            "read_file_state": [{"path": "/tmp/demo.py", "span": "lines 1-20", "preview": "print('hi')"}],
+            "read_file_state": [
+                {"path": "/tmp/demo.py", "span": "lines 1-20", "preview": "print('hi')"}
+            ],
             "recent_work_log": ["Ran pytest -q tests/test_services/test_compact.py [ok]"],
             "recent_verified_work": ["Focused compact test fixture prepared"],
         },
@@ -554,8 +588,12 @@ async def test_compact_post_messages_keep_boundary_summary_recent_then_attachmen
 
 @pytest.mark.asyncio
 async def test_auto_compact_records_richer_checkpoint_metadata(monkeypatch):
-    monkeypatch.setattr("codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
-    monkeypatch.setattr("codeless.services.compact.should_autocompact", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        "codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(
+        "codeless.services.compact.should_autocompact", lambda *args, **kwargs: True
+    )
     long_text = "alpha " * 50000
     messages = [
         ConversationMessage(role="user", content=[TextBlock(text=long_text)]),
@@ -594,8 +632,12 @@ async def test_auto_compact_if_needed_returns_original_messages_after_timeout(mo
         await asyncio.sleep(0.05)
 
     monkeypatch.setattr("codeless.services.compact.COMPACT_TIMEOUT_SECONDS", 0.01)
-    monkeypatch.setattr("codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None)
-    monkeypatch.setattr("codeless.services.compact.should_autocompact", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        "codeless.services.compact.try_session_memory_compaction", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(
+        "codeless.services.compact.should_autocompact", lambda *args, **kwargs: True
+    )
     long_text = "alpha " * 50000
     messages = [
         ConversationMessage(role="user", content=[TextBlock(text=long_text)]),
@@ -619,19 +661,25 @@ async def test_auto_compact_if_needed_returns_original_messages_after_timeout(mo
 
 
 def test_get_autocompact_threshold_respects_manual_override():
-    assert get_autocompact_threshold(
-        "claude-sonnet-4-6",
-        auto_compact_threshold_tokens=12345,
-    ) == 12345
+    assert (
+        get_autocompact_threshold(
+            "claude-sonnet-4-6",
+            auto_compact_threshold_tokens=12345,
+        )
+        == 12345
+    )
 
 
 def test_should_autocompact_uses_custom_context_window():
     messages = [
         ConversationMessage(role="user", content=[TextBlock(text="alpha " * 6000)]),
     ]
-    assert should_autocompact(
-        messages,
-        "claude-sonnet-4-6",
-        AutoCompactState(),
-        context_window_tokens=4000,
-    ) is True
+    assert (
+        should_autocompact(
+            messages,
+            "claude-sonnet-4-6",
+            AutoCompactState(),
+            context_window_tokens=4000,
+        )
+        is True
+    )

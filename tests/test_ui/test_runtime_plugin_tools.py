@@ -56,7 +56,9 @@ async def test_build_runtime_registers_enabled_plugin_tools(tmp_path: Path, monk
 
     from codeless.config.settings import Settings
 
-    monkeypatch.setattr("codeless.ui.runtime.load_settings", lambda: Settings(allow_project_plugins=True))
+    monkeypatch.setattr(
+        "codeless.ui.runtime.load_settings", lambda: Settings(allow_project_plugins=True)
+    )
 
     bundle = await build_runtime(cwd=str(project), api_client=_StaticApiClient())
     try:

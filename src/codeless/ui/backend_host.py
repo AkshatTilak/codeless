@@ -15,12 +15,11 @@ from uuid import uuid4
 
 from codeless.api.client import SupportsStreamingMessages
 from codeless.auth.manager import AuthManager
+from codeless.bridge import get_bridge_manager
 from codeless.commands import MemoryCommandBackend
 from codeless.config.settings import CLAUDE_MODEL_ALIAS_OPTIONS, resolve_model_setting
-from codeless.bridge import get_bridge_manager
 from codeless.coordinator.coordinator_mode import is_coordinator_mode
 from codeless.engine.messages import ConversationMessage, ImageBlock, TextBlock
-from codeless.themes import list_themes
 from codeless.engine.stream_events import (
     AssistantTextDelta,
     AssistantTurnComplete,
@@ -31,12 +30,18 @@ from codeless.engine.stream_events import (
     ToolExecutionCompleted,
     ToolExecutionStarted,
 )
-from codeless.output_styles import load_output_styles
 from codeless.jobs import get_task_manager
-from codeless.ui.coordinator_drain import drain_coordinator_async_agents
-from codeless.ui.protocol import BackendEvent, FrontendImageAttachment, FrontendRequest, TranscriptItem
-from codeless.ui.runtime import build_runtime, close_runtime, handle_line, start_runtime
+from codeless.output_styles import load_output_styles
 from codeless.services.session_backend import SessionBackend
+from codeless.themes import list_themes
+from codeless.ui.coordinator_drain import drain_coordinator_async_agents
+from codeless.ui.protocol import (
+    BackendEvent,
+    FrontendImageAttachment,
+    FrontendRequest,
+    TranscriptItem,
+)
+from codeless.ui.runtime import build_runtime, close_runtime, handle_line, start_runtime
 
 log = logging.getLogger(__name__)
 
@@ -162,7 +167,9 @@ class ReactBackendHost:
                         break
                     continue
                 if request.type != "submit_line":
-                    await self._emit(BackendEvent(type="error", message=f"Unknown request type: {request.type}"))
+                    await self._emit(
+                        BackendEvent(type="error", message=f"Unknown request type: {request.type}")
+                    )
                     continue
                 if self._busy:
                     await self._emit(BackendEvent(type="error", message="Session is busy"))
@@ -202,17 +209,26 @@ class ReactBackendHost:
             except Exception as exc:  # pragma: no cover - defensive protocol handling
                 await self._emit(BackendEvent(type="error", message=f"Invalid request: {exc}"))
                 continue
-            if request.type == "permission_response" and request.request_id in self._edit_approval_requests:
+            if (
+                request.type == "permission_response"
+                and request.request_id in self._edit_approval_requests
+            ):
                 future = self._edit_approval_requests[request.request_id]
                 if not future.done():
                     future.set_result(_edit_approval_reply_from_request(request))
                 continue
-            if request.type == "permission_response" and request.request_id in self._permission_requests:
+            if (
+                request.type == "permission_response"
+                and request.request_id in self._permission_requests
+            ):
                 future = self._permission_requests[request.request_id]
                 if not future.done():
                     future.set_result(bool(request.allowed))
                 continue
-            if request.type == "question_response" and request.request_id in self._question_requests:
+            if (
+                request.type == "question_response"
+                and request.request_id in self._question_requests
+            ):
                 future = self._question_requests[request.request_id]
                 if not future.done():
                     future.set_result(request.answer or "")
@@ -269,7 +285,9 @@ class ReactBackendHost:
 
         async def _print_system(message: str) -> None:
             await self._emit(
-                BackendEvent(type="transcript_item", item=TranscriptItem(role="system", text=message))
+                BackendEvent(
+                    type="transcript_item", item=TranscriptItem(role="system", text=message)
+                )
             )
 
         async def _render_event(event: StreamEvent) -> None:
@@ -296,7 +314,11 @@ class ReactBackendHost:
                         if "ROUTE:" in line:
                             wf_path = line.split("ROUTE:", 1)[1].strip()
                             wf_id = Path(wf_path).stem
-                            await self._emit(BackendEvent.abb_active_workflow(workflow_id=wf_id, title=wf_id.capitalize(), path=wf_path))
+                            await self._emit(
+                                BackendEvent.abb_active_workflow(
+                                    workflow_id=wf_id, title=wf_id.capitalize(), path=wf_path
+                                )
+                            )
                 await self._emit(
                     BackendEvent(
                         type="assistant_complete",
@@ -353,7 +375,9 @@ class ReactBackendHost:
                                 text = item.get("content") or item.get("text") or str(item)
                                 lines.append(f"- [{'x' if checked else ' '}] {text}")
                         if lines:
-                            await self._emit(BackendEvent(type="todo_update", todo_markdown="\n".join(lines)))
+                            await self._emit(
+                                BackendEvent(type="todo_update", todo_markdown="\n".join(lines))
+                            )
                     else:
                         await self._emit_todo_update_from_output(event.output)
                 # Emit plan_mode_change when plan-related tools complete
@@ -365,12 +389,18 @@ class ReactBackendHost:
             if isinstance(event, ErrorEvent):
                 await self._emit(BackendEvent(type="error", message=event.message))
                 await self._emit(
-                    BackendEvent(type="transcript_item", item=TranscriptItem(role="system", text=event.message))
+                    BackendEvent(
+                        type="transcript_item",
+                        item=TranscriptItem(role="system", text=event.message),
+                    )
                 )
                 return
             if isinstance(event, StatusEvent):
                 await self._emit(
-                    BackendEvent(type="transcript_item", item=TranscriptItem(role="system", text=event.message))
+                    BackendEvent(
+                        type="transcript_item",
+                        item=TranscriptItem(role="system", text=event.message),
+                    )
                 )
                 return
 
@@ -403,7 +433,9 @@ class ReactBackendHost:
         selected = value.strip()
         line = self._build_select_command_line(command, selected)
         if line is None:
-            await self._emit(BackendEvent(type="error", message=f"Unknown select command: {command_name}"))
+            await self._emit(
+                BackendEvent(type="error", message=f"Unknown select command: {command_name}")
+            )
             await self._emit(BackendEvent(type="line_complete"))
             return True
         return await self._process_line(line, transcript_line=f"/{command}")
@@ -447,10 +479,10 @@ class ReactBackendHost:
     async def _emit_abb_state(self) -> None:
         if self._bundle is None:
             return
+        from codeless.abb.permissions import get_mode_engine
         from codeless.abb.shadow import resolve_abb_workspace
         from codeless.abb.verification import get_dag_snapshot
         from codeless.ui.protocol import AbbDagSnapshotPayload, AbbTaskPayload
-        from codeless.abb.permissions import get_mode_engine
 
         try:
             cwd = Path(self._bundle.cwd).resolve()
@@ -504,12 +536,21 @@ class ReactBackendHost:
             markdown = "\n".join(checklist_lines)
             await self._emit(BackendEvent(type="todo_update", todo_markdown=markdown))
 
-    def _emit_swarm_status(self, teammates: list[dict], notifications: list[dict] | None = None) -> None:
+    def _emit_swarm_status(
+        self, teammates: list[dict], notifications: list[dict] | None = None
+    ) -> None:
         """Emit a swarm_status event synchronously (schedule as coroutine)."""
         import asyncio
+
         loop = asyncio.get_event_loop()
         loop.create_task(
-            self._emit(BackendEvent(type="swarm_status", swarm_teammates=teammates, swarm_notifications=notifications))
+            self._emit(
+                BackendEvent(
+                    type="swarm_status",
+                    swarm_teammates=teammates,
+                    swarm_notifications=notifications,
+                )
+            )
         )
 
     async def _handle_list_sessions(self) -> None:
@@ -521,10 +562,12 @@ class ReactBackendHost:
         for s in sessions:
             ts = _time.strftime("%m/%d %H:%M", _time.localtime(s["created_at"]))
             summary = s.get("summary", "")[:50] or "(no summary)"
-            options.append({
-                "value": s["session_id"],
-                "label": f"{ts}  {s['message_count']}msg  {summary}",
-            })
+            options.append(
+                {
+                    "value": s["session_id"],
+                    "label": f"{ts}  {s['message_count']}msg  {summary}",
+                }
+            )
         await self._emit(
             BackendEvent(
                 type="select_request",
@@ -551,7 +594,8 @@ class ReactBackendHost:
                 {
                     "value": name,
                     "label": info["label"],
-                    "description": f"{info['provider']} / {info['auth_source']}" + (" [missing auth]" if not info["configured"] else ""),
+                    "description": f"{info['provider']} / {info['auth_source']}"
+                    + (" [missing auth]" if not info["configured"] else ""),
                     "active": info["active"],
                 }
                 for name, info in statuses.items()
@@ -623,8 +667,6 @@ class ReactBackendHost:
             )
             return
 
-
-
         if command == "theme":
             options = [
                 {
@@ -664,10 +706,30 @@ class ReactBackendHost:
 
         if command == "effort":
             options = [
-                {"value": "low", "label": "Low", "description": "Fastest responses", "active": settings.effort == "low"},
-                {"value": "medium", "label": "Medium", "description": "Balanced reasoning", "active": settings.effort == "medium"},
-                {"value": "high", "label": "High", "description": "Deepest reasoning", "active": settings.effort == "high"},
-                {"value": "xhigh", "label": "XHigh", "description": "Extra high reasoning", "active": settings.effort == "xhigh"},
+                {
+                    "value": "low",
+                    "label": "Low",
+                    "description": "Fastest responses",
+                    "active": settings.effort == "low",
+                },
+                {
+                    "value": "medium",
+                    "label": "Medium",
+                    "description": "Balanced reasoning",
+                    "active": settings.effort == "medium",
+                },
+                {
+                    "value": "high",
+                    "label": "High",
+                    "description": "Deepest reasoning",
+                    "active": settings.effort == "high",
+                },
+                {
+                    "value": "xhigh",
+                    "label": "XHigh",
+                    "description": "Extra high reasoning",
+                    "active": settings.effort == "xhigh",
+                },
             ]
             await self._emit(
                 BackendEvent(
@@ -681,7 +743,11 @@ class ReactBackendHost:
         if command == "passes":
             current = int(state.passes or settings.passes)
             options = [
-                {"value": str(value), "label": f"{value} pass{'es' if value != 1 else ''}", "active": value == current}
+                {
+                    "value": str(value),
+                    "label": f"{value} pass{'es' if value != 1 else ''}",
+                    "active": value == current,
+                }
                 for value in range(1, 9)
             ]
             await self._emit(
@@ -698,7 +764,14 @@ class ReactBackendHost:
             values = {32, 64, 128, 200, 256, 512}
             if isinstance(current, int):
                 values.add(current)
-            options = [{"value": "unlimited", "label": "Unlimited", "description": "Do not hard-stop this session", "active": current is None}]
+            options = [
+                {
+                    "value": "unlimited",
+                    "label": "Unlimited",
+                    "description": "Do not hard-stop this session",
+                    "active": current is None,
+                }
+            ]
             options.extend(
                 {"value": str(value), "label": f"{value} turns", "active": value == current}
                 for value in sorted(values)
@@ -715,8 +788,18 @@ class ReactBackendHost:
         if command == "fast":
             current = bool(state.fast_mode)
             options = [
-                {"value": "on", "label": "On", "description": "Prefer shorter, faster responses", "active": current},
-                {"value": "off", "label": "Off", "description": "Use normal response mode", "active": not current},
+                {
+                    "value": "on",
+                    "label": "On",
+                    "description": "Prefer shorter, faster responses",
+                    "active": current,
+                },
+                {
+                    "value": "off",
+                    "label": "Off",
+                    "description": "Use normal response mode",
+                    "active": not current,
+                },
             ]
             await self._emit(
                 BackendEvent(
@@ -730,8 +813,18 @@ class ReactBackendHost:
         if command == "vim":
             current = bool(state.vim_enabled)
             options = [
-                {"value": "on", "label": "On", "description": "Enable Vim keybindings", "active": current},
-                {"value": "off", "label": "Off", "description": "Use standard keybindings", "active": not current},
+                {
+                    "value": "on",
+                    "label": "On",
+                    "description": "Enable Vim keybindings",
+                    "active": current,
+                },
+                {
+                    "value": "off",
+                    "label": "Off",
+                    "description": "Use standard keybindings",
+                    "active": not current,
+                },
             ]
             await self._emit(
                 BackendEvent(
@@ -745,8 +838,18 @@ class ReactBackendHost:
         if command == "voice":
             current = bool(state.voice_enabled)
             options = [
-                {"value": "on", "label": "On", "description": state.voice_reason or "Enable voice mode", "active": current},
-                {"value": "off", "label": "Off", "description": "Disable voice mode", "active": not current},
+                {
+                    "value": "on",
+                    "label": "On",
+                    "description": state.voice_reason or "Enable voice mode",
+                    "active": current,
+                },
+                {
+                    "value": "off",
+                    "label": "Off",
+                    "description": "Disable voice mode",
+                    "active": not current,
+                },
             ]
             await self._emit(
                 BackendEvent(
@@ -758,7 +861,9 @@ class ReactBackendHost:
             return
 
         if command == "model":
-            options = self._model_select_options(current_model, active_profile.provider, active_profile.allowed_models)
+            options = self._model_select_options(
+                current_model, active_profile.provider, active_profile.allowed_models
+            )
             await self._emit(
                 BackendEvent(
                     type="select_request",
@@ -768,9 +873,13 @@ class ReactBackendHost:
             )
             return
 
-        await self._emit(BackendEvent(type="error", message=f"No selector available for /{command}"))
+        await self._emit(
+            BackendEvent(type="error", message=f"No selector available for /{command}")
+        )
 
-    def _model_select_options(self, current_model: str, provider: str, allowed_models: list[str] | None = None) -> list[dict[str, object]]:
+    def _model_select_options(
+        self, current_model: str, provider: str, allowed_models: list[str] | None = None
+    ) -> list[dict[str, object]]:
         if allowed_models:
             return [
                 {
@@ -795,7 +904,13 @@ class ReactBackendHost:
                 for value, label, description in CLAUDE_MODEL_ALIAS_OPTIONS
             ]
         families: list[tuple[str, str]] = []
-        if provider_name in {"openai-codex", "openai", "openai-compatible", "openrouter", "github_copilot"}:
+        if provider_name in {
+            "openai-codex",
+            "openai",
+            "openai-compatible",
+            "openrouter",
+            "github_copilot",
+        }:
             families.extend(
                 [
                     ("gpt-5.4", "OpenAI flagship"),
@@ -1013,8 +1128,12 @@ async def run_backend_host(
             enforce_max_turns=enforce_max_turns,
             permission_mode=permission_mode,
             session_backend=session_backend,
-            extra_skill_dirs=tuple(str(Path(path).expanduser().resolve()) for path in extra_skill_dirs),
-            extra_plugin_roots=tuple(str(Path(path).expanduser().resolve()) for path in extra_plugin_roots),
+            extra_skill_dirs=tuple(
+                str(Path(path).expanduser().resolve()) for path in extra_skill_dirs
+            ),
+            extra_plugin_roots=tuple(
+                str(Path(path).expanduser().resolve()) for path in extra_plugin_roots
+            ),
             memory_backend=memory_backend,
             include_project_memory=include_project_memory,
         )

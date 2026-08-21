@@ -38,7 +38,7 @@ async def test_create_agent_task_with_command_override_and_write(tmp_path: Path,
         prompt="first",
         description="agent",
         cwd=tmp_path,
-        command="while read line; do echo \"got:$line\"; break; done",
+        command='while read line; do echo "got:$line"; break; done',
     )
 
     await asyncio.wait_for(manager._waiters[task.id], timeout=5)  # type: ignore[attr-defined]
@@ -55,7 +55,7 @@ async def test_create_agent_task_preserves_multiline_prompt(tmp_path: Path, monk
         description="agent",
         cwd=tmp_path,
         command=(
-            "python -u -c \"import sys, json; "
+            'python -u -c "import sys, json; '
             "print(json.loads(sys.stdin.readline())['text'].replace(chr(10), '|'))\""
         ),
     )
@@ -73,7 +73,7 @@ async def test_write_to_stopped_agent_task_restarts_process(tmp_path: Path, monk
         prompt="ready",
         description="agent",
         cwd=tmp_path,
-        command="while read line; do echo \"got:$line\"; break; done",
+        command='while read line; do echo "got:$line"; break; done',
     )
     await asyncio.wait_for(manager._waiters[task.id], timeout=5)  # type: ignore[attr-defined]
 
@@ -87,7 +87,10 @@ async def test_write_to_stopped_agent_task_restarts_process(tmp_path: Path, monk
     updated = manager.get_task(task.id)
     assert updated is not None
     assert updated.metadata["restart_count"] == "1"
-    assert updated.metadata["status_note"] == "Task restarted; prior interactive context was not preserved."
+    assert (
+        updated.metadata["status_note"]
+        == "Task restarted; prior interactive context was not preserved."
+    )
 
 
 @pytest.mark.asyncio
@@ -123,6 +126,7 @@ async def test_create_shell_task_argv_path_bypasses_shell(tmp_path: Path, monkey
     manager = BackgroundTaskManager()
 
     import sys
+
     task = await manager.create_shell_task(
         argv=[sys.executable, "-c", "print('argv-route-ok')"],
         description="argv direct exec",

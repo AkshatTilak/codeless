@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from codeless.prompts.environment import EnvironmentInfo, get_environment_info
 
-
 _BASE_SYSTEM_PROMPT = """\
 You are Codeless, an open-source AI coding assistant CLI. \
 You are an interactive agent that helps users with software engineering tasks. \
@@ -36,7 +35,6 @@ IMPORTANT: You must NEVER generate or guess URLs for the user unless you are con
  - When referencing code, include file_path:line_number for easy navigation.
  - Focus text output on: decisions needing user input, status updates at milestones, errors that change the plan.
  - If you can say it in one sentence, don't use three."""
-
 
 
 def get_base_system_prompt() -> str:

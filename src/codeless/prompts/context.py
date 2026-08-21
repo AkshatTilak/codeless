@@ -15,8 +15,8 @@ from codeless.coordinator.coordinator_mode import get_coordinator_system_prompt,
 from codeless.memory import load_memory_prompt
 from codeless.memory.relevance import format_relevant_memories, select_relevant_memories
 from codeless.memory.usage import mark_memory_used
-from codeless.personalization.rules import load_local_rules
 from codeless.permissions.modes import PermissionMode
+from codeless.personalization.rules import load_local_rules
 from codeless.prompts.claudemd import load_claude_md_prompt
 from codeless.prompts.system_prompt import build_system_prompt
 from codeless.skills.loader import load_skill_registry
@@ -43,7 +43,7 @@ def _build_skills_section(
         "# Available Skills",
         "",
         "The following skills are available via the `skill` tool. "
-        "When a user's request matches a skill, invoke it with `skill(name=\"<skill_name>\")` "
+        'When a user\'s request matches a skill, invoke it with `skill(name="<skill_name>")` '
         "to load detailed instructions before proceeding. "
         "User-invocable skills can also be run directly by the user as `/<skill-name>`.",
         "",
@@ -66,7 +66,7 @@ def _build_delegation_section() -> str:
             "or when the task clearly benefits from splitting off a focused worker.",
             "",
             "Default pattern:",
-            '- Spawn with `agent(description=..., prompt=..., subagent_type=\"worker\")`.',
+            '- Spawn with `agent(description=..., prompt=..., subagent_type="worker")`.',
             "- Inspect running or recorded workers with `/agents`.",
             "- Inspect one worker in detail with `/agents show TASK_ID`.",
             "- Send follow-up instructions with `send_message(task_id=..., message=...)`.",
@@ -103,6 +103,15 @@ def _build_mode_policy_section(settings: Settings, cwd: Path) -> str:
         return f"# Active Mode\n{guidance}"
 
 
+def _build_cold_start_guidance_section() -> str:
+    """Build guidance for cold-start exploration and open-source template ingestion."""
+    return (
+        "# Cold-Start Context Exploration & Planning Protocol\n"
+        "- **Cold-Start Exploration**: If starting a session or turn without prior context, explore the project's ABB workspace (`tasks/tasks.md`, `tasks/goal/goal.md`, `CONVENTIONS.md`) before taking modifying actions.\n"
+        "- **Open-Source Reference Ingestion**: When planning or architecting features, research open-source reference implementations and ask the user whether to build on a template or construct from scratch."
+    )
+
+
 def build_runtime_system_prompt(
     settings: Settings,
     *,
@@ -132,7 +141,10 @@ def build_runtime_system_prompt(
     # 3. Active Mode & Tool Policy
     sections.append(_build_mode_policy_section(settings, path_cwd))
 
-    # 4. Coordinator Dispatch Overlay (when in coordinator mode)
+    # 4. Cold-Start Exploration & Template Ingestion Protocol
+    sections.append(_build_cold_start_guidance_section())
+
+    # 5. Coordinator Dispatch Overlay (when in coordinator mode)
     if is_coordinator_mode():
         sections.append(get_coordinator_system_prompt())
 
@@ -202,4 +214,3 @@ def build_runtime_system_prompt(
                 sections.append(format_relevant_memories(relevant))
 
     return "\n\n".join(section for section in sections if section.strip())
-

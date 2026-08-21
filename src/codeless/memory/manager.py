@@ -10,9 +10,10 @@ from codeless.memory.scan import scan_memory_files
 from codeless.memory.schema import (
     DEFAULT_MEMORY_SCOPE,
     DEFAULT_MEMORY_TYPE,
+    SCHEMA_VERSION,
     MemoryScope,
     MemoryType,
-    SCHEMA_VERSION,
+    coerce_int,
     compute_memory_signature,
     first_content_line,
     format_datetime,
@@ -20,7 +21,6 @@ from codeless.memory.schema import (
     memory_metadata_from_path,
     render_memory_file,
     split_memory_file,
-    coerce_int,
     utc_now,
 )
 from codeless.utils.file_lock import exclusive_file_lock
@@ -69,7 +69,11 @@ def add_memory_entry(
             memory_dir=memory_dir,
         )
         duplicate = next(
-            (header for header in existing if _effective_signature(header.path, header.signature) == signature),
+            (
+                header
+                for header in existing
+                if _effective_signature(header.path, header.signature) == signature
+            ),
             None,
         )
         path = duplicate.path if duplicate is not None else _next_memory_path(memory_dir, slug)
@@ -114,7 +118,9 @@ def add_memory_entry(
         atomic_write_text(path, render_memory_file(metadata, body))
 
         entrypoint = memory_dir / "MEMORY.md"
-        index_text = entrypoint.read_text(encoding="utf-8") if entrypoint.exists() else "# Memory Index\n"
+        index_text = (
+            entrypoint.read_text(encoding="utf-8") if entrypoint.exists() else "# Memory Index\n"
+        )
         if path.name not in index_text:
             index_text = index_text.rstrip() + f"\n- [{title}]({path.name})\n"
             atomic_write_text(entrypoint, index_text)

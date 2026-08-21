@@ -131,11 +131,13 @@ def _find_windows_bash() -> str | None:
     candidate_paths: list[Path] = []
     if git_path:
         git_dir = Path(git_path).resolve().parent
-        candidate_paths.extend([
-            git_dir / "bash.exe",
-            git_dir.parent / "bin" / "bash.exe",
-            git_dir.parent / "usr" / "bin" / "bash.exe",
-        ])
+        candidate_paths.extend(
+            [
+                git_dir / "bash.exe",
+                git_dir.parent / "bin" / "bash.exe",
+                git_dir.parent / "usr" / "bin" / "bash.exe",
+            ]
+        )
 
     local_app_data = os.environ.get("LOCALAPPDATA", "")
     program_files = os.environ.get("ProgramFiles", "C:\\Program Files")
@@ -143,7 +145,9 @@ def _find_windows_bash() -> str | None:
 
     if local_app_data:
         candidate_paths.append(Path(local_app_data) / "Programs" / "Git" / "bin" / "bash.exe")
-        candidate_paths.append(Path(local_app_data) / "Programs" / "Git" / "usr" / "bin" / "bash.exe")
+        candidate_paths.append(
+            Path(local_app_data) / "Programs" / "Git" / "usr" / "bin" / "bash.exe"
+        )
     candidate_paths.append(Path(program_files) / "Git" / "bin" / "bash.exe")
     candidate_paths.append(Path(program_files) / "Git" / "usr" / "bin" / "bash.exe")
     candidate_paths.append(Path(program_files_x86) / "Git" / "bin" / "bash.exe")

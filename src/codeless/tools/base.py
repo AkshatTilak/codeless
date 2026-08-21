@@ -5,8 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
@@ -62,22 +61,29 @@ class ToolRegistry:
 
     def __init__(self) -> None:
         self._tools: dict[str, BaseTool] = {}
+        self._aliases: set[str] = set()
 
-    def register(self, tool: BaseTool) -> None:
-        """Register a tool instance."""
+    def register(self, tool: BaseTool, *, is_alias: bool = False) -> None:
+        """Register a tool instance, optionally tagging it as a backward-compatibility alias."""
         self._tools[tool.name] = tool
+        if is_alias:
+            self._aliases.add(tool.name)
 
     def get(self, name: str) -> BaseTool | None:
         """Return a registered tool by name."""
         return self._tools.get(name)
 
-    def list_tools(self) -> list[BaseTool]:
-        """Return all registered tools."""
-        return list(self._tools.values())
+    def list_tools(self, *, include_aliases: bool = False) -> list[BaseTool]:
+        """Return all registered tools, omitting aliases by default."""
+        if include_aliases:
+            return list(self._tools.values())
+        return [tool for name, tool in self._tools.items() if name not in self._aliases]
 
-    def to_api_schema(self, allowed_names: set[str] | list[str] | None = None) -> list[dict[str, Any]]:
-        """Return tool schemas in API format, optionally filtered by allowed names."""
+    def to_api_schema(
+        self, allowed_names: set[str] | list[str] | None = None
+    ) -> list[dict[str, Any]]:
+        """Return tool schemas in API format, omitting aliases unless explicitly allowed."""
         if allowed_names:
             allowed = set(allowed_names)
             return [tool.to_api_schema() for tool in self._tools.values() if tool.name in allowed]
-        return [tool.to_api_schema() for tool in self._tools.values()]
+        return [tool.to_api_schema() for tool in self.list_tools(include_aliases=False)]

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "codeless-ai"
-version = "0.1.9"
+version = "1.0.0"
 description = "Autonomous agent execution harness for Agent Buildable Base"
 readme = "README.md"
 license = "MIT"
@@ -30,6 +30,7 @@ dependencies = [
     "watchfiles>=0.20.0",
     "croniter>=2.0.0",
     "tzdata>=2024.1; sys_platform == 'win32'",
+    "crawl4ai>=0.4.0",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +41,12 @@ dev = [
     "pytest-cov>=5.0.0",
     "ruff>=0.5.0",
     "mypy>=1.10.0",
+]
+crawl = [
+    "crawl4ai>=0.4.0",
+]
+all = [
+    "crawl4ai>=0.4.0",
 ]
 
 [project.scripts]
@@ -74,6 +81,13 @@ asyncio_mode = "auto"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["codeless"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import asyncio
 from contextlib import AsyncExitStack
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -47,7 +47,9 @@ async def test_call_tool_raises_when_server_failed_to_connect():
     config = McpStdioServerConfig(command="false", args=[])
     manager = McpClientManager({"bad": config})
     manager._statuses["bad"] = McpConnectionStatus(
-        name="bad", state="failed", detail="Connection refused",
+        name="bad",
+        state="failed",
+        detail="Connection refused",
     )
     with pytest.raises(McpServerNotConnectedError, match="Connection refused"):
         await manager.call_tool("bad", "tool", {})
@@ -121,7 +123,11 @@ async def test_register_connected_session_tolerates_missing_resources_list():
 async def test_close_suppresses_known_runtime_error_from_stdio_cleanup():
     manager = McpClientManager({})
     stack = MagicMock()
-    stack.aclose = AsyncMock(side_effect=RuntimeError("Attempted to exit cancel scope in a different task than it was entered in"))
+    stack.aclose = AsyncMock(
+        side_effect=RuntimeError(
+            "Attempted to exit cancel scope in a different task than it was entered in"
+        )
+    )
     manager._stacks["context7"] = stack
     manager._sessions["context7"] = AsyncMock()
 

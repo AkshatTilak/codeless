@@ -7,7 +7,6 @@ from dataclasses import replace
 
 from codeless.state.app_state import AppState
 
-
 Listener = Callable[[AppState], None]
 
 

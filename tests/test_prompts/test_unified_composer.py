@@ -8,10 +8,9 @@ from codeless.abb.permissions import TriMode, get_mode_engine
 from codeless.config.settings import Settings
 from codeless.coordinator.coordinator_mode import (
     build_worker_system_prompt,
-    get_coordinator_system_prompt,
 )
 from codeless.prompts.context import build_runtime_system_prompt
-from codeless.prompts.system_prompt import _BASE_SYSTEM_PROMPT, get_base_system_prompt
+from codeless.prompts.system_prompt import get_base_system_prompt
 
 
 def test_base_prompt_no_duplicated_guidance() -> None:

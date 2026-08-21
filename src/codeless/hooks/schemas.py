@@ -59,8 +59,5 @@ class AgentHookDefinition(BaseModel):
 
 
 HookDefinition = (
-    CommandHookDefinition
-    | PromptHookDefinition
-    | HttpHookDefinition
-    | AgentHookDefinition
+    CommandHookDefinition | PromptHookDefinition | HttpHookDefinition | AgentHookDefinition
 )

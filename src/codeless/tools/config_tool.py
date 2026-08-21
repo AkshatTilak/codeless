@@ -25,7 +25,9 @@ class ConfigTool(BaseTool):
     description = "Read or update Codeless settings."
     input_model = ConfigToolInput
 
-    async def execute(self, arguments: ConfigToolInput, context: ToolExecutionContext) -> ToolResult:
+    async def execute(
+        self, arguments: ConfigToolInput, context: ToolExecutionContext
+    ) -> ToolResult:
         del context
         settings = load_settings()
         if arguments.action == "show":

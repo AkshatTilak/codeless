@@ -9,37 +9,35 @@ log = logging.getLogger(__name__)
 
 # Patterns that indicate environment-specific facts worth capturing
 _FACT_PATTERNS: list[tuple[str, str, re.Pattern]] = [
-    ("ssh_host", "SSH connection", re.compile(
-        r"ssh\s+(?:-[io]\s+\S+\s+)*(\S+@[\d.]+|\S+@\S+)", re.IGNORECASE
-    )),
-    ("ip_address", "Server IP", re.compile(
-        r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"
-    )),
-    ("data_path", "Data path", re.compile(
-        r"(/(?:ext|mnt|home|data|root)\S*/(?:data\S*|landing|derived|reference)\S*)"
-    )),
-    ("conda_env", "Conda environment", re.compile(
-        r"conda\s+activate\s+(\S+)"
-    )),
-    ("python_env", "Python version", re.compile(
-        r"[Pp]ython\s*(3\.\d+(?:\.\d+)?)"
-    )),
-    ("api_endpoint", "API endpoint", re.compile(
-        r"(https?://\S+/v\d+/?)\b"
-    )),
-    ("env_var", "Environment variable", re.compile(
-        r"export\s+([A-Z][A-Z0-9_]+)(?:=\S+)?"
-    )),
-    ("git_remote", "Git remote", re.compile(
-        r"(?:github|gitlab)\.com[:/](\S+?)(?:\.git)?"
-    )),
-    ("ray_cluster", "Ray cluster", re.compile(
-        r"ray\s+(?:start|init|submit)\b.*?(--address\s+\S+|\d+\.\d+\.\d+\.\d+:\d+)",
-        re.IGNORECASE,
-    )),
-    ("cron_schedule", "Cron schedule", re.compile(
-        r"((?:\d+|\*)\s+(?:\d+|\*)\s+(?:\d+|\*)\s+(?:\d+|\*)\s+(?:\d+|\*))\s+\S+"
-    )),
+    (
+        "ssh_host",
+        "SSH connection",
+        re.compile(r"ssh\s+(?:-[io]\s+\S+\s+)*(\S+@[\d.]+|\S+@\S+)", re.IGNORECASE),
+    ),
+    ("ip_address", "Server IP", re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})")),
+    (
+        "data_path",
+        "Data path",
+        re.compile(r"(/(?:ext|mnt|home|data|root)\S*/(?:data\S*|landing|derived|reference)\S*)"),
+    ),
+    ("conda_env", "Conda environment", re.compile(r"conda\s+activate\s+(\S+)")),
+    ("python_env", "Python version", re.compile(r"[Pp]ython\s*(3\.\d+(?:\.\d+)?)")),
+    ("api_endpoint", "API endpoint", re.compile(r"(https?://\S+/v\d+/?)\b")),
+    ("env_var", "Environment variable", re.compile(r"export\s+([A-Z][A-Z0-9_]+)(?:=\S+)?")),
+    ("git_remote", "Git remote", re.compile(r"(?:github|gitlab)\.com[:/](\S+?)(?:\.git)?")),
+    (
+        "ray_cluster",
+        "Ray cluster",
+        re.compile(
+            r"ray\s+(?:start|init|submit)\b.*?(--address\s+\S+|\d+\.\d+\.\d+\.\d+:\d+)",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "cron_schedule",
+        "Cron schedule",
+        re.compile(r"((?:\d+|\*)\s+(?:\d+|\*)\s+(?:\d+|\*)\s+(?:\d+|\*)\s+(?:\d+|\*))\s+\S+"),
+    ),
 ]
 
 
@@ -64,13 +62,15 @@ def extract_facts_from_text(text: str) -> list[dict]:
                 continue
             seen_keys.add(key)
 
-            facts.append({
-                "key": key,
-                "type": fact_type,
-                "label": label,
-                "value": value,
-                "confidence": 0.7,
-            })
+            facts.append(
+                {
+                    "key": key,
+                    "type": fact_type,
+                    "label": label,
+                    "value": value,
+                    "confidence": 0.7,
+                }
+            )
 
     return facts
 

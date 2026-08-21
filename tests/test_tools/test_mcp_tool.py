@@ -74,8 +74,12 @@ class TestInputModelFromSchema:
         m = Model(name="x", count=1, score=0.5, active=True, tags=["a"], meta={"k": "v"})
         dumped = m.model_dump(mode="json")
         assert dumped == {
-            "name": "x", "count": 1, "score": 0.5,
-            "active": True, "tags": ["a"], "meta": {"k": "v"},
+            "name": "x",
+            "count": 1,
+            "score": 0.5,
+            "active": True,
+            "tags": ["a"],
+            "meta": {"k": "v"},
         }
 
     def test_empty_schema_creates_valid_model(self):

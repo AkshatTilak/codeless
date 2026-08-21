@@ -140,15 +140,12 @@ class DockerSandboxSession:
         argv.extend([docker_cfg.image, "tail", "-f", "/dev/null"])
         return argv
 
-
     async def start(self) -> None:
         """Create and start the sandbox container."""
         from codeless.sandbox.docker_image import ensure_image_available
 
         docker_cfg = self.settings.sandbox.docker
-        available = await ensure_image_available(
-            docker_cfg.image, docker_cfg.auto_build_image
-        )
+        available = await ensure_image_available(docker_cfg.image, docker_cfg.auto_build_image)
         if not available:
             raise SandboxUnavailableError(
                 f"Docker image {docker_cfg.image!r} is not available and "

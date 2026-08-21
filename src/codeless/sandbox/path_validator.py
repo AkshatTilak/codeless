@@ -49,4 +49,3 @@ def validate_sandbox_path(
             continue
 
     return False, f"path {resolved} is outside the sandbox boundary ({resolved_cwd})"
-
