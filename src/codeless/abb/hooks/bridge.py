@@ -102,15 +102,16 @@ def pre_tool_use_abb_guard(
             )
 
         for target in write_targets:
-            try:
-                target_p = Path(target)
-                if not target_p.is_absolute():
-                    target_p = (cwd / target_p).resolve()
-                norm_str = str(target_p).replace("\\", "/")
-                if norm_str.startswith("/tmp") or norm_str.startswith("/var/tmp"):
-                    continue
-            except Exception:
-                pass
+            target_str = str(target).strip()
+            # Only ignore external OS temp files if they are not inside the active project workspace
+            if target_str.startswith("/tmp/") or target_str.startswith("/var/tmp/"):
+                try:
+                    target_p = Path(target_str).resolve()
+                    cwd_p = Path(cwd).resolve()
+                    if not target_p.is_relative_to(cwd_p):
+                        continue
+                except Exception:
+                    pass
 
             allowed, reason = engine.evaluate_write_permission(target, cwd)
             if not allowed:

@@ -398,7 +398,7 @@ def record_verification_failure(
     failure_dir = storage_dir / "logs" / "failure"
     failure_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
     log_file = failure_dir / f"verification_{task_id}_{timestamp}.log"
     log_content = report.format_failure_diagnostic()
     log_file.write_text(log_content, encoding="utf-8")
@@ -412,7 +412,7 @@ def get_dag_snapshot(abb_ws: Path) -> dict[str, Any]:
         "goal": None,
         "base_tasks": [],
         "subtasks": [],
-        "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
 
     # Goal

@@ -104,7 +104,7 @@ def bootstrap_shadow_workspace(
         except Exception:
             metadata = {}
 
-    now_iso = datetime.datetime.now(datetime.UTC).isoformat()
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     # Populate or copy abb_workspace
     if force or not abb_workspace.exists() or not (abb_workspace / "agent.md").exists():

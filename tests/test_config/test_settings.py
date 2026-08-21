@@ -29,7 +29,7 @@ class TestSettings:
         assert s.timeout == 30.0
         assert s.max_turns == 200
         assert s.fast_mode is False
-        assert s.permission.mode == "default"
+        assert s.permission.mode == "plan"
         assert s.sandbox.enabled is False
         assert s.sandbox.filesystem.allow_write == ["."]
         assert s.web.resolution_mode == "auto"
@@ -78,7 +78,7 @@ class TestSettings:
         s = Settings()
         updated = s.merge_cli_overrides(permission_mode="full_auto")
         assert updated.permission.mode == "full_auto"
-        assert s.permission.mode == "default"
+        assert s.permission.mode == "plan"
 
     def test_web_settings_env_overrides(self, monkeypatch):
         monkeypatch.setenv("CODELESS_WEB_PROXY", "http://proxy.example.com:7890")
