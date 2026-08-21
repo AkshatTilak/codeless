@@ -48,6 +48,11 @@ def get_abb_template_dir() -> Path:
     if bundled_template.is_dir() and (bundled_template / "agent.md").exists():
         return bundled_template
 
+    # 3. Check local .codeless/abb_workspace in repo as fallback
+    local_abb = repo_root / ".codeless" / "abb_workspace"
+    if local_abb.is_dir() and (local_abb / "agent.md").exists():
+        return local_abb
+
     # Fallback to dev_template path
     return dev_template
 
