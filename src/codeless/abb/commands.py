@@ -28,8 +28,8 @@ async def _plan_handler(args: str, context: CommandContext) -> CommandResult:
         save_settings(settings)
         context.engine.set_permission_checker(PermissionChecker(settings.permission))
         if context.app_state is not None:
-            context.app_state.set(permission_mode=settings.permission.mode.value)
-        return CommandResult(message="Plan mode disabled.", refresh_runtime=True)
+            context.app_state.set(permission_mode="AGENT")
+        return CommandResult(message="Plan mode disabled. Operational mode switched to AGENT.", refresh_runtime=True)
 
     # Entering or updating plan mode
     get_mode_engine().set_mode(TriMode.PLAN)
@@ -38,7 +38,8 @@ async def _plan_handler(args: str, context: CommandContext) -> CommandResult:
     save_settings(settings)
     context.engine.set_permission_checker(PermissionChecker(settings.permission))
     if context.app_state is not None:
-        context.app_state.set(permission_mode=settings.permission.mode.value)
+        context.app_state.set(permission_mode="PLAN")
+
 
     cwd = Path(context.cwd).resolve()
     abb_ws = resolve_abb_workspace(cwd, auto_init=True)
@@ -198,19 +199,19 @@ async def _route_handler(args: str, context: CommandContext) -> CommandResult:
 
 
 async def _goal_handler(args: str, context: CommandContext) -> CommandResult:
-    """Handle /goal: Display system goal and base task milestones."""
+    """Handle /goal: Display the SRS (system goal) and base task milestones."""
     cwd = Path(context.cwd).resolve()
     abb_ws = resolve_abb_workspace(cwd, auto_init=True)
     goal_file = abb_ws / "tasks" / "goal" / "goal.md"
 
     if not goal_file.exists():
-        return CommandResult(message="No goal.md found in active ABB workspace.")
+        return CommandResult(message="No goal.md (SRS) found in active ABB workspace.")
 
     content = goal_file.read_text(encoding="utf-8")
     fm, body = parse_frontmatter(content)
     
     # Extract title
-    title = "System Goal"
+    title = "System SRS"
     for line in body.splitlines():
         if line.startswith("# "):
             title = line.lstrip("# ").strip()
@@ -218,7 +219,7 @@ async def _goal_handler(args: str, context: CommandContext) -> CommandResult:
 
     status = fm.get("status", "in_progress")
     return CommandResult(
-        message=f"🎯 Goal: {title}\nID: {fm.get('id', 'goal_001')} | Version: {fm.get('version', '1.0.0')} | Status: [{status}]\n\n{body[:800]}..."
+        message=f"🎯 SRS: {title}\nID: {fm.get('id', 'goal_001')} | Version: {fm.get('version', '1.0.0')} | Status: [{status}]\n\n{body[:800]}..."
     )
 
 
@@ -381,8 +382,20 @@ async def _mode_handler(args: str, context: CommandContext) -> CommandResult:
     if target == "abb":
         target = "governance"
     if target in {"plan", "agent", "ask", "codebase", "governance"}:
+        from codeless.config.settings import load_settings, save_settings
+        from codeless.permissions import PermissionChecker, PermissionMode
+
         mode_engine = get_mode_engine()
         mode_engine.set_mode(target)
+
+        settings = load_settings()
+        settings.permission.mode = PermissionMode.DEFAULT if target == "agent" else PermissionMode.PLAN
+        save_settings(settings)
+        context.engine.set_permission_checker(PermissionChecker(settings.permission))
+
+        if context.app_state is not None:
+            context.app_state.set(permission_mode=target.upper())
+
         return CommandResult(
             message=f"🔄 Operational Mode switched to: {target.upper()}\nDomain write boundary updated.",
             refresh_runtime=True,
@@ -390,14 +403,15 @@ async def _mode_handler(args: str, context: CommandContext) -> CommandResult:
     return CommandResult(
         message=(
             "Operational Modes & Domain Write Boundaries:\n"
-            "  - `plan`       : Read-only architecture & task planning (writes allowed to tasks/ and design/ only)\n"
-            "  - `agent`      : Unrestricted implementation & verification (Two-Track gate active)\n"
-            "  - `ask`        : Strictly read-only inquiry (all mutating operations blocked)\n"
-            "  - `codebase`   : Source code implementation (meta-specs in .codeless/abb_workspace protected)\n"
-            "  - `governance` : Meta-specification maintenance (source code files protected)\n\n"
-            "Usage: `/mode <plan|agent|ask|codebase|governance>`"
+            "  - `AGENT`      : Unrestricted implementation & verification (Two-Track gate active)\n"
+            "  - `PLAN`       : Architecture & task planning (writes allowed to tasks/ and design/ only)\n"
+            "  - `ASK`        : Strictly read-only inquiry (all mutating operations blocked)\n"
+            "  - `CODEBASE`   : Codebase exploration & memory queries (strictly read-only)\n"
+            "  - `GOVERNANCE` : Meta-specification maintenance (source code files protected)\n\n"
+            "Usage: `/mode <agent|plan|ask|codebase|governance>`"
         )
     )
+
 
 
 

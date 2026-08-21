@@ -43,10 +43,10 @@ class ModeEngine:
     def get_mode_description(self) -> str:
         descriptions = {
             TriMode.AGENT: "Full autonomous execution — code editing, testing, task completion.",
-            TriMode.PLAN: "Architecture & Task Planning — writes restricted to tasks/ and design/.",
+            TriMode.PLAN: "Architecture & Task Planning — writes restricted to tasks/, design/, and features/ (LLD specs).",
             TriMode.ASK: "Read-only Q&A — all file modifications blocked.",
             TriMode.CODEBASE: "Codebase exploration & memory queries — all file modifications blocked.",
-            TriMode.GOVERNANCE: "ABB Meta-Spec Governance — writes restricted to STACK.md, agent.md, features/, references/, workflows/, skills/, conventions.",
+            TriMode.GOVERNANCE: "ABB Meta-Spec Governance — writes restricted to STACK.md, agent.md, references/, workflows/, skills/, conventions.",
         }
         return descriptions.get(self._current_mode, "Unknown mode policy")
 
@@ -97,29 +97,29 @@ class ModeEngine:
             mode_name = self._current_mode.value.capitalize()
             return False, f"{mode_name} Mode is strictly read-only; all file writes to '{norm_path}' are blocked."
 
-        # 2. PLAN Mode: Write allowed ONLY to tasks/ and design/
+        # 2. PLAN Mode: Write allowed ONLY to tasks/, design/, and features/
         if self._current_mode == TriMode.PLAN:
             if is_abb:
                 norm_lower = norm_path.lower()
-                plan_prefixes = ("tasks/", "tasks", "design/", "design")
+                plan_prefixes = ("tasks/", "tasks", "design/", "design", "features/", "features")
                 if any(norm_lower.startswith(p) or f"/{p}" in norm_lower for p in plan_prefixes):
-                    return True, "Plan mode permitted write to architecture & task workspace."
+                    return True, "Plan mode permitted write to architecture, design & task workspace."
                 return False, f"Plan Mode blocks meta-spec writes to '{norm_path}'. Use Governance mode (`/mode governance`) for meta specs."
             return False, f"Plan Mode blocks project code modifications to '{norm_path}'. Switch to Agent mode (`/mode agent`) to execute changes."
 
-        # 3. GOVERNANCE Mode: Write allowed ONLY to meta-specs (STACK, agent, features, references, skills, workflows, conventions)
+        # 3. GOVERNANCE Mode: Write allowed ONLY to meta-specs (STACK, agent, references, skills, workflows, conventions)
         if self._current_mode == TriMode.GOVERNANCE:
             if is_abb:
                 norm_lower = norm_path.lower()
                 gov_prefixes = (
-                    "features/", "features", "references/", "references",
+                    "references/", "references",
                     "skills/", "skills", "workflows/", "workflows",
                     "stack.md", "user_preferences.md", "agent.md", "conventions.md",
                     "coding_philosophy.md", "changelog.md", "readme.md"
                 )
                 if any(norm_lower.startswith(p) or f"/{p}" in norm_lower or norm_lower.endswith(p) for p in gov_prefixes):
                     return True, "Governance mode permitted write to ABB meta-specifications."
-                plan_prefixes = ("tasks/", "tasks", "design/", "design")
+                plan_prefixes = ("tasks/", "tasks", "design/", "design", "features/", "features")
                 if any(norm_lower.startswith(p) or f"/{p}" in norm_lower for p in plan_prefixes):
                     return False, f"Governance Mode blocks task/design writes to '{norm_path}'. Switch to Plan mode (`/mode plan`) to update tasks."
             return False, f"Governance Mode blocks project code modifications to '{norm_path}'. Switch to Agent mode (`/mode agent`) to execute changes."

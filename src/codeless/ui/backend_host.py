@@ -568,36 +568,49 @@ class ReactBackendHost:
         if command in {"permissions", "mode"}:
             from codeless.abb.permissions import TriMode, get_mode_engine
 
-            curr_mode = get_mode_engine().current_mode
+            engine = get_mode_engine()
+            perm_str = str(state.permission_mode or "").strip().lower()
+            if "plan" in perm_str:
+                engine.set_mode(TriMode.PLAN)
+            elif "ask" in perm_str:
+                engine.set_mode(TriMode.ASK)
+            elif "codebase" in perm_str:
+                engine.set_mode(TriMode.CODEBASE)
+            elif "governance" in perm_str or "abb" in perm_str:
+                engine.set_mode(TriMode.GOVERNANCE)
+            elif perm_str in {"agent", "default", "full_auto"}:
+                engine.set_mode(TriMode.AGENT)
+
+            curr_mode = engine.current_mode
             options = [
                 {
                     "value": "agent",
-                    "label": "Agent",
+                    "label": "AGENT",
                     "description": "Full autonomous execution — code editing, testing, task completion",
                     "active": curr_mode == TriMode.AGENT,
                 },
                 {
                     "value": "plan",
-                    "label": "Plan Mode",
-                    "description": "Architecture & Task Planning — writes restricted to tasks/ and design/",
+                    "label": "PLAN",
+                    "description": "Architecture & task planning (writes restricted to tasks/ and design/)",
                     "active": curr_mode == TriMode.PLAN,
                 },
                 {
                     "value": "ask",
-                    "label": "Ask",
-                    "description": "Read-only Q&A — all file modifications blocked",
+                    "label": "ASK",
+                    "description": "Read-only Q&A (all file modifications blocked)",
                     "active": curr_mode == TriMode.ASK,
                 },
                 {
                     "value": "codebase",
-                    "label": "Codebase",
-                    "description": "Codebase exploration & memory queries — strictly read-only",
+                    "label": "CODEBASE",
+                    "description": "Codebase exploration & memory queries (strictly read-only)",
                     "active": curr_mode == TriMode.CODEBASE,
                 },
                 {
                     "value": "governance",
-                    "label": "Governance",
-                    "description": "ABB Meta-Spec Governance — writes restricted to STACK.md, agent.md, features/, references/",
+                    "label": "GOVERNANCE",
+                    "description": "ABB meta-spec governance (writes restricted to STACK.md, agent.md, features/, references/, workflows/)",
                     "active": curr_mode == TriMode.GOVERNANCE,
                 },
             ]
@@ -609,6 +622,7 @@ class ReactBackendHost:
                 )
             )
             return
+
 
 
         if command == "theme":

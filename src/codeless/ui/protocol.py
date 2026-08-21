@@ -336,23 +336,23 @@ def _state_payload(state: AppState) -> dict[str, Any]:
 
 
 _MODE_LABELS = {
-    "agent": "Agent",
-    "plan": "Plan Mode",
-    "ask": "Ask",
-    "codebase": "Codebase",
-    "governance": "Governance",
-    "default": "Agent",
-    "full_auto": "Auto",
-    "PermissionMode.DEFAULT": "Agent",
-    "PermissionMode.PLAN": "Plan Mode",
-    "PermissionMode.FULL_AUTO": "Auto",
+    "agent": "AGENT",
+    "plan": "PLAN",
+    "ask": "ASK",
+    "codebase": "CODEBASE",
+    "governance": "GOVERNANCE",
+    "default": "AGENT",
+    "full_auto": "AGENT",
+    "PermissionMode.DEFAULT": "AGENT",
+    "PermissionMode.PLAN": "PLAN",
+    "PermissionMode.FULL_AUTO": "AGENT",
 }
 
 
-
 def _format_permission_mode(raw: str) -> str:
-    """Convert raw permission mode to human-readable label."""
-    return _MODE_LABELS.get(raw, raw)
+    """Convert raw permission mode to uppercase human-readable label."""
+    cleaned = str(raw).strip().lower()
+    return _MODE_LABELS.get(cleaned, _MODE_LABELS.get(raw, str(raw).upper()))
 
 
 __all__ = [

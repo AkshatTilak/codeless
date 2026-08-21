@@ -104,4 +104,8 @@ def validate_task_frontmatter(
     if "links" in data and not isinstance(data["links"], list):
         errors.append("Field 'links' must be a list.")
 
+    # 7. Validate SRS Refs (optional traceability field)
+    if "srs_refs" in data and not isinstance(data["srs_refs"], list):
+        errors.append("Field 'srs_refs' must be a list of requirement IDs (e.g. ['FR-001']).")
+
     return errors

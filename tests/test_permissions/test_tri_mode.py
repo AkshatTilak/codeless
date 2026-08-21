@@ -40,11 +40,11 @@ def test_plan_mode_path_rules(tmp_path: Path):
     allowed, _ = engine.evaluate_write_permission("design/system/architecture.md", tmp_path)
     assert allowed
 
-    # Meta-specs belong to Governance mode, not Plan mode
-    allowed, reason = engine.evaluate_write_permission("features/auth/spec.md", tmp_path)
-    assert not allowed
-    assert "Plan Mode blocks meta-spec writes" in reason
+    # Feature specs are LLD design artifacts — allowed in Plan mode
+    allowed, _ = engine.evaluate_write_permission("features/auth/spec.md", tmp_path)
+    assert allowed
 
+    # Meta-specs belong to Governance mode, not Plan mode
     allowed, reason = engine.evaluate_write_permission("STACK.md", tmp_path)
     assert not allowed
     assert "Plan Mode blocks meta-spec writes" in reason

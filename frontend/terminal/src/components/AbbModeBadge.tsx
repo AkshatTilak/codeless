@@ -8,7 +8,7 @@ export function AbbModeBadge({
 }): React.JSX.Element {
 	const normalized = (mode ?? 'agent').toLowerCase();
 
-	if (normalized === 'plan' || normalized === 'plan mode') {
+	if (normalized.includes('plan')) {
 		return (
 			<Box marginRight={1}>
 				<Text backgroundColor="cyan" color="black" bold>
@@ -18,7 +18,7 @@ export function AbbModeBadge({
 		);
 	}
 
-	if (normalized === 'ask') {
+	if (normalized.includes('ask')) {
 		return (
 			<Box marginRight={1}>
 				<Text backgroundColor="magenta" color="white" bold>
@@ -28,7 +28,7 @@ export function AbbModeBadge({
 		);
 	}
 
-	if (normalized === 'codebase') {
+	if (normalized.includes('codebase')) {
 		return (
 			<Box marginRight={1}>
 				<Text backgroundColor="blue" color="white" bold>
@@ -38,7 +38,7 @@ export function AbbModeBadge({
 		);
 	}
 
-	if (normalized === 'governance' || normalized === 'abb') {
+	if (normalized.includes('governance') || normalized === 'abb') {
 		return (
 			<Box marginRight={1}>
 				<Text backgroundColor="yellow" color="black" bold>
@@ -55,5 +55,6 @@ export function AbbModeBadge({
 			</Text>
 		</Box>
 	);
+
 }
 
