@@ -128,17 +128,17 @@ async def test_send_message_swarm_path_uses_subprocess_backend(tmp_path: Path, m
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     context = ToolExecutionContext(cwd=tmp_path)
 
-    from codeless.tools.send_message_tool import SendMessageTool
+    from codeless.swarm.registry import get_backend_registry
+    from codeless.tools.send_message_tool import SendMessageTool, SendMessageToolInput
 
-    with patch(
-        "codeless.swarm.subprocess_backend.SubprocessBackend.send_message",
+    executor = get_backend_registry().get_executor("subprocess")
+    with patch.object(
+        executor,
+        "send_message",
         new_callable=AsyncMock,
     ) as mock_send:
         await SendMessageTool().execute(
-            __import__(
-                "codeless.tools.send_message_tool",
-                fromlist=["SendMessageToolInput"],
-            ).SendMessageToolInput(
+            SendMessageToolInput(
                 task_id="worker@default",
                 message="ping",
             ),
