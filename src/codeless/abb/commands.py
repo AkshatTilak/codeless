@@ -471,6 +471,15 @@ async def _mode_handler(args: str, context: CommandContext) -> CommandResult:
         save_settings(settings)
         context.engine.set_permission_checker(PermissionChecker(settings.permission))
 
+        try:
+            from codeless.prompts.context import build_runtime_system_prompt
+
+            new_prompt = build_runtime_system_prompt(settings, cwd=context.cwd)
+            if hasattr(context.engine, "set_system_prompt"):
+                context.engine.set_system_prompt(new_prompt)
+        except Exception:
+            pass
+
         if context.app_state is not None:
             context.app_state.set(permission_mode=target.upper())
 

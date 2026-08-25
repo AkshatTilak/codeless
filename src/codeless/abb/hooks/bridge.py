@@ -120,7 +120,7 @@ def pre_tool_use_abb_guard(
 
         return True, "OK"
 
-    if tool_name not in {"write_file", "edit_file"}:
+    if tool_name not in {"write_file", "edit_file", "notebook_edit"}:
         return True, "OK"
 
     raw_path = arguments.get("path")

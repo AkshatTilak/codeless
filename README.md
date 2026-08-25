@@ -171,6 +171,26 @@ codeless
 
 ---
 
+## 📚 Documentation & Guides
+
+Explore detailed documentation for each capability in the [`docs/`](docs/index.md) directory:
+
+- [**Documentation Portal & Sitemap**](docs/index.md)
+- [**CLI Reference & Options**](docs/cli_reference.md)
+- [**ABB Workspaces & Dual-Location Engine**](docs/abb_agent_buildable_base.md)
+- [**Operational Modes & Domain Write Boundaries**](docs/modes_and_permissions.md)
+- [**Subagent Workers & Concurrency Coordinator**](docs/subagent_workers.md)
+- [**Skills System & Pull-Adapt-Delete Lifecycle**](docs/skills_and_staging.md)
+- [**Git Checkpoints & Rollback Engine**](docs/checkpoints_and_rollback.md)
+- [**Codebase Drift Auditor & Feedback Loop**](docs/drift_auditor.md)
+- [**Unified Web Search & Crawl Engine**](docs/web_crawl_and_research.md)
+- [**Tool System & Consolidated CRUD**](docs/tool_system_and_consolidation.md)
+- [**Interactive Slash Commands Reference**](docs/slash_commands.md)
+- [**MCP Servers & Plugin Extensibility**](docs/mcp_and_plugins.md)
+- [**Showcase & Workflow Examples**](docs/SHOWCASE.md)
+
+---
+
 ## ⚡ Slash Commands Reference
 
 | Slash Command | Description |

@@ -139,7 +139,37 @@ class PermissionChecker:
         if is_read_only:
             return PermissionDecision(allowed=True, reason="read-only tools are allowed")
 
-        # Plan mode: block mutating tools
+        # Planning & task management tools always allowed in PLAN, GOVERNANCE, and AGENT modes
+        if tool_name in {
+            "todo_write",
+            "ask_user_question",
+            "abb_task",
+            "skill",
+        }:
+            return PermissionDecision(
+                allowed=True, reason="Planning & governance tools are allowed in this mode"
+            )
+
+        # Check ABB ModeEngine write boundaries for file operations
+        if file_path:
+            try:
+                from pathlib import Path
+
+                from codeless.abb.permissions import get_mode_engine
+
+                mode_engine = get_mode_engine()
+                mode_allowed, mode_reason = mode_engine.evaluate_write_permission(
+                    file_path, Path.cwd()
+                )
+                if not mode_allowed:
+                    return PermissionDecision(allowed=False, reason=mode_reason)
+                elif self._settings.mode == PermissionMode.PLAN:
+                    # In PLAN or GOVERNANCE mode, ModeEngine has validated this write is inside allowed boundary
+                    return PermissionDecision(allowed=True, reason=mode_reason)
+            except Exception:
+                pass
+
+        # Plan mode: block mutating tools (e.g. bash commands without explicit file target)
         if self._settings.mode == PermissionMode.PLAN:
             return PermissionDecision(
                 allowed=False,

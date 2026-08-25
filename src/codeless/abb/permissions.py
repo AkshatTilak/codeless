@@ -67,6 +67,9 @@ class ModeEngine:
                 "image_to_text",
                 "ask_user_question",
                 "skill",
+                "tool_search",
+                "brief",
+                "sleep",
                 "abb_task",
                 "cron",
                 "task",
@@ -82,13 +85,19 @@ class ModeEngine:
                 "read_file",
                 "write_file",
                 "edit_file",
+                "notebook_edit",
                 "glob",
                 "grep",
                 "lsp",
                 "image_to_text",
+                "image_generation",
                 "ask_user_question",
                 "todo_write",
                 "skill",
+                "tool_search",
+                "config",
+                "brief",
+                "sleep",
                 "abb_task",
                 "abb_verify",
                 "cron",
@@ -108,13 +117,19 @@ class ModeEngine:
             "read_file",
             "write_file",
             "edit_file",
+            "notebook_edit",
             "glob",
             "grep",
             "lsp",
             "image_to_text",
+            "image_generation",
             "ask_user_question",
             "todo_write",
             "skill",
+            "tool_search",
+            "config",
+            "brief",
+            "sleep",
             "agent",
             "send_message",
             "task",
@@ -151,6 +166,12 @@ class ModeEngine:
                 f"{mode_name} Mode is strictly read-only; all file writes to '{norm_path}' are blocked.",
             )
 
+        # Planning & task checklist files (TODO.md, etc.)
+        norm_name = Path(norm_path).name.lower()
+        if norm_name in {"todo.md", "todos.md"}:
+            if self._current_mode in {TriMode.PLAN, TriMode.GOVERNANCE, TriMode.AGENT}:
+                return True, "Permitted write to task planning file (TODO.md)."
+
         # 2. PLAN Mode: Write allowed ONLY to tasks/, design/, and features/
         if self._current_mode == TriMode.PLAN:
             if is_abb:
@@ -170,36 +191,10 @@ class ModeEngine:
                 f"Plan Mode blocks project code modifications to '{norm_path}'. Switch to Agent mode (`/mode agent`) to execute changes.",
             )
 
-        # 3. GOVERNANCE Mode: Write allowed ONLY to meta-specs (STACK, agent, references, skills, workflows, conventions)
+        # 3. GOVERNANCE Mode: Write allowed to all ABB workspace specifications & memory bank
         if self._current_mode == TriMode.GOVERNANCE:
             if is_abb:
-                norm_lower = norm_path.lower()
-                gov_prefixes = (
-                    "references/",
-                    "references",
-                    "skills/",
-                    "skills",
-                    "workflows/",
-                    "workflows",
-                    "stack.md",
-                    "user_preferences.md",
-                    "agent.md",
-                    "conventions.md",
-                    "coding_philosophy.md",
-                    "changelog.md",
-                    "readme.md",
-                )
-                if any(
-                    norm_lower.startswith(p) or f"/{p}" in norm_lower or norm_lower.endswith(p)
-                    for p in gov_prefixes
-                ):
-                    return True, "Governance mode permitted write to ABB meta-specifications."
-                plan_prefixes = ("tasks/", "tasks", "design/", "design", "features/", "features")
-                if any(norm_lower.startswith(p) or f"/{p}" in norm_lower for p in plan_prefixes):
-                    return (
-                        False,
-                        f"Governance Mode blocks task/design writes to '{norm_path}'. Switch to Plan mode (`/mode plan`) to update tasks.",
-                    )
+                return True, "Governance mode permitted write to ABB workspace specifications."
             return (
                 False,
                 f"Governance Mode blocks project code modifications to '{norm_path}'. Switch to Agent mode (`/mode agent`) to execute changes.",

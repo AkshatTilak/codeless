@@ -109,7 +109,7 @@ def run_drift_audit(project_root: str | Path) -> DriftReport:
                     file_path=str(abb_ws),
                     description="ABB workspace is not initialized on disk.",
                     severity="error",
-                    remediation="Run 'codeless abb status' or initialize workspace with 'codeless run'.",
+                    remediation="Run 'codeless abb status' or initialize workspace with 'codeless'.",
                 )
             ],
             scanned_files_count=0,

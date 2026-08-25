@@ -310,14 +310,21 @@ class BackendEvent(BaseModel):
 
 
 def _state_payload(state: AppState) -> dict[str, Any]:
+    try:
+        from codeless.abb.permissions import get_mode_engine
+
+        active_mode = get_mode_engine().current_mode.value.upper()
+    except Exception:
+        active_mode = _format_permission_mode(state.permission_mode)
+
     return {
         "model": state.model,
         "cwd": state.cwd,
         "provider": state.provider,
         "auth_status": state.auth_status,
         "base_url": state.base_url,
-        "mode": _format_permission_mode(state.permission_mode),
-        "permission_mode": _format_permission_mode(state.permission_mode),
+        "mode": active_mode,
+        "permission_mode": active_mode,
         "theme": state.theme,
         "vim_enabled": state.vim_enabled,
         "voice_enabled": state.voice_enabled,

@@ -362,8 +362,8 @@ class ReactBackendHost:
                 )
                 await self._emit(BackendEvent.tasks_snapshot(get_task_manager().list_tasks()))
                 await self._emit(self._status_snapshot())
-                # Emit todo_update when TodoWrite tool runs
-                if event.tool_name in ("TodoWrite", "todo_write"):
+                # Emit todo_update when todo_write tool runs
+                if event.tool_name == "todo_write":
                     tool_input = self._last_tool_inputs.get(event.tool_name, {})
                     # TodoWrite input may have 'todos' list or markdown content field
                     todos = tool_input.get("todos") or tool_input.get("content") or []
@@ -613,18 +613,6 @@ class ReactBackendHost:
             from codeless.abb.permissions import TriMode, get_mode_engine
 
             engine = get_mode_engine()
-            perm_str = str(state.permission_mode or "").strip().lower()
-            if "plan" in perm_str:
-                engine.set_mode(TriMode.PLAN)
-            elif "ask" in perm_str:
-                engine.set_mode(TriMode.ASK)
-            elif "codebase" in perm_str:
-                engine.set_mode(TriMode.CODEBASE)
-            elif "governance" in perm_str or "abb" in perm_str:
-                engine.set_mode(TriMode.GOVERNANCE)
-            elif perm_str in {"agent", "default", "full_auto"}:
-                engine.set_mode(TriMode.AGENT)
-
             curr_mode = engine.current_mode
             options = [
                 {
