@@ -141,13 +141,23 @@ web                 crawl, search, fetch              True (all queries are read
 ### Global CLI Installation
 
 ```bash
-# Recommended: Isolated editable tool environment via uv
+# 1. Clone repository with submodules (contains ABB templates):
+git clone --recurse-submodules https://github.com/AkshatTilak/codeless.git
+cd codeless
+
+# If already cloned without submodules, pull them:
+git submodule update --init --recursive
+
+# Note (Windows): If git submodule hits a `cygheap base mismatch` fork error, clone directly:
+# git clone https://github.com/AkshatTilak/agent_buildable_base.git templates/agent_buildable_base
+
+# 2. Recommended: Isolated editable tool environment via uv
 uv tool install --force --editable .
 
-# Sync local workspace & dev dependencies:
+# 3. Sync local workspace & dev dependencies:
 uv sync --extra dev
 
-# Ensure frontend React terminal dependencies are installed:
+# 4. Ensure frontend React terminal dependencies are installed:
 cd frontend/terminal && npm install && cd ../..
 
 # Or via standard pip:
@@ -166,6 +176,44 @@ Codeless includes Crawl4AI and a fast structured HTML-to-Markdown parser out-of-
 cd /path/to/any/project
 codeless
 ```
+
+---
+
+## 🧹 Workspace Cleanup & Removal
+
+Codeless provides both CLI commands and straightforward manual paths to remove ABB workspaces and project caches:
+
+### 1. Cleaning Shadow Workspaces (Global Storage)
+Shadow workspaces live in `~/.codeless/projects/<project_hash>/`.
+
+```bash
+# Preview what would be deleted without removing files
+codeless projects clean --dry-run
+
+# Delete orphaned shadow workspaces (where original repo directory no longer exists)
+codeless projects clean
+
+# Delete ALL shadow workspaces across all projects
+codeless projects clean --all
+```
+
+**Manual Global Reset:**
+* **PowerShell (Windows):** `Remove-Item -Recurse -Force "$HOME\.codeless"`
+* **Bash (Linux/macOS):** `rm -rf ~/.codeless`
+
+### 2. Cleaning Local Workspaces (In-Repository)
+Local in-repo workspaces live in `<project_root>/.codeless/`.
+
+* **PowerShell (Windows):** `Remove-Item -Recurse -Force .codeless`
+* **Bash (Linux/macOS):** `rm -rf .codeless`
+* *(Optional)*: Remove `.codeless/` from your `.gitignore`.
+
+### 3. Migrating Instead of Deleting
+If you want to unpollute a repository without losing your ABB tasks and history, migrate it to shadow storage:
+```bash
+codeless abb migrate shadow
+```
+
 
 ---
 

@@ -72,16 +72,23 @@ codeless abb migrate local --force
 ```
 
 ### `codeless projects`
-Manage shadow workspaces and disk usage across projects:
+Manage and prune shadow workspaces and disk footprints:
 
 ```bash
-# List all registered shadow project workspaces
+# List all registered shadow project workspaces (with sizes and active status)
 codeless projects list
+codeless projects list --json
 
-# Clean up stale or inactive shadow workspaces
+# Preview workspaces that would be deleted without deleting
+codeless projects clean --dry-run
+
+# Clean up orphaned shadow workspaces (original repo directory no longer exists)
 codeless projects clean
+
+# Clean up ALL shadow workspaces across all projects
 codeless projects clean --all
 ```
+
 
 ### `codeless cron`
 Inspect and manage scheduled cron jobs and background background recurring tasks:

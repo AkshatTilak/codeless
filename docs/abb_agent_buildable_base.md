@@ -110,3 +110,47 @@ Every file operation on an ABB workspace is guarded by deterministic lifecycle h
 - **Auto Roll-Up**: Automatically rolls up subtask completions to parent Base Tasks and updates the system Goal.
 - **Skill Staging Guard**: Blocks updates to `skills/skills.md` while unpurged artifacts remain in `skills/_staging/`.
 - **Drift Detection Hook**: Heuristically alerts the agent if modifications cause architectural drift from `STACK.md`.
+
+---
+
+## 6. Workspace Cleanup & Removal
+
+You can purge or reset ABB workspaces at any time without affecting your project source code:
+
+### Cleaning Shadow Workspaces (Global)
+```bash
+# List all registered shadow workspaces and disk usage
+codeless projects list
+
+# Preview deletion candidates (dry-run)
+codeless projects clean --dry-run
+
+# Prune orphaned shadow workspaces (where source project root was deleted)
+codeless projects clean
+
+# Prune ALL shadow workspaces across all projects
+codeless projects clean --all
+```
+
+**Manual deletion of all shadow data:**
+* **Windows (PowerShell):** `Remove-Item -Recurse -Force "$HOME\.codeless"`
+* **Linux/macOS:** `rm -rf ~/.codeless`
+
+### Cleaning Local In-Repo Workspaces
+When using `--abb-location local`, the workspace resides in `.codeless/`:
+* **Windows (PowerShell):** `Remove-Item -Recurse -Force .codeless`
+* **Linux/macOS:** `rm -rf .codeless`
+* Remove `.codeless/` from `.gitignore` if no longer needed.
+
+> [!TIP]
+> **Source Builds & Submodules:**
+> If running from source, ensure the ABB template submodule is initialized:  
+> ```bash
+> git submodule update --init --recursive
+> ```
+> **Windows Git Fork Issue (`cygheap base mismatch`):**  
+> If Git for Windows crashes with `cygheap base mismatch detected` / `fork: retry: Resource temporarily unavailable` when updating submodules, clone the template repository directly (bypassing the MSYS2 shell):
+> ```powershell
+> git clone https://github.com/AkshatTilak/agent_buildable_base.git templates/agent_buildable_base
+> ```
+
