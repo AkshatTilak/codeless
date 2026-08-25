@@ -1,7 +1,8 @@
-"""Unified background task management tool."""
+"""Unified background task management and execution tool."""
 
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Literal
 
@@ -12,11 +13,11 @@ from codeless.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 
 class TaskToolInput(BaseModel):
-    """Arguments for background task operations."""
+    """Arguments for background task and execution operations."""
 
-    action: Literal["create", "get", "list", "stop", "output", "update"] = Field(
+    action: Literal["create", "get", "list", "stop", "output", "update", "sleep"] = Field(
         default="list",
-        description="Task operation to perform: 'create', 'get', 'list', 'stop', 'output', or 'update'.",
+        description="Task operation: 'create', 'get', 'list', 'stop', 'output', 'update', or 'sleep'.",
     )
     task_id: str | None = Field(
         default=None, description="Task identifier (required for get, stop, output, update)."
@@ -40,29 +41,37 @@ class TaskToolInput(BaseModel):
         default=12000, ge=1, le=100000, description="Max log bytes to read (for output)."
     )
     status: str | None = Field(default=None, description="Updated status string (for update).")
+    seconds: float = Field(
+        default=1.0, ge=0.0, le=60.0, description="Duration in seconds (for action='sleep')."
+    )
 
 
 class TaskTool(BaseTool):
-    """Manage background tasks with actions: create, get, list, stop, output, update."""
+    """Manage background tasks and paused execution."""
 
     name = "task"
     description = (
-        "Manage background tasks and agent jobs. Actions:\n"
+        "Manage background tasks, agent jobs, and pauses. Actions:\n"
         "- 'list': List all active and recent background tasks (read-only).\n"
         "- 'get': Get full status and details for a specific task_id (read-only).\n"
         "- 'output': Read log output for a specific task_id (read-only).\n"
         "- 'create': Spawn a background shell or local agent task.\n"
         "- 'stop': Cancel or terminate a running task.\n"
-        "- 'update': Update task metadata or status."
+        "- 'update': Update task metadata or status.\n"
+        "- 'sleep': Pause execution briefly for N seconds (read-only)."
     )
     input_model = TaskToolInput
 
     def is_read_only(self, arguments: TaskToolInput) -> bool:
-        return arguments.action in {"get", "list", "output"}
+        return arguments.action in {"get", "list", "output", "sleep"}
 
     async def execute(self, arguments: TaskToolInput, context: ToolExecutionContext) -> ToolResult:
         action = arguments.action
         manager = get_task_manager()
+
+        if action == "sleep":
+            await asyncio.sleep(arguments.seconds)
+            return ToolResult(output=f"Slept for {arguments.seconds} seconds")
 
         if action == "list":
             tasks = manager.list_tasks()

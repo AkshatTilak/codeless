@@ -73,9 +73,9 @@ async def test_mcp_tools_are_registered():
     result = await tool.execute(parsed, ToolExecutionContext(cwd=Path(".")))
     assert result.output == "demo:hello:world"
 
-    list_tool = registry.get("list_mcp_resources")
+    list_tool = registry.get("mcp")
     assert list_tool is not None
     list_result = await list_tool.execute(
-        list_tool.input_model(), ToolExecutionContext(cwd=Path("."))
+        list_tool.input_model(action="list"), ToolExecutionContext(cwd=Path("."))
     )
     assert "demo://readme" in list_result.output

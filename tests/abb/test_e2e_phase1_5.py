@@ -14,8 +14,7 @@ from codeless.prompts.context import build_runtime_system_prompt
 from codeless.sandbox.adapter import build_sandbox_runtime_config
 from codeless.sandbox.docker_backend import DockerSandboxSession
 from codeless.tools import create_default_tool_registry
-from codeless.tools.abb_task_tool import AbbTaskTool, AbbTaskToolInput
-from codeless.tools.abb_verify_tool import AbbVerifyTool, AbbVerifyToolInput
+from codeless.tools.abb_tool import AbbTool, AbbToolInput
 from codeless.tools.agent_tool import AgentTool, AgentToolInput
 from codeless.tools.base import ToolExecutionContext
 from codeless.tools.bash_tool import BashTool, BashToolInput
@@ -55,9 +54,7 @@ def test_scenario_1_prompt_audit(e2e_abb_workspace: Path, monkeypatch):
             cwd=e2e_abb_workspace,
             latest_user_prompt="audit test",
         )
-        # Verify no old Claude Code identity string exists
         assert "You are Claude Code" not in prompt
-        # Verify mode section is included
         assert "Active Mode & Tool Policy" in prompt or "Active Mode" in prompt
 
     # Coordinator overlay
@@ -92,15 +89,15 @@ async def test_scenario_2_mode_matrix_and_bash_guard(e2e_abb_workspace: Path):
 
     # PLAN mode: meta specs and tasks allowed
     allowed_meta, _ = pre_tool_use_abb_guard(
-        "write_file",
-        {"path": ".codeless/abb_workspace/STACK.md", "content": "# STACK\n"},
+        "file",
+        {"action": "write", "path": ".codeless/abb_workspace/STACK.md", "content": "# STACK\n"},
         e2e_abb_workspace,
     )
     assert allowed_meta
 
     blocked_code, _ = pre_tool_use_abb_guard(
-        "write_file",
-        {"path": "src/main.py", "content": "print(1)\n"},
+        "file",
+        {"action": "write", "path": "src/main.py", "content": "print(1)\n"},
         e2e_abb_workspace,
     )
     assert not blocked_code
@@ -118,20 +115,18 @@ async def test_scenario_3_tools_inventory_and_abb_tools(e2e_abb_workspace: Path)
     assert "team_create" not in tool_names
     assert "team_delete" not in tool_names
 
-    # ABB tools present
-    assert "abb_task" in tool_names
-    assert "abb_verify" in tool_names
+    # ABB canonical tool present
+    assert "abb" in tool_names
 
-    # Execute abb_task ready
+    # Execute abb ready
     ctx = ToolExecutionContext(cwd=e2e_abb_workspace)
-    task_tool = AbbTaskTool()
-    ready_res = await task_tool.execute(AbbTaskToolInput(action="ready"), ctx)
+    abb_tool = AbbTool()
+    ready_res = await abb_tool.execute(AbbToolInput(action="ready"), ctx)
     assert not ready_res.is_error
     assert "sub_002" in ready_res.output
 
-    # Execute abb_verify dry-run
-    verify_tool = AbbVerifyTool()
-    verify_res = await verify_tool.execute(AbbVerifyToolInput(dry_run=True), ctx)
+    # Execute abb verify dry-run
+    verify_res = await abb_tool.execute(AbbToolInput(action="verify", dry_run=True), ctx)
     assert not verify_res.is_error
     assert "python -c 'print(1)'" in verify_res.output
 
@@ -147,6 +142,7 @@ async def test_scenario_4_agent_mode_filtering(e2e_abb_workspace: Path, monkeypa
     engine.set_mode(TriMode.ASK)
     explore_res = await AgentTool().execute(
         AgentToolInput(
+            action="spawn",
             description="explore",
             prompt="search",
             subagent_type="Explore",
@@ -158,6 +154,7 @@ async def test_scenario_4_agent_mode_filtering(e2e_abb_workspace: Path, monkeypa
 
     gov_res = await AgentTool().execute(
         AgentToolInput(
+            action="spawn",
             description="gov",
             prompt="update",
             subagent_type="abb-governance",
@@ -180,11 +177,9 @@ def test_scenario_5_sandbox_abb_coherence(e2e_abb_workspace: Path):
     )
     argv = session._build_run_argv()
 
-    # Assert CODELESS_ABB_ROOT in Docker env
     env_flags = [argv[i + 1] for i, arg in enumerate(argv) if arg == "-e"]
     assert any(e.startswith("CODELESS_ABB_ROOT=") for e in env_flags)
 
-    # Assert srt configuration includes shadow workspace
     srt_config = build_sandbox_runtime_config(settings, cwd=e2e_abb_workspace)
     abb_ws = resolve_abb_workspace(e2e_abb_workspace)
     assert str(abb_ws.resolve()) in srt_config["filesystem"]["allowRead"]

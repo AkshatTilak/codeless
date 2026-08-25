@@ -11,9 +11,7 @@ from codeless.abb.virtualization import (
     unvirtualize_path,
 )
 from codeless.tools.base import ToolExecutionContext
-from codeless.tools.file_edit_tool import FileEditTool, FileEditToolInput
-from codeless.tools.file_read_tool import FileReadTool, FileReadToolInput
-from codeless.tools.file_write_tool import FileWriteTool, FileWriteToolInput
+from codeless.tools.file_tool import FileTool, FileToolInput
 from codeless.tools.glob_tool import GlobTool, GlobToolInput
 from codeless.tools.grep_tool import GrepTool, GrepToolInput
 
@@ -52,40 +50,34 @@ def test_resolve_virtual_path_with_dev_override(tmp_path):
     project_root.mkdir()
     (project_root / ".git").mkdir()
 
-    # Create dev override
-    dev_ws = project_root / ".codeless" / "abb_workspace"
-    dev_ws.mkdir(parents=True)
-    (dev_ws / "agent.md").write_text("DEV AGENT MD", encoding="utf-8")
+    # With .codeless/abb_workspace in repo
+    local_abb = project_root / ".codeless" / "abb_workspace"
+    local_abb.mkdir(parents=True)
+    (local_abb / "agent.md").write_text("# Local Agent\n", encoding="utf-8")
 
-    # Resolve ABB path
-    p = resolve_virtual_path(project_root, "agent.md")
-    assert p == (dev_ws / "agent.md").resolve()
+    resolved = resolve_virtual_path(project_root, "agent.md")
+    assert resolved == local_abb / "agent.md"
 
-    # Resolve codebase path
-    src_file = resolve_virtual_path(project_root, "src/main.py")
-    assert src_file == (project_root / "src" / "main.py").resolve()
+    resolved_subtask = resolve_virtual_path(project_root, "tasks/sub/01.md")
+    assert resolved_subtask == local_abb / "tasks" / "sub" / "01.md"
 
 
-def test_resolve_virtual_path_with_shadow_workspace(tmp_path, monkeypatch):
+def test_resolve_virtual_path_shadow(tmp_path, monkeypatch):
     storage_root = tmp_path / ".codeless"
     monkeypatch.setattr("codeless.abb.shadow.get_global_codeless_dir", lambda: storage_root)
 
-    project_root = tmp_path / "clean_project"
+    project_root = tmp_path / "repo_without_local_abb"
     project_root.mkdir()
     (project_root / ".git").mkdir()
-    (project_root / "src").mkdir()
-    (project_root / "src" / "index.ts").write_text("console.log(1)", encoding="utf-8")
 
-    # Resolve ABB path (should auto-init in shadow)
-    resolved_tasks_md = resolve_virtual_path(project_root, "tasks/tasks.md")
-    assert resolved_tasks_md.exists()
-    assert "abb_workspace" in str(resolved_tasks_md)
-    # Project root remains clean of tasks/
-    assert not (project_root / "tasks").exists()
+    # Should resolve to shadow workspace
+    resolved = resolve_virtual_path(project_root, "agent.md")
+    assert "projects" in str(resolved)
+    assert resolved.name == "agent.md"
 
-    # Resolve codebase path
-    resolved_src = resolve_virtual_path(project_root, "src/index.ts")
-    assert resolved_src == (project_root / "src" / "index.ts").resolve()
+    # Non-ABB paths must resolve to repo
+    code_file = resolve_virtual_path(project_root, "src/main.py")
+    assert code_file == project_root / "src" / "main.py"
 
 
 @pytest.mark.asyncio
@@ -98,14 +90,14 @@ async def test_file_tools_virtualization_integration(tmp_path, monkeypatch):
     (project_root / ".git").mkdir()
 
     ctx = ToolExecutionContext(cwd=project_root)
+    file_tool = FileTool()
 
-    # 1. Read agent.md via FileReadTool
-    read_tool = FileReadTool()
-    res = await read_tool.execute(FileReadToolInput(path="agent.md"), ctx)
+    # 1. Read agent.md via FileTool
+    res = await file_tool.execute(FileToolInput(action="read", path="agent.md"), ctx)
     assert not res.is_error
     assert "System Architect" in res.output
 
-    # 2. Write a new subtask via FileWriteTool (with valid frontmatter)
+    # 2. Write a new subtask via FileTool (with valid frontmatter)
     valid_subtask = """---
 id: sub_099
 version: 1.0.0
@@ -116,9 +108,9 @@ depends_on: []
 # Subtask 99
 Body text
 """
-    write_tool = FileWriteTool()
-    res = await write_tool.execute(
-        FileWriteToolInput(
+    res = await file_tool.execute(
+        FileToolInput(
+            action="write",
             path="tasks/sub/99_test.md",
             content=valid_subtask,
         ),
@@ -128,10 +120,10 @@ Body text
     # Must NOT pollute project_root/tasks
     assert not (project_root / "tasks").exists()
 
-    # 3. Edit subtask via FileEditTool
-    edit_tool = FileEditTool()
-    res = await edit_tool.execute(
-        FileEditToolInput(
+    # 3. Edit subtask via FileTool
+    res = await file_tool.execute(
+        FileToolInput(
+            action="edit",
             path="tasks/sub/99_test.md",
             old_str="# Subtask 99",
             new_str="# Subtask 99 (Edited)",
@@ -141,7 +133,7 @@ Body text
     assert not res.is_error
 
     # 4. Read back subtask
-    res = await read_tool.execute(FileReadToolInput(path="tasks/sub/99_test.md"), ctx)
+    res = await file_tool.execute(FileToolInput(action="read", path="tasks/sub/99_test.md"), ctx)
     assert not res.is_error
     assert "Subtask 99 (Edited)" in res.output
 

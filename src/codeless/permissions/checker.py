@@ -143,7 +143,7 @@ class PermissionChecker:
         if tool_name in {
             "todo_write",
             "ask_user_question",
-            "abb_task",
+            "abb",
             "skill",
         }:
             return PermissionDecision(

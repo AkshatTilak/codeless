@@ -1,8 +1,9 @@
-"""Tool for spawning local agent tasks."""
+"""Unified local agent task management and communication tool."""
 
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -10,38 +11,83 @@ from codeless.coordinator.agent_definitions import get_agent_definition
 from codeless.hooks import HookEvent
 from codeless.jobs import get_task_manager
 from codeless.swarm.registry import get_backend_registry
-from codeless.swarm.types import TeammateSpawnConfig
+from codeless.swarm.types import TeammateMessage, TeammateSpawnConfig
 from codeless.tools.base import BaseTool, ToolExecutionContext, ToolResult
 
 logger = logging.getLogger(__name__)
 
 
 class AgentToolInput(BaseModel):
-    """Arguments for local agent spawning."""
+    """Arguments for local agent lifecycle and messaging."""
 
-    description: str = Field(description="Short description of the delegated work")
-    prompt: str = Field(description="Full prompt for the local agent")
+    action: Literal["spawn", "message", "status", "stop"] = Field(
+        default="spawn",
+        description="Agent operation: 'spawn' to launch a delegated agent, 'message' to send input/instructions to a running agent, 'status' to check agent state, or 'stop' to terminate.",
+    )
+    description: str | None = Field(
+        default=None, description="Short description of the delegated work (for 'spawn')"
+    )
+    prompt: str | None = Field(
+        default=None, description="Full prompt for the local agent (for 'spawn')"
+    )
     subagent_type: str | None = Field(
         default=None,
         description="Agent type for definition lookup (e.g. 'general-purpose', 'Explore', 'worker', 'abb-governance', 'task-planner')",
     )
-    model: str | None = Field(default=None)
-    command: str | None = Field(default=None, description="Override spawn command")
-    team: str | None = Field(default=None, description="Optional team to attach the agent to")
+    model: str | None = Field(default=None, description="Model override for agent (for 'spawn')")
+    command: str | None = Field(default=None, description="Override spawn command (for 'spawn')")
+    team: str | None = Field(
+        default=None, description="Optional team to attach the agent to (for 'spawn')"
+    )
     mode: str = Field(
         default="local_agent",
-        description="Agent mode: local_agent, remote_agent, or in_process_teammate",
+        description="Agent mode: local_agent, remote_agent, or in_process_teammate (for 'spawn')",
+    )
+
+    # Messaging and lifecycle parameters
+    task_id: str | None = Field(
+        default=None,
+        description="Target local agent task_id or swarm agent_id (required for 'message', 'status', 'stop')",
+    )
+    message: str | None = Field(
+        default=None, description="Follow-up message or instruction (required for 'message')"
     )
 
 
 class AgentTool(BaseTool):
-    """Spawn a local agent subprocess."""
+    """Spawn, manage, and communicate with local background agents."""
 
     name = "agent"
-    description = "Spawn a local background agent task."
+    description = (
+        "Spawn and interact with background AI agents. Actions:\n"
+        "- 'spawn': Launch a delegated subagent task.\n"
+        "- 'message': Send follow-up instructions/input to a running agent.\n"
+        "- 'status': Check the execution status of an agent task.\n"
+        "- 'stop': Cancel or terminate a running agent task."
+    )
     input_model = AgentToolInput
 
+    def is_read_only(self, arguments: AgentToolInput) -> bool:
+        return arguments.action == "status"
+
     async def execute(self, arguments: AgentToolInput, context: ToolExecutionContext) -> ToolResult:
+        if arguments.action == "spawn":
+            return await self._execute_spawn(arguments, context)
+        elif arguments.action == "message":
+            return await self._execute_message(arguments)
+        elif arguments.action == "status":
+            return self._execute_status(arguments)
+        elif arguments.action == "stop":
+            return await self._execute_stop(arguments)
+        return ToolResult(output=f"Unsupported agent action: {arguments.action}", is_error=True)
+
+    async def _execute_spawn(
+        self, arguments: AgentToolInput, context: ToolExecutionContext
+    ) -> ToolResult:
+        if not arguments.prompt or not arguments.description:
+            return ToolResult(
+                output="Agent 'spawn' requires both 'prompt' and 'description'.", is_error=True
+            )
         if arguments.mode not in {"local_agent", "remote_agent", "in_process_teammate"}:
             return ToolResult(
                 output="Invalid mode. Use local_agent, remote_agent, or in_process_teammate.",
@@ -70,10 +116,6 @@ class AgentTool(BaseTool):
         team = arguments.team or "default"
         agent_name = arguments.subagent_type or "agent"
 
-        # Use subprocess backend so spawned agents are registered in
-        # BackgroundTaskManager and are pollable by the task tools.
-        # in_process tasks return asyncio-internal IDs that task tools
-        # cannot query, and subprocess is always available on all platforms.
         registry = get_backend_registry()
         executor = registry.get_executor("subprocess")
 
@@ -143,3 +185,44 @@ class AgentTool(BaseTool):
                 "description": arguments.description,
             },
         )
+
+    async def _execute_message(self, arguments: AgentToolInput) -> ToolResult:
+        if not arguments.task_id or not arguments.message:
+            return ToolResult(
+                output="Agent 'message' requires both 'task_id' and 'message'.", is_error=True
+            )
+        if "@" in arguments.task_id:
+            registry = get_backend_registry()
+            executor = registry.get_executor("subprocess")
+            teammate_msg = TeammateMessage(text=arguments.message, from_agent="coordinator")
+            try:
+                await executor.send_message(arguments.task_id, teammate_msg)
+            except Exception as exc:
+                logger.error("Failed to send message to %s: %s", arguments.task_id, exc)
+                return ToolResult(output=str(exc), is_error=True)
+            return ToolResult(output=f"Sent message to agent {arguments.task_id}")
+
+        try:
+            await get_task_manager().write_to_task(arguments.task_id, arguments.message)
+        except ValueError as exc:
+            return ToolResult(output=str(exc), is_error=True)
+        return ToolResult(output=f"Sent message to task {arguments.task_id}")
+
+    def _execute_status(self, arguments: AgentToolInput) -> ToolResult:
+        if not arguments.task_id:
+            return ToolResult(output="Agent 'status' requires 'task_id'.", is_error=True)
+        task = get_task_manager().get_task(arguments.task_id)
+        if task is None:
+            return ToolResult(
+                output=f"No agent task found with ID: {arguments.task_id}", is_error=True
+            )
+        return ToolResult(output=f"Agent [{task.id}] {task.status.upper()}: {task.description}")
+
+    async def _execute_stop(self, arguments: AgentToolInput) -> ToolResult:
+        if not arguments.task_id:
+            return ToolResult(output="Agent 'stop' requires 'task_id'.", is_error=True)
+        try:
+            task = await get_task_manager().stop_task(arguments.task_id)
+        except ValueError as exc:
+            return ToolResult(output=str(exc), is_error=True)
+        return ToolResult(output=f"Stopped agent task {task.id}")

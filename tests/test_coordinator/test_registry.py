@@ -15,6 +15,8 @@ def test_removed_tools_not_in_registry():
     assert "team_create" not in tool_names
     assert "team_delete" not in tool_names
 
-    # Verify ABB tools added
-    assert "abb_task" in tool_names
-    assert "abb_verify" in tool_names
+    # Verify ABB canonical tools added and brief removed
+    assert "abb" in tool_names
+    assert "brief" not in tool_names
+    assert "file" in tool_names
+    assert "task" in tool_names

@@ -1,4 +1,4 @@
-"""Higher-level integration flows across multiple built-in tools."""
+"""Higher-level integration flows across canonical built-in tools."""
 
 from __future__ import annotations
 
@@ -29,14 +29,12 @@ async def test_search_edit_flow_across_registry(tmp_path: Path):
     registry = create_default_tool_registry()
     context = ToolExecutionContext(cwd=tmp_path, metadata={"tool_registry": registry})
 
-    write = registry.get("write_file")
+    file_tool = registry.get("file")
     glob = registry.get("glob")
     grep = registry.get("grep")
-    edit = registry.get("edit_file")
-    read = registry.get("read_file")
 
-    await write.execute(
-        write.input_model(path="src/demo.py", content="alpha\nbeta\n"),
+    await file_tool.execute(
+        file_tool.input_model(action="write", path="src/demo.py", content="alpha\nbeta\n"),
         context,
     )
     glob_result = await glob.execute(glob.input_model(pattern="**/*.py"), context)
@@ -48,11 +46,13 @@ async def test_search_edit_flow_across_registry(tmp_path: Path):
     )
     assert "src/demo.py:2:beta" in grep_result.output.replace("\\", "/")
 
-    await edit.execute(
-        edit.input_model(path="src/demo.py", old_str="beta", new_str="gamma"),
+    await file_tool.execute(
+        file_tool.input_model(action="edit", path="src/demo.py", old_str="beta", new_str="gamma"),
         context,
     )
-    read_result = await read.execute(read.input_model(path="src/demo.py"), context)
+    read_result = await file_tool.execute(
+        file_tool.input_model(action="read", path="src/demo.py"), context
+    )
     assert "gamma" in read_result.output
     assert "beta" not in (tmp_path / "src" / "demo.py").read_text(encoding="utf-8")
 
@@ -65,19 +65,17 @@ async def test_task_and_todo_flow_across_registry(tmp_path: Path, monkeypatch):
 
     tool_search = registry.get("tool_search")
     todo_write = registry.get("todo_write")
-    task_create = registry.get("task_create")
-    task_get = registry.get("task_get")
-    task_output = registry.get("task_output")
-    task_update = registry.get("task_update")
+    task = registry.get("task")
 
     search_result = await tool_search.execute(tool_search.input_model(query="task"), context)
-    assert "task_create" in search_result.output
+    assert "task" in search_result.output
 
     await todo_write.execute(todo_write.input_model(item="integration flow item"), context)
     assert "integration flow item" in (tmp_path / "TODO.md").read_text(encoding="utf-8")
 
-    create_result = await task_create.execute(
-        task_create.input_model(
+    create_result = await task.execute(
+        task.input_model(
+            action="create",
             type="local_bash",
             description="integration flow task",
             command="printf 'INTEGRATION_TASK_OK'",
@@ -85,22 +83,21 @@ async def test_task_and_todo_flow_across_registry(tmp_path: Path, monkeypatch):
         context,
     )
     task_id = create_result.output.split()[2]
-    update_result = await task_update.execute(
-        task_update.input_model(
+    update_result = await task.execute(
+        task.input_model(
+            action="update",
             task_id=task_id,
-            progress=25,
-            status_note="started",
+            description="renamed integration task",
         ),
         context,
     )
-    assert "progress=25%" in update_result.output
+    assert "Updated task" in update_result.output
 
-    task_detail = await task_get.execute(task_get.input_model(task_id=task_id), context)
-    assert "'progress': '25'" in task_detail.output
-    assert "'status_note': 'started'" in task_detail.output
+    task_detail = await task.execute(task.input_model(action="get", task_id=task_id), context)
+    assert "renamed integration task" in task_detail.output
 
     for _ in range(20):
-        output = await task_output.execute(task_output.input_model(task_id=task_id), context)
+        output = await task.execute(task.input_model(action="output", task_id=task_id), context)
         if "INTEGRATION_TASK_OK" in output.output:
             break
         await asyncio.sleep(0.1)
@@ -148,11 +145,11 @@ async def test_agent_send_message_flow_restarts_completed_agent(tmp_path: Path, 
     context = ToolExecutionContext(cwd=tmp_path, metadata={"tool_registry": registry})
 
     agent = registry.get("agent")
-    send_message = registry.get("send_message")
-    task_output = registry.get("task_output")
+    task = registry.get("task")
 
     create_result = await agent.execute(
         agent.input_model(
+            action="spawn",
             description="echo agent",
             prompt="ready",
             command="python -u -c \"import sys; print('AGENT_ECHO:' + sys.stdin.readline().strip())\"",
@@ -164,22 +161,22 @@ async def test_agent_send_message_flow_restarts_completed_agent(tmp_path: Path, 
     task_id = match.group(1)
 
     for _ in range(80):
-        output = await task_output.execute(task_output.input_model(task_id=task_id), context)
+        output = await task.execute(task.input_model(action="output", task_id=task_id), context)
         if "AGENT_ECHO:ready" in output.output:
             break
         await asyncio.sleep(0.1)
     else:
         raise AssertionError("initial agent output did not become available in time")
 
-    send_result = await send_message.execute(
-        send_message.input_model(task_id=task_id, message="agent ping"),
+    send_result = await agent.execute(
+        agent.input_model(action="message", task_id=task_id, message="agent ping"),
         context,
     )
     assert send_result.is_error is False
 
     await asyncio.sleep(0.2)
     for _ in range(150):
-        output = await task_output.execute(task_output.input_model(task_id=task_id), context)
+        output = await task.execute(task.input_model(action="output", task_id=task_id), context)
         if "AGENT_ECHO:agent ping" in output.output:
             break
         await asyncio.sleep(0.1)
@@ -206,8 +203,7 @@ async def test_ask_user_question_flow_across_registry(tmp_path: Path):
         metadata={"tool_registry": registry, "ask_user_prompt": _answer},
     )
     ask_user = registry.get("ask_user_question")
-    write = registry.get("write_file")
-    read = registry.get("read_file")
+    file_tool = registry.get("file")
 
     answer_result = await ask_user.execute(
         ask_user.input_model(question="What is your favorite color?"),
@@ -215,11 +211,13 @@ async def test_ask_user_question_flow_across_registry(tmp_path: Path):
     )
     assert answer_result.output == "green"
 
-    await write.execute(
-        write.input_model(path="answer.txt", content=answer_result.output),
+    await file_tool.execute(
+        file_tool.input_model(action="write", path="answer.txt", content=answer_result.output),
         context,
     )
-    read_result = await read.execute(read.input_model(path="answer.txt"), context)
+    read_result = await file_tool.execute(
+        file_tool.input_model(action="read", path="answer.txt"), context
+    )
     assert "green" in read_result.output
 
 
@@ -229,33 +227,31 @@ async def test_notebook_and_cron_flow_across_registry(tmp_path: Path, monkeypatc
     registry = create_default_tool_registry()
     context = ToolExecutionContext(cwd=tmp_path, metadata={"tool_registry": registry})
 
-    notebook = registry.get("notebook_edit")
-    cron_create = registry.get("cron_create")
-    cron_list = registry.get("cron_list")
-    remote_trigger = registry.get("remote_trigger")
-    cron_delete = registry.get("cron_delete")
+    file_tool = registry.get("file")
+    cron = registry.get("cron")
 
-    notebook_result = await notebook.execute(
-        notebook.input_model(path="nb/demo.ipynb", cell_index=0, new_source="print('flow ok')\n"),
+    notebook_result = await file_tool.execute(
+        file_tool.input_model(
+            action="notebook_edit",
+            path="nb/demo.ipynb",
+            cell_index=0,
+            new_source="print('flow ok')\n",
+        ),
         context,
     )
     assert notebook_result.is_error is False
     assert "flow ok" in (tmp_path / "nb" / "demo.ipynb").read_text(encoding="utf-8")
 
-    await cron_create.execute(
-        cron_create.input_model(name="flow", schedule="0 0 * * *", command="printf 'FLOW_CRON_OK'"),
+    await cron.execute(
+        cron.input_model(
+            action="create", name="flow", schedule="0 0 * * *", command="printf 'FLOW_CRON_OK'"
+        ),
         context,
     )
-    list_result = await cron_list.execute(cron_list.input_model(), context)
+    list_result = await cron.execute(cron.input_model(action="list"), context)
     assert "flow" in list_result.output
 
-    trigger_result = await remote_trigger.execute(
-        remote_trigger.input_model(name="flow"),
-        context,
-    )
-    assert "FLOW_CRON_OK" in trigger_result.output
-
-    delete_result = await cron_delete.execute(cron_delete.input_model(name="flow"), context)
+    delete_result = await cron.execute(cron.input_model(action="delete", name="flow"), context)
     assert delete_result.is_error is False
 
 
@@ -264,18 +260,20 @@ async def test_lsp_flow_across_registry(tmp_path: Path):
     registry = create_default_tool_registry()
     context = ToolExecutionContext(cwd=tmp_path, metadata={"tool_registry": registry})
 
-    write = registry.get("write_file")
+    file_tool = registry.get("file")
     lsp = registry.get("lsp")
 
-    await write.execute(
-        write.input_model(
+    await file_tool.execute(
+        file_tool.input_model(
+            action="write",
             path="pkg/utils.py",
             content='def greet(name):\n    """Return a greeting."""\n    return f"hi {name}"\n',
         ),
         context,
     )
-    await write.execute(
-        write.input_model(
+    await file_tool.execute(
+        file_tool.input_model(
+            action="write",
             path="pkg/app.py",
             content="from pkg.utils import greet\n\nprint(greet('world'))\n",
         ),

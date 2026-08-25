@@ -79,7 +79,7 @@ async def task_hook_blocks_model_adapts():
     from codeless.permissions.modes import PermissionMode
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.file_read_tool import FileReadTool
+    from codeless.tools.file_tool import FileTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
 
@@ -107,7 +107,7 @@ async def task_hook_blocks_model_adapts():
     )
 
     reg = ToolRegistry()
-    for t in [BashTool(), FileReadTool(), GlobTool(), GrepTool()]:
+    for t in [BashTool(), FileTool(), GlobTool(), GrepTool()]:
         reg.register(t)
     checker = PermissionChecker(PermissionSettings(mode=PermissionMode.FULL_AUTO))
 
@@ -175,7 +175,7 @@ async def task_model_invokes_skill_tool():
     from codeless.permissions.modes import PermissionMode
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.file_read_tool import FileReadTool
+    from codeless.tools.file_tool import FileTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
     from codeless.tools.skill_tool import SkillTool
@@ -208,7 +208,7 @@ When performing a code review, follow these exact steps:
 
         api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
         reg = ToolRegistry()
-        for t in [BashTool(), FileReadTool(), GlobTool(), GrepTool(), SkillTool()]:
+        for t in [BashTool(), FileTool(), GlobTool(), GrepTool(), SkillTool()]:
             reg.register(t)
         checker = PermissionChecker(PermissionSettings(mode=PermissionMode.FULL_AUTO))
 
@@ -274,7 +274,7 @@ async def task_plugin_skill_in_agent_loop():
     from codeless.permissions.modes import PermissionMode
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.file_read_tool import FileReadTool
+    from codeless.tools.file_tool import FileTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
     from codeless.tools.skill_tool import SkillTool
@@ -324,7 +324,7 @@ To scan for hardcoded secrets:
 
         api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
         reg = ToolRegistry()
-        for t in [BashTool(), FileReadTool(), GlobTool(), GrepTool(), SkillTool()]:
+        for t in [BashTool(), FileTool(), GlobTool(), GrepTool(), SkillTool()]:
             reg.register(t)
         checker = PermissionChecker(PermissionSettings(mode=PermissionMode.FULL_AUTO))
 
@@ -397,9 +397,7 @@ async def task_hook_gates_writes_skill_guides():
     from codeless.permissions.modes import PermissionMode
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.file_edit_tool import FileEditTool
-    from codeless.tools.file_read_tool import FileReadTool
-    from codeless.tools.file_write_tool import FileWriteTool
+    from codeless.tools.file_tool import FileTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
     from codeless.tools.skill_tool import SkillTool
@@ -482,9 +480,7 @@ def process_v2(data):
         reg = ToolRegistry()
         for t in [
             BashTool(),
-            FileReadTool(),
-            FileWriteTool(),
-            FileEditTool(),
+            FileTool(),
             GlobTool(),
             GrepTool(),
             SkillTool(),
@@ -571,8 +567,7 @@ async def task_swarm_teammates_use_skills():
     from codeless.swarm.types import TeammateSpawnConfig
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.file_read_tool import FileReadTool
-    from codeless.tools.file_write_tool import FileWriteTool
+    from codeless.tools.file_tool import FileTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
     from codeless.tools.skill_tool import SkillTool
@@ -607,11 +602,10 @@ Use grep to search for '^import ' and '^from .* import'. Count unique packages. 
             reg = ToolRegistry()
             for t in [
                 BashTool(),
-                FileReadTool(),
+                FileTool(),
                 GlobTool(),
                 GrepTool(),
                 SkillTool(),
-                FileWriteTool(),
             ]:
                 reg.register(t)
             ctx = QueryContext(

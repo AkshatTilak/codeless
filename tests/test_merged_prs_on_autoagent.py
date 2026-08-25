@@ -37,14 +37,12 @@ RESULTS: dict[str, tuple[bool, float]] = {}
 def _make_registry(extra_tools=None):
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.file_edit_tool import FileEditTool
-    from codeless.tools.file_read_tool import FileReadTool
-    from codeless.tools.file_write_tool import FileWriteTool
+    from codeless.tools.file_tool import FileTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
 
     reg = ToolRegistry()
-    for t in [BashTool(), FileReadTool(), FileWriteTool(), FileEditTool(), GlobTool(), GrepTool()]:
+    for t in [BashTool(), FileTool(), GlobTool(), GrepTool()]:
         reg.register(t)
     for t in extra_tools or []:
         reg.register(t)

@@ -49,9 +49,7 @@ def make_engine(system_prompt="You are a helpful assistant. Be concise.", cwd=No
     from codeless.permissions.modes import PermissionMode
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.file_edit_tool import FileEditTool
-    from codeless.tools.file_read_tool import FileReadTool
-    from codeless.tools.file_write_tool import FileWriteTool
+    from codeless.tools.file_tool import FileTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
 
@@ -59,9 +57,7 @@ def make_engine(system_prompt="You are a helpful assistant. Be concise.", cwd=No
     reg = ToolRegistry()
     for t in tools or [
         BashTool(),
-        FileReadTool(),
-        FileWriteTool(),
-        FileEditTool(),
+        FileTool(),
         GlobTool(),
         GrepTool(),
     ]:
@@ -609,11 +605,11 @@ async def test_commands_registry():
 async def test_web_fetch_real():
     """Agent fetches a real URL and summarizes it."""
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.web_fetch_tool import WebFetchTool
+    from codeless.tools.web_tool import WebTool
 
     engine = make_engine(
         "You are a web researcher. Fetch URLs when asked and summarize the content.",
-        tools=[WebFetchTool(), BashTool()],
+        tools=[WebTool(), BashTool()],
     )
     evs = [
         ev
@@ -748,7 +744,7 @@ async def test_combined_hooks_skills_agent():
     from codeless.skills.types import SkillDefinition
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.file_read_tool import FileReadTool
+    from codeless.tools.file_tool import FileTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
 
@@ -780,7 +776,7 @@ async def test_combined_hooks_skills_agent():
 
     # Engine with hooks
     reg = ToolRegistry()
-    for t in [BashTool(), FileReadTool(), GlobTool(), GrepTool()]:
+    for t in [BashTool(), FileTool(), GlobTool(), GrepTool()]:
         reg.register(t)
     checker = PermissionChecker(PermissionSettings(mode=PermissionMode.FULL_AUTO))
 
@@ -834,7 +830,7 @@ async def test_full_swarm_autoagent():
     from codeless.swarm.types import TeammateSpawnConfig
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.file_read_tool import FileReadTool
+    from codeless.tools.file_tool import FileTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
 
@@ -863,7 +859,7 @@ async def test_full_swarm_autoagent():
 
             async def run_teammate(name, prompt):
                 reg = ToolRegistry()
-                for t in [BashTool(), FileReadTool(), GlobTool(), GrepTool()]:
+                for t in [BashTool(), FileTool(), GlobTool(), GrepTool()]:
                     reg.register(t)
                 checker = PermissionChecker(PermissionSettings(mode=PermissionMode.FULL_AUTO))
                 ctx = QueryContext(

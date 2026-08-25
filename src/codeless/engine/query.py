@@ -404,7 +404,10 @@ def _record_tool_carryover(
         return
     if resolved_file_path is not None:
         _remember_active_artifact(context.tool_metadata, resolved_file_path)
-    if tool_name == "read_file" and resolved_file_path is not None:
+    if (
+        tool_name == "read_file"
+        or (tool_name == "file" and str(tool_input.get("action", "read")).lower() == "read")
+    ) and resolved_file_path is not None:
         offset = int(tool_input.get("offset") or 0)
         limit = int(tool_input.get("limit") or 200)
         _remember_read_file(
@@ -448,12 +451,16 @@ def _record_tool_carryover(
             context.tool_metadata,
             f"Confirmed async-agent activity via {tool_name}: {description[:180]}",
         )
-    elif tool_name == "web_fetch":
+    elif tool_name == "web_fetch" or (
+        tool_name == "web" and str(tool_input.get("action", "")).lower() == "fetch"
+    ):
         url = str(tool_input.get("url") or "").strip()
         if url:
             _remember_active_artifact(context.tool_metadata, url)
             _remember_verified_work(context.tool_metadata, f"Fetched remote content from {url}")
-    elif tool_name == "web_search":
+    elif tool_name == "web_search" or (
+        tool_name == "web" and str(tool_input.get("action", "")).lower() == "search"
+    ):
         query = str(tool_input.get("query") or "").strip()
         if query:
             _remember_verified_work(context.tool_metadata, f"Ran web search for {query[:180]}")
@@ -475,7 +482,10 @@ def _record_tool_carryover(
             context.tool_metadata,
             f"Ran bash command {command[:160]} [{summary[:120]}]",
         )
-    if tool_name == "read_file" and resolved_file_path is not None:
+    if (
+        tool_name == "read_file"
+        or (tool_name == "file" and str(tool_input.get("action", "read")).lower() == "read")
+    ) and resolved_file_path is not None:
         _remember_work_log(
             context.tool_metadata,
             entry=f"Read file {resolved_file_path}",

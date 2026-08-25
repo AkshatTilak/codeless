@@ -1,4 +1,4 @@
-"""Tests for read-only abb_task and abb_verify tools, and agent mode filtering."""
+"""Tests for read-only abb tool and agent mode filtering."""
 
 from __future__ import annotations
 
@@ -7,8 +7,7 @@ from pathlib import Path
 import pytest
 
 from codeless.abb.permissions import TriMode, get_mode_engine
-from codeless.tools.abb_task_tool import AbbTaskTool, AbbTaskToolInput
-from codeless.tools.abb_verify_tool import AbbVerifyTool, AbbVerifyToolInput
+from codeless.tools.abb_tool import AbbTool, AbbToolInput
 from codeless.tools.agent_tool import AgentTool, AgentToolInput
 from codeless.tools.base import ToolExecutionContext
 
@@ -41,9 +40,9 @@ def sample_abb_workspace(tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_abb_task_list(sample_abb_workspace: Path):
-    tool = AbbTaskTool()
+    tool = AbbTool()
     ctx = ToolExecutionContext(cwd=sample_abb_workspace)
-    res = await tool.execute(AbbTaskToolInput(action="list"), ctx)
+    res = await tool.execute(AbbToolInput(action="list"), ctx)
     assert not res.is_error
     assert "sub_001" in res.output
     assert "sub_002" in res.output
@@ -52,41 +51,41 @@ async def test_abb_task_list(sample_abb_workspace: Path):
 
 @pytest.mark.asyncio
 async def test_abb_task_show(sample_abb_workspace: Path):
-    tool = AbbTaskTool()
+    tool = AbbTool()
     ctx = ToolExecutionContext(cwd=sample_abb_workspace)
-    res = await tool.execute(AbbTaskToolInput(action="show", target="sub_001"), ctx)
+    res = await tool.execute(AbbToolInput(action="show", target="sub_001"), ctx)
     assert not res.is_error
     assert "# Init Subtask" in res.output
 
 
 @pytest.mark.asyncio
 async def test_abb_task_ready_and_blocked(sample_abb_workspace: Path):
-    tool = AbbTaskTool()
+    tool = AbbTool()
     ctx = ToolExecutionContext(cwd=sample_abb_workspace)
     # sub_002 depends on sub_001 (which is done), so sub_002 should be ready
-    ready_res = await tool.execute(AbbTaskToolInput(action="ready"), ctx)
+    ready_res = await tool.execute(AbbToolInput(action="ready"), ctx)
     assert not ready_res.is_error
     assert "sub_002" in ready_res.output
     assert "sub_003" not in ready_res.output  # blocked by sub_002
 
     # sub_003 blocked-by sub_002
-    blocked_res = await tool.execute(AbbTaskToolInput(action="blocked-by", target="sub_003"), ctx)
+    blocked_res = await tool.execute(AbbToolInput(action="blocked-by", target="sub_003"), ctx)
     assert not blocked_res.is_error
     assert "sub_002" in blocked_res.output
 
 
 @pytest.mark.asyncio
 async def test_abb_verify_dry_run_and_execution(sample_abb_workspace: Path):
-    tool = AbbVerifyTool()
+    tool = AbbTool()
     ctx = ToolExecutionContext(cwd=sample_abb_workspace)
     # dry run
-    dry_res = await tool.execute(AbbVerifyToolInput(dry_run=True), ctx)
+    dry_res = await tool.execute(AbbToolInput(action="verify", dry_run=True), ctx)
     assert not dry_res.is_error
     assert "Two-Track Verification Manifest (Dry-Run Preview)" in dry_res.output
     assert "python -c 'print(1)'" in dry_res.output
 
     # live execution
-    live_res = await tool.execute(AbbVerifyToolInput(dry_run=False), ctx)
+    live_res = await tool.execute(AbbToolInput(action="verify", dry_run=False), ctx)
     assert not live_res.is_error
     assert "PASSED" in live_res.output
 
@@ -101,6 +100,7 @@ async def test_agent_tool_mode_filtering(tmp_path: Path, monkeypatch):
     engine.set_mode(TriMode.PLAN)
     planner_res = await AgentTool().execute(
         AgentToolInput(
+            action="spawn",
             description="plan something",
             prompt="outline tasks",
             subagent_type="task-planner",
@@ -112,6 +112,7 @@ async def test_agent_tool_mode_filtering(tmp_path: Path, monkeypatch):
 
     worker_res = await AgentTool().execute(
         AgentToolInput(
+            action="spawn",
             description="write code",
             prompt="implement feature",
             subagent_type="worker",

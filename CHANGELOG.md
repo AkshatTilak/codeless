@@ -4,6 +4,19 @@ All notable changes to Codeless should be recorded in this file.
 
 The format is based on Keep a Changelog, and this project currently tracks changes in a lightweight, repository-oriented way.
 
+## [1.1.0] - 2026-08-25
+
+### Added
+- **Canonical Clean-Slate Tool Ecosystem (~17 Tools)**: Consolidated all remaining single-action and redundant tools into unified multi-action powerhouses with zero legacy alias baggage:
+  - `file`: Unified file operations (`read`, `write`, `edit`, `notebook_edit`) with sandbox path boundary checking, ABB path virtualization, and approval diffs.
+  - `agent`: Unified subagent orchestration (`spawn`, `message`, `status`, `stop`) merging subagent dispatch and stdin/swarm communication.
+  - `task`: Unified background task management (`create`, `get`, `list`, `stop`, `output`, `update`, `sleep`) merging async processes and execution pausing.
+  - `mcp`: Unified Model Context Protocol management (`list`, `read`, `auth`, `status`) merging resource inspection and credential persistence.
+  - `image`: Unified multimodal vision tool (`describe`, `generate`) merging image understanding and raster generation.
+  - `abb`: Unified Agent Buildable Base tool (`list`, `show`, `ready`, `blocked_by`, `verify`) merging DAG inspection and Two-Track test verification.
+- **GOVERNANCE Mode Fully Merged into PLAN Mode**: Cleaned the operational architecture into 4 orthogonal modes (`AGENT`, `PLAN`, `ASK`, `CODEBASE`), removing all lingering `governance` aliases and tests.
+- **Removed Deprecated Tools**: Completely purged `brief` tool and 30 obsolete tool source files.
+
 ## [1.0.0] - 2026-08-21
 
 ### Added

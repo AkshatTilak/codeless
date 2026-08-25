@@ -41,11 +41,11 @@ async def test_stdio_mcp_manager_connects_and_executes_real_server():
         )
         assert hello_result.output == "fixture-hello:world"
 
-        resource_tool = registry.get("read_mcp_resource")
+        resource_tool = registry.get("mcp")
         assert resource_tool is not None
         resource_result = await resource_tool.execute(
             resource_tool.input_model.model_validate(
-                {"server": "fixture", "uri": "fixture://readme"}
+                {"action": "read", "server": "fixture", "uri": "fixture://readme"}
             ),
             ToolExecutionContext(cwd=Path(".")),
         )

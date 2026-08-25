@@ -11,7 +11,7 @@ from codeless.abb.hooks.frontmatter import (
 )
 from codeless.abb.hooks.rollup import rollup_task_completion
 from codeless.tools.base import ToolExecutionContext
-from codeless.tools.file_write_tool import FileWriteTool, FileWriteToolInput
+from codeless.tools.file_tool import FileTool, FileToolInput
 
 
 def test_frontmatter_parser():
@@ -223,7 +223,7 @@ async def test_tool_hook_integration(tmp_path, monkeypatch):
     (project_root / ".git").mkdir()
 
     ctx = ToolExecutionContext(cwd=project_root)
-    write_tool = FileWriteTool()
+    file_tool = FileTool()
 
     # 1. Attempt writing task with invalid frontmatter (missing id/version)
     bad_task = """---
@@ -231,8 +231,8 @@ status: pending
 ---
 # Missing ID
 """
-    res = await write_tool.execute(
-        FileWriteToolInput(path="tasks/sub/bad_task.md", content=bad_task),
+    res = await file_tool.execute(
+        FileToolInput(action="write", path="tasks/sub/bad_task.md", content=bad_task),
         ctx,
     )
     assert res.is_error
@@ -249,8 +249,8 @@ depends_on:
 ---
 # Blocked
 """
-    res = await write_tool.execute(
-        FileWriteToolInput(path="tasks/sub/999_blocked.md", content=dep_blocked_task),
+    res = await file_tool.execute(
+        FileToolInput(action="write", path="tasks/sub/999_blocked.md", content=dep_blocked_task),
         ctx,
     )
     assert res.is_error

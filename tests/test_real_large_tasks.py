@@ -45,23 +45,19 @@ def make_engine(
     from codeless.permissions.modes import PermissionMode
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.file_edit_tool import FileEditTool
-    from codeless.tools.file_read_tool import FileReadTool
-    from codeless.tools.file_write_tool import FileWriteTool
+    from codeless.tools.file_tool import FileTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
-    from codeless.tools.web_fetch_tool import WebFetchTool
+    from codeless.tools.web_tool import WebTool
 
     api = AnthropicApiClient(api_key=API_KEY, base_url=BASE_URL)
     reg = ToolRegistry()
     for t in [
         BashTool(),
-        FileReadTool(),
-        FileWriteTool(),
-        FileEditTool(),
+        FileTool(),
         GlobTool(),
         GrepTool(),
-        WebFetchTool(),
+        WebTool(),
     ]:
         reg.register(t)
     checker = PermissionChecker(PermissionSettings(mode=PermissionMode.FULL_AUTO))
@@ -231,7 +227,7 @@ async def task_coordinator_code_review():
     from codeless.swarm.types import TeammateSpawnConfig
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.file_read_tool import FileReadTool
+    from codeless.tools.file_tool import FileTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
 
@@ -252,7 +248,7 @@ async def task_coordinator_code_review():
 
             async def run_reviewer(name, prompt):
                 reg = ToolRegistry()
-                for t in [BashTool(), FileReadTool(), GlobTool(), GrepTool()]:
+                for t in [BashTool(), FileTool(), GlobTool(), GrepTool()]:
                     reg.register(t)
                 checker = PermissionChecker(PermissionSettings(mode=PermissionMode.FULL_AUTO))
 
@@ -653,7 +649,7 @@ async def task_full_pipeline():
     from codeless.swarm.types import TeammateSpawnConfig
     from codeless.tools.base import ToolRegistry
     from codeless.tools.bash_tool import BashTool
-    from codeless.tools.file_read_tool import FileReadTool
+    from codeless.tools.file_tool import FileTool
     from codeless.tools.glob_tool import GlobTool
     from codeless.tools.grep_tool import GrepTool
 
@@ -672,7 +668,7 @@ async def task_full_pipeline():
             # Phase 1: Research — 2 concurrent workers
             async def research_worker(name, prompt):
                 reg = ToolRegistry()
-                for t in [BashTool(), FileReadTool(), GlobTool(), GrepTool()]:
+                for t in [BashTool(), FileTool(), GlobTool(), GrepTool()]:
                     reg.register(t)
                 ctx = QueryContext(
                     api_client=api,

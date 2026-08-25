@@ -320,8 +320,13 @@ async def test_query_engine_executes_tool_calls(tmp_path: Path, monkeypatch):
                             TextBlock(text="I will inspect the file."),
                             ToolUseBlock(
                                 id="toolu_123",
-                                name="read_file",
-                                input={"path": str(sample), "offset": 0, "limit": 2},
+                                name="file",
+                                input={
+                                    "action": "read",
+                                    "path": str(sample),
+                                    "offset": 0,
+                                    "limit": 2,
+                                },
                             ),
                         ],
                     ),
@@ -598,7 +603,9 @@ async def test_query_engine_tracks_recent_read_files_and_skills(tmp_path: Path):
                     message=ConversationMessage(
                         role="assistant",
                         content=[
-                            ToolUseBlock(name="read_file", input={"path": str(sample)}),
+                            ToolUseBlock(
+                                name="file", input={"action": "read", "path": str(sample)}
+                            ),
                             ToolUseBlock(name="skill", input={"name": "demo-skill"}),
                         ],
                     ),
@@ -1144,8 +1151,13 @@ async def test_query_engine_applies_path_rules_to_relative_read_file_targets(tmp
                         content=[
                             ToolUseBlock(
                                 id="toolu_blocked_read",
-                                name="read_file",
-                                input={"path": "blocked/secret.txt", "offset": 0, "limit": 1},
+                                name="file",
+                                input={
+                                    "action": "read",
+                                    "path": "blocked/secret.txt",
+                                    "offset": 0,
+                                    "limit": 1,
+                                },
                             )
                         ],
                     ),
@@ -1195,8 +1207,12 @@ async def test_query_engine_applies_path_rules_to_write_file_targets_in_full_aut
                         content=[
                             ToolUseBlock(
                                 id="toolu_blocked_write",
-                                name="write_file",
-                                input={"path": "blocked/output.txt", "content": "poc"},
+                                name="file",
+                                input={
+                                    "action": "write",
+                                    "path": "blocked/output.txt",
+                                    "content": "poc",
+                                },
                             )
                         ],
                     ),

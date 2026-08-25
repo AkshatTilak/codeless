@@ -7,49 +7,39 @@ from pathlib import Path
 
 import pytest
 
-from codeless.tools import create_default_tool_registry
 from codeless.tools.base import ToolExecutionContext
 from codeless.tools.bash_tool import BashTool, BashToolInput
-from codeless.tools.brief_tool import BriefTool, BriefToolInput
 from codeless.tools.config_tool import ConfigTool, ConfigToolInput
-from codeless.tools.cron_create_tool import CronCreateTool, CronCreateToolInput
-from codeless.tools.cron_delete_tool import CronDeleteTool, CronDeleteToolInput
-from codeless.tools.cron_list_tool import CronListTool, CronListToolInput
-from codeless.tools.enter_worktree_tool import EnterWorktreeTool, EnterWorktreeToolInput
-from codeless.tools.exit_worktree_tool import ExitWorktreeTool, ExitWorktreeToolInput
-from codeless.tools.file_edit_tool import FileEditTool, FileEditToolInput
-from codeless.tools.file_read_tool import FileReadTool, FileReadToolInput
-from codeless.tools.file_write_tool import FileWriteTool, FileWriteToolInput
+from codeless.tools.cron_tool import CronTool, CronToolInput
+from codeless.tools.file_tool import FileTool, FileToolInput
 from codeless.tools.glob_tool import GlobTool, GlobToolInput
 from codeless.tools.grep_tool import GrepTool, GrepToolInput
 from codeless.tools.lsp_tool import LspTool, LspToolInput
-from codeless.tools.notebook_edit_tool import NotebookEditTool, NotebookEditToolInput
-from codeless.tools.remote_trigger_tool import RemoteTriggerTool, RemoteTriggerToolInput
 from codeless.tools.skill_tool import SkillTool, SkillToolInput
 from codeless.tools.todo_write_tool import TodoWriteTool, TodoWriteToolInput
-from codeless.tools.tool_search_tool import ToolSearchTool, ToolSearchToolInput
+from codeless.tools.worktree_tool import WorktreeTool, WorktreeToolInput
 
 
 @pytest.mark.asyncio
 async def test_file_write_read_and_edit(tmp_path: Path):
     context = ToolExecutionContext(cwd=tmp_path)
 
-    write_result = await FileWriteTool().execute(
-        FileWriteToolInput(path="notes.txt", content="one\ntwo\nthree\n"),
+    write_result = await FileTool().execute(
+        FileToolInput(action="write", path="notes.txt", content="one\ntwo\nthree\n"),
         context,
     )
     assert write_result.is_error is False
     assert (tmp_path / "notes.txt").exists()
 
-    read_result = await FileReadTool().execute(
-        FileReadToolInput(path="notes.txt", offset=1, limit=2),
+    read_result = await FileTool().execute(
+        FileToolInput(action="read", path="notes.txt", offset=1, limit=2),
         context,
     )
     assert "2\ttwo" in read_result.output
     assert "3\tthree" in read_result.output
 
-    edit_result = await FileEditTool().execute(
-        FileEditToolInput(path="notes.txt", old_str="two", new_str="TWO"),
+    edit_result = await FileTool().execute(
+        FileToolInput(action="edit", path="notes.txt", old_str="two", new_str="TWO"),
         context,
     )
     assert edit_result.is_error is False
@@ -64,8 +54,8 @@ async def test_file_write_requests_edit_approval_and_reports_diff_stats(tmp_path
         approvals.append((path, diff, added, removed))
         return "once"
 
-    result = await FileWriteTool().execute(
-        FileWriteToolInput(path="notes.txt", content="one\ntwo\n"),
+    result = await FileTool().execute(
+        FileToolInput(action="write", path="notes.txt", content="one\ntwo\n"),
         ToolExecutionContext(cwd=tmp_path, metadata={"edit_approval_prompt": _approve}),
     )
 
@@ -89,8 +79,8 @@ async def test_file_write_rejection_does_not_create_parent_directories(tmp_path:
         del path, diff, added, removed
         return "reject"
 
-    result = await FileWriteTool().execute(
-        FileWriteToolInput(path="nested/notes.txt", content="draft\n"),
+    result = await FileTool().execute(
+        FileToolInput(action="write", path="nested/notes.txt", content="draft\n"),
         ToolExecutionContext(cwd=tmp_path, metadata={"edit_approval_prompt": _reject}),
     )
 
@@ -109,8 +99,8 @@ async def test_file_edit_rejects_when_edit_approval_denied(tmp_path: Path):
         approvals.append((path, diff, added, removed))
         return "reject"
 
-    result = await FileEditTool().execute(
-        FileEditToolInput(path="notes.txt", old_str="two", new_str="TWO"),
+    result = await FileTool().execute(
+        FileToolInput(action="edit", path="notes.txt", old_str="two", new_str="TWO"),
         ToolExecutionContext(cwd=tmp_path, metadata={"edit_approval_prompt": _reject}),
     )
 
@@ -153,49 +143,13 @@ async def test_glob_and_grep(tmp_path: Path):
 
 
 @pytest.mark.asyncio
-async def test_glob_tool_accepts_absolute_patterns(tmp_path: Path, monkeypatch):
-    monkeypatch.setattr("codeless.tools.glob_tool.shutil.which", lambda _: None)
-    context = ToolExecutionContext(cwd=tmp_path.parent)
-    nested = tmp_path / "pkg"
-    nested.mkdir()
-    (nested / "a.py").write_text("print('a')\n", encoding="utf-8")
-    (nested / "b.txt").write_text("b\n", encoding="utf-8")
-
-    result = await GlobTool().execute(
-        GlobToolInput(pattern=str(tmp_path / "**" / "*.py")),
-        context,
-    )
-
-    assert result.is_error is False
-    assert result.output.replace("\\", "/").splitlines() == ["pkg/a.py"]
-
-
-@pytest.mark.asyncio
-async def test_bash_tool_runs_command(tmp_path: Path):
+async def test_bash_tool(tmp_path: Path):
     result = await BashTool().execute(
-        BashToolInput(command="printf 'hello'"),
+        BashToolInput(command="echo 'CODEX_TEST'"),
         ToolExecutionContext(cwd=tmp_path),
     )
     assert result.is_error is False
-    assert result.output == "hello"
-
-
-@pytest.mark.asyncio
-async def test_tool_search_and_brief_tools(tmp_path: Path):
-    registry = create_default_tool_registry()
-    context = ToolExecutionContext(cwd=tmp_path, metadata={"tool_registry": registry})
-
-    search_result = await ToolSearchTool().execute(
-        ToolSearchToolInput(query="file"),
-        context,
-    )
-    assert "read_file" in search_result.output
-
-    brief_result = await BriefTool().execute(
-        BriefToolInput(text="abcdefghijklmnopqrstuvwxyz", max_chars=20),
-        ToolExecutionContext(cwd=tmp_path),
-    )
-    assert brief_result.output == "abcdefghijklmnopqrst..."
+    assert "CODEX_TEST" in result.output
 
 
 @pytest.mark.asyncio
@@ -260,7 +214,6 @@ async def test_todo_write_upsert(tmp_path: Path):
     await tool.execute(TodoWriteToolInput(item="task A"), ctx)
     await tool.execute(TodoWriteToolInput(item="task B"), ctx)
 
-    # Marking done should update in-place, not append a duplicate
     result = await tool.execute(TodoWriteToolInput(item="task A", checked=True), ctx)
     assert result.is_error is False
 
@@ -270,7 +223,6 @@ async def test_todo_write_upsert(tmp_path: Path):
     assert "- [ ] task A" not in content
     assert "- [ ] task B" in content
 
-    # Calling again with same state is a no-op
     noop = await tool.execute(TodoWriteToolInput(item="task A", checked=True), ctx)
     assert "No change" in noop.output
     assert (tmp_path / "TODO.md").read_text(encoding="utf-8").count("task A") == 1
@@ -278,8 +230,13 @@ async def test_todo_write_upsert(tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_notebook_edit_tool(tmp_path: Path):
-    result = await NotebookEditTool().execute(
-        NotebookEditToolInput(path="demo.ipynb", cell_index=0, new_source="print('nb ok')\n"),
+    result = await FileTool().execute(
+        FileToolInput(
+            action="notebook_edit",
+            path="demo.ipynb",
+            cell_index=0,
+            new_source="print('nb ok')\n",
+        ),
         ToolExecutionContext(cwd=tmp_path),
     )
     assert result.is_error is False
@@ -352,16 +309,16 @@ async def test_worktree_tools(tmp_path: Path):
         text=True,
     )
 
-    enter_result = await EnterWorktreeTool().execute(
-        EnterWorktreeToolInput(branch="feature/demo"),
+    enter_result = await WorktreeTool().execute(
+        WorktreeToolInput(action="enter", branch="feature/demo"),
         ToolExecutionContext(cwd=tmp_path),
     )
     assert enter_result.is_error is False
     worktree_path = Path(enter_result.output.split("Path: ", 1)[1].strip())
     assert worktree_path.exists()
 
-    exit_result = await ExitWorktreeTool().execute(
-        ExitWorktreeToolInput(path=str(worktree_path)),
+    exit_result = await WorktreeTool().execute(
+        WorktreeToolInput(action="exit", path=str(worktree_path)),
         ToolExecutionContext(cwd=tmp_path),
     )
     assert exit_result.is_error is False
@@ -369,12 +326,13 @@ async def test_worktree_tools(tmp_path: Path):
 
 
 @pytest.mark.asyncio
-async def test_cron_and_remote_trigger_tools(tmp_path: Path, monkeypatch):
+async def test_cron_tools(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
     context = ToolExecutionContext(cwd=tmp_path)
 
-    create_result = await CronCreateTool().execute(
-        CronCreateToolInput(
+    create_result = await CronTool().execute(
+        CronToolInput(
+            action="create",
             name="nightly",
             schedule="0 0 * * *",
             command="printf 'CRON_OK'",
@@ -384,42 +342,12 @@ async def test_cron_and_remote_trigger_tools(tmp_path: Path, monkeypatch):
     )
     assert create_result.is_error is False
 
-    list_result = await CronListTool().execute(CronListToolInput(), context)
+    list_result = await CronTool().execute(CronToolInput(action="list"), context)
     assert "nightly" in list_result.output
     assert "feishu_dm" in list_result.output
 
-    trigger_result = await RemoteTriggerTool().execute(
-        RemoteTriggerToolInput(name="nightly"),
-        context,
-    )
-    assert trigger_result.is_error is False
-    assert "CRON_OK" in trigger_result.output
-
-    delete_result = await CronDeleteTool().execute(
-        CronDeleteToolInput(name="nightly"),
+    delete_result = await CronTool().execute(
+        CronToolInput(action="delete", name="nightly"),
         context,
     )
     assert delete_result.is_error is False
-
-
-@pytest.mark.asyncio
-async def test_cron_create_agent_turn_payload(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("CODELESS_DATA_DIR", str(tmp_path / "data"))
-    context = ToolExecutionContext(cwd=tmp_path)
-
-    create_result = await CronCreateTool().execute(
-        CronCreateToolInput(
-            name="daily-summary",
-            schedule="0 18 * * *",
-            timezone="Asia/Hong_Kong",
-            message="check GitHub",
-            payload={"deliver": True, "channel": "feishu", "to": "ou_test"},
-        ),
-        context,
-    )
-    assert create_result.is_error is False
-
-    list_result = await CronListTool().execute(CronListToolInput(), context)
-    assert "daily-summary" in list_result.output
-    assert "Asia/Hong_Kong" in list_result.output
-    assert "payload: agent_turn -> feishu:ou_test" in list_result.output

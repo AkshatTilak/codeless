@@ -17,8 +17,7 @@ except NameError:  # pragma: no cover - Python < 3.11 compatibility
 from codeless.mcp.client import McpClientManager, McpServerNotConnectedError
 from codeless.mcp.types import McpConnectionStatus, McpStdioServerConfig, McpToolInfo
 from codeless.tools.base import ToolExecutionContext
-from codeless.tools.mcp_tool import McpToolAdapter
-from codeless.tools.read_mcp_resource_tool import ReadMcpResourceTool
+from codeless.tools.mcp_tool import McpTool, McpToolAdapter, McpToolInput
 
 
 class _AsyncContextManager:
@@ -222,15 +221,15 @@ async def test_mcp_tool_adapter_returns_error_result_on_disconnected_server():
     assert "not connected" in result.output
 
 
-# --- ReadMcpResourceTool catches error and returns ToolResult(is_error=True) ---
+# --- McpTool read catches error and returns ToolResult(is_error=True) ---
 
 
 @pytest.mark.asyncio
 async def test_read_mcp_resource_tool_returns_error_result_on_disconnected_server():
     manager = McpClientManager({})
-    tool = ReadMcpResourceTool(manager)
+    tool = McpTool(manager)
     result = await tool.execute(
-        tool.input_model.model_validate({"server": "gone", "uri": "res://x"}),
+        McpToolInput(action="read", server="gone", uri="res://x"),
         ToolExecutionContext(cwd=Path(".")),
     )
     assert result.is_error is True

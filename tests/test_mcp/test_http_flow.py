@@ -77,11 +77,11 @@ async def test_http_mcp_manager_connects_and_executes_in_process_server(monkeypa
             )
             assert hello_result.output == "http-hello:world"
 
-            resource_tool = registry.get("read_mcp_resource")
+            resource_tool = registry.get("mcp")
             assert resource_tool is not None
             resource_result = await resource_tool.execute(
                 resource_tool.input_model.model_validate(
-                    {"server": "http-fixture", "uri": "demo://readme"}
+                    {"action": "read", "server": "http-fixture", "uri": "demo://readme"}
                 ),
                 ToolExecutionContext(cwd=Path(".")),
             )

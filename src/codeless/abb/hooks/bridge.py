@@ -120,7 +120,11 @@ def pre_tool_use_abb_guard(
 
         return True, "OK"
 
-    if tool_name not in {"write_file", "edit_file", "notebook_edit"}:
+    if tool_name not in {"file", "write_file", "edit_file", "notebook_edit"}:
+        return True, "OK"
+
+    action = arguments.get("action", "write") if tool_name == "file" else "write"
+    if action == "read":
         return True, "OK"
 
     raw_path = arguments.get("path")
@@ -155,9 +159,9 @@ def pre_tool_use_abb_guard(
 
     # Get proposed content
     proposed_content: str = ""
-    if tool_name == "write_file":
+    if tool_name == "write_file" or (tool_name == "file" and action == "write"):
         proposed_content = arguments.get("content", "")
-    elif tool_name == "edit_file":
+    elif tool_name == "edit_file" or (tool_name == "file" and action == "edit"):
         if not resolved.exists():
             return True, "File does not exist yet"
         original = resolved.read_text(encoding="utf-8")
@@ -204,7 +208,9 @@ def post_tool_use_abb_handler(
     Handle post-tool-use lifecycle actions such as task completion roll-up.
     Returns list of action messages.
     """
-    if tool_name not in {"write_file", "edit_file"}:
+    if tool_name not in {"file", "write_file", "edit_file"}:
+        return []
+    if tool_name == "file" and arguments.get("action") not in {"write", "edit", "notebook_edit"}:
         return []
 
     # If tool failed, do nothing

@@ -58,16 +58,16 @@ def test_permission_checker_with_mode_engine(tmp_path: Path):
     # When in PLAN mode:
     engine.set_mode(TriMode.PLAN)
     # Writing to tasks and design should be allowed
-    dec = checker.evaluate("write_file", is_read_only=False, file_path="tasks/sub/01.md")
+    dec = checker.evaluate("file", is_read_only=False, file_path="tasks/sub/01.md")
     assert dec.allowed is True
     # Writing to references and STACK should be allowed in PLAN
-    dec = checker.evaluate("write_file", is_read_only=False, file_path="references/db/models.md")
+    dec = checker.evaluate("file", is_read_only=False, file_path="references/db/models.md")
     assert dec.allowed is True
-    dec = checker.evaluate("write_file", is_read_only=False, file_path="STACK.md")
+    dec = checker.evaluate("file", is_read_only=False, file_path="STACK.md")
     assert dec.allowed is True
 
     # Writing to src/main.py should be blocked
-    dec = checker.evaluate("write_file", is_read_only=False, file_path="src/main.py")
+    dec = checker.evaluate("file", is_read_only=False, file_path="src/main.py")
     assert dec.allowed is False
     assert "Plan Mode blocks" in dec.reason
 
@@ -100,4 +100,3 @@ def test_ui_state_payload_reflects_mode():
     payload = _state_payload(state)
     assert payload["mode"] == "AGENT"
     assert payload["permission_mode"] == "AGENT"
-

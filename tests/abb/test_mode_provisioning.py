@@ -13,36 +13,35 @@ def test_five_modes_allowed_tools():
     # ASK mode: strictly read-only tools
     engine.set_mode(TriMode.ASK)
     ask_tools = engine.get_allowed_tools()
-    assert "read_file" in ask_tools
+    assert "file" in ask_tools
     assert "grep" in ask_tools
-    assert "abb_task" in ask_tools
-    assert "write_file" not in ask_tools
-    assert "edit_file" not in ask_tools
+    assert "abb" in ask_tools
+    assert "bash" not in ask_tools
+    assert "agent" not in ask_tools
 
     # PLAN mode: read-only + planning tools
     engine.set_mode(TriMode.PLAN)
     plan_tools = engine.get_allowed_tools()
-    assert "read_file" in plan_tools
+    assert "file" in plan_tools
     assert "todo_write" in plan_tools
-    assert "abb_task" in plan_tools
-    assert "abb_verify" in plan_tools
+    assert "abb" in plan_tools
+    assert "bash" not in plan_tools
+    assert "agent" not in plan_tools
 
     # AGENT mode: all tools allowed
     engine.set_mode(TriMode.AGENT)
     agent_tools = engine.get_allowed_tools()
     assert "bash" in agent_tools
-    assert "write_file" in agent_tools
+    assert "file" in agent_tools
     assert "agent" in agent_tools
 
     # CODEBASE mode: codebase exploration & memory queries (read-only)
     engine.set_mode(TriMode.CODEBASE)
     cb_tools = engine.get_allowed_tools()
-    assert "read_file" in cb_tools
+    assert "file" in cb_tools
     assert "grep" in cb_tools
-    assert "write_file" not in cb_tools
-    assert "edit_file" not in cb_tools
-
-
+    assert "bash" not in cb_tools
+    assert "agent" not in cb_tools
 
 
 def test_domain_write_boundaries(tmp_path: Path):

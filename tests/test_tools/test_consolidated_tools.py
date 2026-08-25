@@ -10,7 +10,7 @@ import pytest
 from codeless.mcp.client import McpResourceInfo
 from codeless.tools.base import ToolExecutionContext
 from codeless.tools.cron_tool import CronTool, CronToolInput
-from codeless.tools.mcp_resource_tool import McpResourceTool, McpResourceToolInput
+from codeless.tools.mcp_tool import McpTool, McpToolInput
 from codeless.tools.task_tool import TaskTool, TaskToolInput
 from codeless.tools.web_tool import WebTool, WebToolInput, _extract_structured_html
 from codeless.tools.worktree_tool import WorktreeTool, WorktreeToolInput
@@ -132,25 +132,23 @@ async def test_mcp_resource_tool():
     ]
     manager.read_resource = AsyncMock(return_value="resource payload content")
 
-    tool = McpResourceTool(manager)
+    tool = McpTool(manager)
     ctx = ToolExecutionContext(cwd=Path.cwd())
 
-    assert tool.is_read_only(McpResourceToolInput(action="list")) is True
+    assert tool.is_read_only(McpToolInput(action="list")) is True
     assert (
-        tool.is_read_only(
-            McpResourceToolInput(action="read", server="srv1", uri="file:///data.txt")
-        )
+        tool.is_read_only(McpToolInput(action="read", server="srv1", uri="file:///data.txt"))
         is True
     )
 
     # List
-    res = await tool.execute(McpResourceToolInput(action="list"), ctx)
+    res = await tool.execute(McpToolInput(action="list"), ctx)
     assert not res.is_error
     assert "srv1:file:///data.txt" in res.output
 
     # Read
     res = await tool.execute(
-        McpResourceToolInput(action="read", server="srv1", uri="file:///data.txt"), ctx
+        McpToolInput(action="read", server="srv1", uri="file:///data.txt"), ctx
     )
     assert not res.is_error
     assert "resource payload content" in res.output

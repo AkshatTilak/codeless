@@ -132,9 +132,7 @@ class AgentDefinition(BaseModel):
     permissions: list[str] = Field(default_factory=list)  # extra permission rules
     subagent_type: str = "general-purpose"  # routing key used by the harness
     source: Literal["builtin", "user", "plugin"] = "builtin"
-    modes: list[str] = Field(
-        default_factory=list
-    )  # TriMode filters: plan, agent, ask, codebase
+    modes: list[str] = Field(default_factory=list)  # TriMode filters: plan, agent, ask, codebase
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +290,7 @@ _BUILTIN_AGENTS: list[AgentDefinition] = [
             "quickly find files by patterns, search code for keywords, or answer questions "
             "about the codebase."
         ),
-        disallowed_tools=["agent", "file_edit", "file_write", "notebook_edit"],
+        disallowed_tools=["agent"],
         system_prompt=_EXPLORE_SYSTEM_PROMPT,
         model="inherit",
         omit_claude_md=True,
@@ -307,7 +305,7 @@ _BUILTIN_AGENTS: list[AgentDefinition] = [
             "Software architect agent for designing implementation plans. Use this when you "
             "need to plan the implementation strategy for a task."
         ),
-        disallowed_tools=["agent", "file_edit", "file_write", "notebook_edit"],
+        disallowed_tools=["agent"],
         system_prompt=_PLAN_SYSTEM_PROMPT,
         model="inherit",
         omit_claude_md=True,
@@ -337,7 +335,7 @@ _BUILTIN_AGENTS: list[AgentDefinition] = [
             "and approach taken. The agent runs builds, tests, linters, and checks to produce "
             "a PASS/FAIL verdict."
         ),
-        disallowed_tools=["agent", "file_edit", "file_write", "notebook_edit"],
+        disallowed_tools=["agent"],
         system_prompt=_VERIFICATION_SYSTEM_PROMPT,
         critical_system_reminder=_VERIFICATION_CRITICAL_REMINDER,
         color="red",
