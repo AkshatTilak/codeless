@@ -875,6 +875,7 @@ config_app = typer.Typer(name="config", help="Show or update settings")
 cron_app = typer.Typer(name="cron", help="Manage cron scheduler and jobs")
 autopilot_app = typer.Typer(name="autopilot", help="Manage repo autopilot")
 projects_app = typer.Typer(name="projects", help="Manage shadow workspaces and project storage")
+abb_app = typer.Typer(name="abb", help="Manage Agent Buildable Base (ABB) workspaces & migrations")
 
 app.add_typer(mcp_app)
 app.add_typer(plugin_app)
@@ -884,6 +885,7 @@ app.add_typer(config_app)
 app.add_typer(cron_app)
 app.add_typer(autopilot_app)
 app.add_typer(projects_app)
+app.add_typer(abb_app)
 
 
 # ---- projects subcommands ----
@@ -963,6 +965,95 @@ def projects_clean_cmd(
             f"  • {t['project_name']} ({t['project_hash'][:12]}...) [{orphan_label}] - {_format_bytes(t['disk_size_bytes'])}"
         )
         print(f"    Path: {t['storage_dir']}")
+
+
+# ---- abb subcommands ----
+
+
+@abb_app.command("status")
+def abb_status_cmd(
+    project_root: Optional[str] = typer.Option(
+        None,
+        "--project-root",
+        "-p",
+        help="Target project root directory (defaults to current directory)",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
+) -> None:
+    """Show active ABB workspace status and location for a project."""
+    from codeless.abb.shadow import (
+        get_configured_abb_location,
+        get_project_hash,
+        resolve_abb_workspace,
+    )
+    from codeless.abb.virtualization import find_project_root
+
+    root = Path(project_root).resolve() if project_root else find_project_root(Path.cwd())
+    location = get_configured_abb_location(root) or "shadow (default)"
+    ws_path = resolve_abb_workspace(root, auto_init=False)
+    status_info = {
+        "project_name": root.name,
+        "project_root": str(root),
+        "project_hash": get_project_hash(root),
+        "abb_location": location,
+        "abb_workspace": str(ws_path),
+        "exists": ws_path.exists(),
+        "has_agent_md": (ws_path / "agent.md").exists(),
+    }
+    if json_output:
+        print(json.dumps(status_info, indent=2))
+        return
+
+    print(f"ABB Workspace Status for '{root.name}':")
+    print(f"  Project Root: {root}")
+    print(f"  Configured Location: {location}")
+    print(f"  Resolved Workspace: {ws_path}")
+    print(f"  Initialized: {'Yes' if status_info['has_agent_md'] else 'No'}")
+
+
+@abb_app.command("migrate")
+def abb_migrate_cmd(
+    target_location: str = typer.Argument(
+        ...,
+        help="Target workspace location: 'local' (in-repo) or 'shadow' (user AppData/home)",
+    ),
+    project_root: Optional[str] = typer.Option(
+        None,
+        "--project-root",
+        "-p",
+        help="Target project root directory (defaults to current directory)",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Overwrite destination workspace if it already exists",
+    ),
+) -> None:
+    """Migrate ABB workspace between in-repo (.codeless/) and shadow store (~/.codeless/projects/)."""
+    from codeless.abb.shadow import migrate_abb_workspace
+    from codeless.abb.virtualization import find_project_root
+
+    root = Path(project_root).resolve() if project_root else find_project_root(Path.cwd())
+    target_loc = target_location.strip().lower()
+    if target_loc not in {"local", "shadow"}:
+        print(
+            f"Error: Invalid target location '{target_location}'. Must be 'local' or 'shadow'.",
+            file=sys.stderr,
+        )
+        raise typer.Exit(1)
+
+    try:
+        src, dst = migrate_abb_workspace(root, target_loc, force=force)
+        print(f"✓ Migrated ABB workspace to '{target_loc}' successfully:")
+        print(f"  Source: {src}")
+        print(f"  Destination: {dst}")
+    except FileExistsError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        raise typer.Exit(1)
+    except Exception as e:
+        print(f"Migration error: {e}", file=sys.stderr)
+        raise typer.Exit(1)
 
 
 # ---- mcp subcommands ----
@@ -2597,6 +2688,12 @@ def main(
         help="TUI theme: default, dark, minimal, cyberpunk, solarized, or custom name",
         rich_help_panel="System & Context",
     ),
+    abb_location: Optional[str] = typer.Option(
+        None,
+        "--abb-location",
+        help="ABB workspace instantiation location: 'shadow' (default) or 'local' (.codeless/ inside repository)",
+        rich_help_panel="System & Context",
+    ),
     # --- Advanced ---
     debug: bool = typer.Option(
         False,
@@ -2660,6 +2757,14 @@ def main(
         settings = load_settings()
         settings.theme = theme
         save_settings(settings)
+
+    if abb_location:
+        loc = abb_location.strip().lower()
+        if loc in {"local", "shadow"}:
+            from codeless.abb.shadow import set_configured_abb_location
+
+            set_configured_abb_location(Path(cwd).resolve(), loc)
+            os.environ["CODELESS_ABB_LOCATION"] = loc
 
     from codeless.ui.app import run_print_mode, run_repl, run_task_worker
 

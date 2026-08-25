@@ -2,7 +2,7 @@
 
 Transparently maps Agent Buildable Base (ABB) domains (tasks, references,
 workflows, design, features, skills, etc.) to the project's active shadow
-workspace while mapping codebase source and tests to the repo root.
+or local workspace while mapping codebase source and tests to the repo root.
 """
 
 from __future__ import annotations
@@ -87,6 +87,7 @@ def resolve_virtual_path(
     candidate: str | Path,
     *,
     auto_init: bool = True,
+    location: str | None = None,
 ) -> Path:
     """
     Resolve a file path with shadow virtualization.
@@ -96,14 +97,14 @@ def resolve_virtual_path(
     """
     cwd_path = Path(cwd).resolve()
     proj_root = find_project_root(cwd_path)
-    abb_ws = resolve_abb_workspace(proj_root, auto_init=auto_init)
+    abb_ws = resolve_abb_workspace(proj_root, auto_init=auto_init, location=location)
 
     cand_path = Path(candidate).expanduser()
 
     # 1. If already absolute
     if cand_path.is_absolute():
         resolved_cand = cand_path.resolve()
-        # If it's already inside the active shadow workspace, return directly
+        # If it's already inside the active ABB workspace, return directly
         try:
             resolved_cand.relative_to(abb_ws.resolve())
             return resolved_cand
@@ -114,6 +115,15 @@ def resolve_virtual_path(
         try:
             rel = resolved_cand.relative_to(proj_root.resolve())
             if is_abb_path(rel):
+                clean_rel_parts = [p.lower() for p in rel.parts if p not in {".", "", ".."}]
+                if (
+                    len(clean_rel_parts) >= 2
+                    and clean_rel_parts[0] == ".codeless"
+                    and clean_rel_parts[1] == "abb_workspace"
+                ):
+                    rel = Path(*rel.parts[2:])
+                elif len(clean_rel_parts) >= 1 and clean_rel_parts[0] == ".codeless":
+                    rel = Path(*rel.parts[1:])
                 return (abb_ws / rel).resolve()
         except ValueError:
             pass
@@ -128,18 +138,31 @@ def resolve_virtual_path(
 
     rel_path = Path(*clean_parts)
     if is_abb_path(rel_path):
+        parts = list(rel_path.parts)
+        if (
+            len(parts) >= 2
+            and parts[0].lower() == ".codeless"
+            and parts[1].lower() == "abb_workspace"
+        ):
+            rel_path = Path(*parts[2:])
+        elif len(parts) >= 1 and parts[0].lower() == ".codeless":
+            rel_path = Path(*parts[1:])
         return (abb_ws / rel_path).resolve()
 
     return (cwd_path / rel_path).resolve()
 
 
-def unvirtualize_path(path: Path, project_root: Path | None = None) -> str:
+def unvirtualize_path(
+    path: Path,
+    project_root: Path | None = None,
+    location: str | None = None,
+) -> str:
     """
     Return a clean relative representation of a path for user display and logging.
     """
     p = Path(path).resolve()
     root = find_project_root(project_root or Path.cwd()).resolve()
-    abb_ws = resolve_abb_workspace(root, auto_init=False).resolve()
+    abb_ws = resolve_abb_workspace(root, auto_init=False, location=location).resolve()
 
     try:
         rel_abb = p.relative_to(abb_ws)
@@ -156,10 +179,13 @@ def unvirtualize_path(path: Path, project_root: Path | None = None) -> str:
     return str(p)
 
 
-def get_search_roots(project_root: str | Path) -> list[Path]:
+def get_search_roots(
+    project_root: str | Path,
+    location: str | None = None,
+) -> list[Path]:
     """Return all roots that should be searched for symbols, grep, and glob."""
     root = Path(project_root).resolve()
-    abb_ws = resolve_abb_workspace(root, auto_init=True).resolve()
+    abb_ws = resolve_abb_workspace(root, auto_init=True, location=location).resolve()
 
     roots = [root]
     # Only append abb_ws if it's outside the project root (i.e. AppData storage)

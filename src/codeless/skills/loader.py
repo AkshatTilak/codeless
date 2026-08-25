@@ -1,10 +1,13 @@
-"""Skill loading from bundled, user, compatibility, and project directories."""
+"""Skill loading from bundled, user, compatibility, project, and ABB directories."""
 
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
+
+import yaml
 
 from codeless.config.paths import get_config_dir
 from codeless.config.settings import load_settings
@@ -49,7 +52,7 @@ def load_skill_registry(
     extra_plugin_roots: Iterable[str | Path] | None = None,
     settings=None,
 ) -> SkillRegistry:
-    """Load bundled, user-defined, project, and plugin skills."""
+    """Load bundled, user-defined, project, ABB workspace, and plugin skills."""
     registry = SkillRegistry()
     for skill in get_bundled_skills():
         registry.register(skill)
@@ -57,6 +60,11 @@ def load_skill_registry(
         registry.register(skill)
     for skill in load_skills_from_dirs(extra_skill_dirs, source="user"):
         registry.register(skill)
+
+    # ABB Skill Bridge: dynamically load nested skills from active ABB workspace
+    if cwd is not None:
+        for skill in load_abb_skills(cwd):
+            registry.register(skill)
 
     resolved_settings = settings or load_settings()
     if cwd is not None and getattr(resolved_settings, "allow_project_skills", True):
@@ -151,6 +159,165 @@ def _find_git_root(start: Path) -> Path | None:
         if parent == current:
             return None
         current = parent
+
+
+def parse_abb_skills_index(skills_md_path: str | Path) -> list[dict[str, Any]]:
+    """Parse machine-readable YAML skill entries from skills.md (A4 format).
+
+    Supports both frontmatter `skills:` field and fenced ```yaml blocks containing a `skills:` list.
+    """
+    p = Path(skills_md_path).expanduser().resolve()
+    if not p.exists() or not p.is_file():
+        return []
+
+    try:
+        content = p.read_text(encoding="utf-8")
+    except Exception:
+        return []
+
+    entries: list[dict[str, Any]] = []
+
+    # 1. Try parsing frontmatter
+    parsed = parse_skill_metadata("skills", content)
+    fm = parsed.get("frontmatter")
+    if isinstance(fm, dict) and isinstance(fm.get("skills"), list):
+        for item in fm["skills"]:
+            if isinstance(item, dict) and "name" in item:
+                entries.append(item)
+        if entries:
+            return entries
+
+    # 2. Try parsing fenced yaml blocks in content
+    code_blocks = re.findall(r"```(?:yaml|yml)\s*\n(.*?)\n```", content, re.DOTALL | re.IGNORECASE)
+    for block in code_blocks:
+        try:
+            data = yaml.safe_load(block)
+            if isinstance(data, dict) and isinstance(data.get("skills"), list):
+                for item in data["skills"]:
+                    if isinstance(item, dict) and "name" in item:
+                        entries.append(item)
+        except Exception:
+            pass
+
+    return entries
+
+
+def load_abb_skills(cwd: str | Path) -> list[SkillDefinition]:
+    """Load ABB skills from active workspace (shadow or local), supporting nested category layouts."""
+    from codeless.abb.shadow import resolve_abb_workspace
+
+    try:
+        abb_ws = resolve_abb_workspace(cwd, auto_init=False)
+    except Exception:
+        return []
+
+    skills_dir = abb_ws / "skills"
+    if not skills_dir.exists() or not skills_dir.is_dir():
+        return []
+
+    skills: list[SkillDefinition] = []
+    loaded_paths: set[Path] = set()
+
+    # 1. Parse from skills.md index if present (A4)
+    skills_md = skills_dir / "skills.md"
+    if skills_md.exists():
+        index_entries = parse_abb_skills_index(skills_md)
+        for entry in index_entries:
+            rel_path = entry.get("path")
+            if not rel_path:
+                continue
+            skill_file = (skills_dir / rel_path).resolve()
+            if not skill_file.exists() or not skill_file.is_file():
+                continue
+            loaded_paths.add(skill_file)
+
+            try:
+                content = skill_file.read_text(encoding="utf-8")
+            except Exception:
+                continue
+
+            name = str(entry.get("name") or skill_file.stem)
+            description = str(entry.get("description") or "")
+            aliases = tuple(entry.get("aliases") or [])
+            display_name = str(
+                entry.get("display_name") or entry.get("name") or name.replace("_", " ").title()
+            )
+            command_name = str(entry.get("command_name") or name)
+
+            metadata = _parse_skill_metadata(name, content)
+            if not description:
+                description = metadata["description"]
+
+            skills.append(
+                SkillDefinition(
+                    name=name,
+                    description=description,
+                    content=content,
+                    source="abb",
+                    path=str(skill_file),
+                    base_dir=str(skill_file.parent),
+                    command_name=command_name,
+                    display_name=display_name,
+                    aliases=aliases,
+                    user_invocable=metadata["user_invocable"],
+                    disable_model_invocation=metadata["disable_model_invocation"],
+                    model=metadata["model"],
+                    argument_hint=metadata["argument_hint"],
+                )
+            )
+
+    # 2. Discover any additional nested skills on disk not listed in index
+    for path in skills_dir.rglob("*.md"):
+        if not path.is_file():
+            continue
+        # Ignore _staging, templates, hidden dirs, and top-level skills.md
+        if "_staging" in path.parts or ".git" in path.parts or path == skills_md:
+            continue
+        if path in loaded_paths:
+            continue
+
+        # Accept SKILL.md in any subdirectory or manage_skills.md
+        if path.name == "SKILL.md" or path.name == "manage_skills.md":
+            rel_to_skills = path.relative_to(skills_dir)
+            logger.warning(
+                "Skill at %s is present on disk but not in skills.md index",
+                rel_to_skills,
+            )
+            try:
+                content = path.read_text(encoding="utf-8")
+            except Exception:
+                continue
+
+            default_name = path.parent.name if path.name == "SKILL.md" else path.stem
+            metadata = _parse_skill_metadata(default_name, content)
+            name = metadata["name"]
+            description = metadata["description"]
+            display_name = name if name != default_name else None
+
+            # Derive alias from nested category path, e.g. qa/backend
+            rel_parent = str(rel_to_skills.parent).replace("\\", "/")
+            aliases = (rel_parent,) if rel_parent and rel_parent != "." else ()
+
+            skills.append(
+                SkillDefinition(
+                    name=name,
+                    description=description,
+                    content=content,
+                    source="abb",
+                    path=str(path),
+                    base_dir=str(path.parent),
+                    command_name=default_name,
+                    display_name=display_name,
+                    aliases=aliases,
+                    user_invocable=metadata["user_invocable"],
+                    disable_model_invocation=metadata["disable_model_invocation"],
+                    model=metadata["model"],
+                    argument_hint=metadata["argument_hint"],
+                )
+            )
+            loaded_paths.add(path)
+
+    return skills
 
 
 def load_skills_from_dirs(

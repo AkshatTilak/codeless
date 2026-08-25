@@ -8,6 +8,7 @@ from typing import Any
 from codeless.abb.hooks.dag_guard import check_dag_dependencies
 from codeless.abb.hooks.frontmatter import parse_frontmatter, validate_task_frontmatter
 from codeless.abb.hooks.rollup import rollup_task_completion
+from codeless.abb.hooks.staging_guard import check_skill_staging_guard
 from codeless.abb.permissions import TriMode, get_mode_engine
 from codeless.abb.shadow import resolve_abb_workspace
 from codeless.abb.verification import verify_subtask_gate
@@ -133,6 +134,13 @@ def pre_tool_use_abb_guard(
     if not mode_allowed:
         return False, f"ABB Mode Permission Blocked: {mode_reason}"
 
+    abb_ws = resolve_abb_workspace(cwd, auto_init=True)
+
+    # 0.5. Skill Staging Guard (Pull-Adapt-Delete validator)
+    staging_allowed, staging_reason = check_skill_staging_guard(raw_path, abb_ws)
+    if not staging_allowed:
+        return False, staging_reason
+
     # Check if target is a task file
     if not is_abb_path(path_str) or ("tasks/" not in path_str and not path_str.startswith("tasks")):
         return True, "OK"
@@ -218,6 +226,17 @@ def post_tool_use_abb_handler(
     actions: list[str] = []
     # If a subtask was written or edited, trigger roll-up
     if "tasks/sub" in str(resolved).replace("\\", "/"):
-        actions = rollup_task_completion(resolved, tasks_dir)
+        actions.extend(rollup_task_completion(resolved, tasks_dir))
+
+    # DriftDetectionHook: check heuristic drift on write/edit
+    if resolved.exists():
+        try:
+            from codeless.abb.drift import detect_heuristic_drift
+
+            content = resolved.read_text(encoding="utf-8")
+            drift_notices = detect_heuristic_drift(raw_path, content, cwd)
+            actions.extend(drift_notices)
+        except Exception:
+            pass
 
     return actions

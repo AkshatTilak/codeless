@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from codeless.abb.drift import feed_drift_to_issues, run_drift_audit
 from codeless.abb.hooks.dag_guard import index_tasks
-from codeless.abb.hooks.frontmatter import parse_frontmatter, validate_task_frontmatter
+from codeless.abb.hooks.frontmatter import parse_frontmatter
 from codeless.abb.permissions import TriMode, get_mode_engine
 from codeless.abb.shadow import resolve_abb_workspace
 from codeless.abb.verification import (
@@ -307,32 +308,18 @@ async def _verify_handler(args: str, context: CommandContext) -> CommandResult:
 
 
 async def _drift_handler(args: str, context: CommandContext) -> CommandResult:
-    """Handle /drift: Perform structural and schema drift audit."""
+    """Handle /drift: Perform structural, schema, and specification drift audit."""
     cwd = Path(context.cwd).resolve()
-    abb_ws = resolve_abb_workspace(cwd, auto_init=True)
-    tasks_dir = abb_ws / "tasks"
+    report = run_drift_audit(cwd)
 
-    errors: list[str] = []
-    task_count = 0
+    feed_issues = "--feed" in args or "--feed-issues" in args or "-f" in args
+    extra_msg = ""
+    if not report.clean and feed_issues:
+        issues_path = feed_drift_to_issues(cwd, report)
+        if issues_path:
+            extra_msg = f"\n\n📝 Logged findings to: {issues_path.name}"
 
-    if tasks_dir.exists():
-        for task_file in sorted(tasks_dir.glob("**/*.md")):
-            if "_templates" in str(task_file) or task_file.name == "tasks.md":
-                continue
-            task_count += 1
-            fm, _ = parse_frontmatter(task_file.read_text(encoding="utf-8"))
-            errs = validate_task_frontmatter(fm, task_file)
-            if errs:
-                errors.extend([f"{task_file.name}: {e}" for e in errs])
-
-    if errors:
-        return CommandResult(
-            message=f"⚠️ Drift Audit: Found {len(errors)} frontmatter issue(s) across {task_count} task(s):\n"
-            + "\n".join(f"  - {e}" for e in errors)
-        )
-    return CommandResult(
-        message=f"✅ Drift Audit Clean: {task_count} task files validated with 0 schema errors."
-    )
+    return CommandResult(message=report.format_cli() + extra_msg)
 
 
 async def _feature_handler(args: str, context: CommandContext) -> CommandResult:
@@ -396,8 +383,73 @@ async def _references_handler(args: str, context: CommandContext) -> CommandResu
 
 
 async def _checkpoint_handler(args: str, context: CommandContext) -> CommandResult:
-    """Handle /checkpoint: Inspect safety snapshots."""
-    return CommandResult(message="🛡️ Checkpoint Engine: Git snapshot safety tracking active.")
+    """Handle /checkpoint: Snapshot save, restore, list, and inspection."""
+    from codeless.abb.checkpoints import (
+        create_checkpoint,
+        get_checkpoint,
+        list_checkpoints,
+        restore_checkpoint,
+    )
+
+    cwd = Path(context.cwd).resolve()
+    parts = args.strip().split()
+    subcmd = parts[0].lower() if parts else "list"
+
+    if subcmd in {"save", "create"}:
+        name = parts[1] if len(parts) > 1 else None
+        desc = " ".join(parts[2:]) if len(parts) > 2 else "Manual checkpoint"
+        cp = create_checkpoint(cwd, name=name, description=desc)
+        return CommandResult(
+            message=f"🛡️ Checkpoint Saved:\n  - ID: `{cp.checkpoint_id}`\n  - Name: `{cp.name}`\n  - Files: {cp.files_count}\n  - Location: {cp.abb_location}"
+        )
+
+    if subcmd in {"restore", "revert"}:
+        if len(parts) < 2:
+            return CommandResult(
+                message="⚠️ Usage: `/checkpoint restore <checkpoint_id|name> [--force]`"
+            )
+        target_id = parts[1]
+        force = "--force" in parts or "-f" in parts
+        success, msg = restore_checkpoint(cwd, target_id, force=force)
+        prefix = "✅" if success else "⚠️"
+        return CommandResult(message=f"{prefix} {msg}")
+
+    if subcmd in {"show", "info"}:
+        if len(parts) < 2:
+            return CommandResult(message="⚠️ Usage: `/checkpoint show <checkpoint_id|name>`")
+        target_id = parts[1]
+        cp = get_checkpoint(cwd, target_id)
+        if not cp:
+            return CommandResult(message=f"⚠️ Checkpoint '{target_id}' not found.")
+        return CommandResult(
+            message=(
+                f"🛡️ Checkpoint Details:\n"
+                f"  - ID: `{cp.checkpoint_id}`\n"
+                f"  - Name: `{cp.name}`\n"
+                f"  - Timestamp: {cp.timestamp}\n"
+                f"  - Description: {cp.description}\n"
+                f"  - Git Commit: {cp.git_commit or 'None'}\n"
+                f"  - ABB Location: {cp.abb_location}\n"
+                f"  - Files Tracked: {cp.files_count}"
+            )
+        )
+
+    # Default: list checkpoints
+    checkpoints = list_checkpoints(cwd)
+    if not checkpoints:
+        return CommandResult(
+            message="🛡️ Checkpoint Engine: No checkpoints saved yet for this project.\nCreate one with `/checkpoint save [name]`."
+        )
+
+    lines = ["🛡️ Saved Checkpoints:"]
+    for cp in checkpoints[:10]:
+        lines.append(
+            f"  - `{cp.checkpoint_id}` [{cp.name}] - {cp.timestamp} ({cp.files_count} files)"
+        )
+    lines.append(
+        "\nCommands: `/checkpoint save [name]`, `/checkpoint restore <id> [--force]`, `/checkpoint show <id>`"
+    )
+    return CommandResult(message="\n".join(lines))
 
 
 async def _mode_handler(args: str, context: CommandContext) -> CommandResult:

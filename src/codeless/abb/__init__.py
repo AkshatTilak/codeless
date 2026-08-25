@@ -1,12 +1,31 @@
-"""Codeless ABB (Agent Buildable Base) runtime bridge package."""
-
+from codeless.abb.checkpoints import (
+    CheckpointMetadata,
+    create_checkpoint,
+    get_checkpoint,
+    get_checkpoints_dir,
+    list_checkpoints,
+    restore_checkpoint,
+)
+from codeless.abb.drift import (
+    DriftIssue,
+    DriftReport,
+    detect_heuristic_drift,
+    feed_drift_to_issues,
+    run_drift_audit,
+)
 from codeless.abb.shadow import (
     bootstrap_shadow_workspace,
+    bootstrap_workspace,
+    ensure_gitignore_has_codeless,
     get_abb_template_dir,
+    get_configured_abb_location,
     get_global_codeless_dir,
     get_project_hash,
     get_project_storage_dir,
+    list_shadow_projects,
+    migrate_abb_workspace,
     resolve_abb_workspace,
+    set_configured_abb_location,
 )
 from codeless.abb.virtualization import (
     get_search_roots,
@@ -16,14 +35,31 @@ from codeless.abb.virtualization import (
 )
 
 __all__ = [
+    "CheckpointMetadata",
+    "DriftIssue",
+    "DriftReport",
     "bootstrap_shadow_workspace",
+    "bootstrap_workspace",
+    "create_checkpoint",
+    "detect_heuristic_drift",
+    "ensure_gitignore_has_codeless",
+    "feed_drift_to_issues",
     "get_abb_template_dir",
+    "get_checkpoint",
+    "get_checkpoints_dir",
+    "get_configured_abb_location",
     "get_global_codeless_dir",
     "get_project_hash",
     "get_project_storage_dir",
     "get_search_roots",
     "is_abb_path",
+    "list_checkpoints",
+    "list_shadow_projects",
+    "migrate_abb_workspace",
     "resolve_abb_workspace",
     "resolve_virtual_path",
+    "restore_checkpoint",
+    "run_drift_audit",
+    "set_configured_abb_location",
     "unvirtualize_path",
 ]
