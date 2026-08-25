@@ -44,11 +44,11 @@ def e2e_abb_workspace(tmp_path: Path):
 
 
 def test_scenario_1_prompt_audit(e2e_abb_workspace: Path, monkeypatch):
-    """Scenario 1: Prompt Audit across all 5 modes and coordinator overlay."""
+    """Scenario 1: Prompt Audit across all 4 modes and coordinator overlay."""
     monkeypatch.setenv("CODELESS_DATA_DIR", str(e2e_abb_workspace / "data"))
     engine = get_mode_engine()
 
-    for mode in (TriMode.PLAN, TriMode.AGENT, TriMode.ASK, TriMode.CODEBASE, TriMode.GOVERNANCE):
+    for mode in (TriMode.PLAN, TriMode.AGENT, TriMode.ASK, TriMode.CODEBASE):
         engine.set_mode(mode)
         prompt = build_runtime_system_prompt(
             Settings(),
@@ -84,14 +84,13 @@ async def test_scenario_2_mode_matrix_and_bash_guard(e2e_abb_workspace: Path):
     assert res.is_error
     assert "ABB Mode Permission Blocked" in res.output
 
-    # PLAN mode: code blocked, tasks allowed
+    # PLAN mode: code blocked, ABB workspace allowed
     engine.set_mode(TriMode.PLAN)
     code_res = await bash.execute(BashToolInput(command="echo 'code' > src/main.py"), ctx)
     assert code_res.is_error
     assert "ABB Mode Permission Blocked" in code_res.output
 
-    # GOVERNANCE mode: code blocked, meta specs allowed
-    engine.set_mode(TriMode.GOVERNANCE)
+    # PLAN mode: meta specs and tasks allowed
     allowed_meta, _ = pre_tool_use_abb_guard(
         "write_file",
         {"path": ".codeless/abb_workspace/STACK.md", "content": "# STACK\n"},

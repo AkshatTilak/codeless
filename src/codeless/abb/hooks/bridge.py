@@ -88,7 +88,7 @@ def pre_tool_use_abb_guard(
 
         # Check general mutations (git commit, npm install, etc.)
         if _is_general_state_mutation(command):
-            if mode in {TriMode.ASK, TriMode.PLAN, TriMode.GOVERNANCE}:
+            if mode in {TriMode.ASK, TriMode.PLAN, TriMode.CODEBASE}:
                 return (
                     False,
                     f"ABB Mode Permission Blocked: Bash command alters repository/package state, which is disallowed in {mode.value.upper()} mode.",

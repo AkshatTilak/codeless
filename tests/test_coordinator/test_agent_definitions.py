@@ -84,7 +84,7 @@ def test_builtin_general_purpose_has_all_tools():
 
 def test_builtin_agents_have_modes():
     builtins = {a.name: a for a in get_builtin_agent_definitions()}
-    assert "governance" in builtins["abb-governance"].modes
+    assert "plan" in builtins["abb-governance"].modes
     assert "plan" in builtins["task-planner"].modes
     assert "agent" in builtins["worker"].modes
 

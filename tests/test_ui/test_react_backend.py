@@ -950,4 +950,4 @@ async def test_backend_host_emits_mode_select_request(tmp_path, monkeypatch):
     event = next(item for item in events if item.type == "select_request")
     assert event.modal["command"] == "mode"
     values = [option["value"] for option in event.select_options]
-    assert values == ["agent", "plan", "ask", "codebase", "governance"]
+    assert values == ["agent", "plan", "ask", "codebase"]

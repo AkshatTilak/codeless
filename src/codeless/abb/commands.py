@@ -453,11 +453,9 @@ async def _checkpoint_handler(args: str, context: CommandContext) -> CommandResu
 
 
 async def _mode_handler(args: str, context: CommandContext) -> CommandResult:
-    """Handle /mode: Switch operational mode (plan | agent | ask | codebase | governance)."""
+    """Handle /mode: Switch operational mode (plan | agent | ask | codebase)."""
     target = args.strip().lower()
-    if target == "abb":
-        target = "governance"
-    if target in {"plan", "agent", "ask", "codebase", "governance"}:
+    if target in {"plan", "agent", "ask", "codebase"}:
         from codeless.config.settings import load_settings, save_settings
         from codeless.permissions import PermissionChecker, PermissionMode
 
@@ -490,12 +488,11 @@ async def _mode_handler(args: str, context: CommandContext) -> CommandResult:
     return CommandResult(
         message=(
             "Operational Modes & Domain Write Boundaries:\n"
-            "  - `AGENT`      : Unrestricted implementation & verification (Two-Track gate active)\n"
-            "  - `PLAN`       : Architecture & task planning (writes allowed to tasks/ and design/ only)\n"
-            "  - `ASK`        : Strictly read-only inquiry (all mutating operations blocked)\n"
-            "  - `CODEBASE`   : Codebase exploration & memory queries (strictly read-only)\n"
-            "  - `GOVERNANCE` : Meta-specification maintenance (source code files protected)\n\n"
-            "Usage: `/mode <agent|plan|ask|codebase|governance>`"
+            "  - `AGENT`    : Unrestricted implementation & verification (Two-Track gate active)\n"
+            "  - `PLAN`     : Architecture & task planning (full read/write in ABB; codebase is read-only)\n"
+            "  - `ASK`      : Strictly read-only inquiry (all mutating operations blocked)\n"
+            "  - `CODEBASE` : Codebase exploration & memory queries (strictly read-only)\n\n"
+            "Usage: `/mode <agent|plan|ask|codebase>`"
         )
     )
 

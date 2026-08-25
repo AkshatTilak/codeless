@@ -42,12 +42,7 @@ def test_five_modes_allowed_tools():
     assert "write_file" not in cb_tools
     assert "edit_file" not in cb_tools
 
-    # GOVERNANCE mode: governance tools
-    engine.set_mode(TriMode.GOVERNANCE)
-    gov_tools = engine.get_allowed_tools()
-    assert "write_file" in gov_tools
-    assert "edit_file" in gov_tools
-    assert "abb_task" in gov_tools
+
 
 
 def test_domain_write_boundaries(tmp_path: Path):
@@ -61,11 +56,17 @@ def test_domain_write_boundaries(tmp_path: Path):
     assert not allowed
     assert "strictly read-only" in reason.lower()
 
-    # 2. PLAN mode allows tasks/ and design/ only
+    # 2. PLAN mode allows full ABB workspace (tasks, design, features, STACK.md, references)
     engine.set_mode(TriMode.PLAN)
     allowed, _ = engine.evaluate_write_permission(abb_ws / "tasks" / "sub" / "01.md", tmp_path)
     assert allowed
     allowed, _ = engine.evaluate_write_permission(abb_ws / "design" / "arch.md", tmp_path)
+    assert allowed
+    allowed, _ = engine.evaluate_write_permission(abb_ws / "STACK.md", tmp_path)
+    assert allowed
+    allowed, _ = engine.evaluate_write_permission(
+        abb_ws / "workflows" / "planning" / "planning.md", tmp_path
+    )
     assert allowed
     allowed, reason = engine.evaluate_write_permission(tmp_path / "src" / "main.py", tmp_path)
     assert not allowed
@@ -76,15 +77,3 @@ def test_domain_write_boundaries(tmp_path: Path):
     allowed, reason = engine.evaluate_write_permission(tmp_path / "src" / "main.py", tmp_path)
     assert not allowed
     assert "strictly read-only" in reason.lower()
-
-    # 4. GOVERNANCE mode allows meta ABB specs, protects project source code
-    engine.set_mode(TriMode.GOVERNANCE)
-    allowed, _ = engine.evaluate_write_permission(abb_ws / "STACK.md", tmp_path)
-    assert allowed
-    allowed, _ = engine.evaluate_write_permission(
-        abb_ws / "workflows" / "planning" / "planning.md", tmp_path
-    )
-    assert allowed
-    allowed, reason = engine.evaluate_write_permission(tmp_path / "src" / "main.py", tmp_path)
-    assert not allowed
-    assert "governance mode blocks" in reason.lower()

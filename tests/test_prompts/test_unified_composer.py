@@ -40,7 +40,7 @@ def test_runtime_prompt_modes(tmp_path: Path) -> None:
     settings = Settings()
     engine = get_mode_engine()
 
-    for mode in [TriMode.PLAN, TriMode.AGENT, TriMode.ASK, TriMode.CODEBASE, TriMode.GOVERNANCE]:
+    for mode in [TriMode.PLAN, TriMode.AGENT, TriMode.ASK, TriMode.CODEBASE]:
         engine.set_mode(mode)
         rendered = build_runtime_system_prompt(settings, cwd=tmp_path)
         assert mode.value.upper() in rendered

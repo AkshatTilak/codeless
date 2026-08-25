@@ -1,18 +1,17 @@
 # Operational Modes & Domain Write Boundaries
 
-Codeless features a robust **5-Mode Operational Architecture** that establishes deterministic write boundaries and safety controls. This ensures agents only modify appropriate files for the current phase of development (e.g. preventing code edits while drafting architecture plans).
+Codeless features a robust **4-Mode Operational Architecture** that establishes deterministic write boundaries and safety controls. This ensures agents only modify appropriate files for the current phase of development (e.g. preventing code edits while drafting architecture plans or governing ABB specifications).
 
 ---
 
-## 1. The 5 Operational Modes
+## 1. The 4 Operational Modes
 
 | Mode | Purpose | Allowed Write Scope | Mutating Tools Allowed |
 |---|---|---|---|
-| **`PLAN`** | Architecture design, task planning, decomposition | `tasks/**`, `design/**` only | File edits to plan directories; bash/exec blocked |
+| **`PLAN`** | Architecture design, SRS requirements, feature specs, ABB governance & task decomposition | Full ABB workspace (`tasks/**`, `design/**`, `features/**`, `references/**`, `skills/**`, `workflows/**`, `STACK.md`, `CONVENTIONS.md`, `agent.md`, `TODO.md`) | File edits within ABB workspace; mutating bash/exec blocked |
 | **`AGENT`** | Full implementation & code writing | Complete repository & workspace | All tools permitted (gated by Two-Track verification) |
 | **`ASK`** | Q&A, conceptual inquiries, code explanation | Strictly Read-Only (0 writes) | Mutating tools disabled |
 | **`CODEBASE`** | Code exploration, semantic search, debugging | Strictly Read-Only (0 writes) | Mutating tools disabled |
-| **`GOVERNANCE`** | ABB memory bank & spec maintenance | `tasks/**`, `features/**`, `skills/**`, `references/**` | Source code files protected from accidental edits |
 
 ---
 
@@ -25,7 +24,6 @@ You can seamlessly switch modes during an interactive session using the `/mode` 
 /mode agent
 /mode ask
 /mode codebase
-/mode governance
 ```
 
 ### Checking Active Mode
@@ -34,13 +32,12 @@ Typing `/mode` without arguments displays the current mode and its boundary cons
 ```text
 > /mode
 Operational Modes & Domain Write Boundaries:
-  - `AGENT`      : Unrestricted implementation & verification (Two-Track gate active)
-  - `PLAN`       : Architecture & task planning (writes allowed to tasks/ and design/ only)
-  - `ASK`        : Strictly read-only inquiry (all mutating operations blocked)
-  - `CODEBASE`   : Codebase exploration & memory queries (strictly read-only)
-  - `GOVERNANCE` : Meta-specification maintenance (source code files protected)
+  - `AGENT`    : Unrestricted implementation & verification (Two-Track gate active)
+  - `PLAN`     : Architecture, planning & ABB governance (full read/write in ABB; codebase is read-only)
+  - `ASK`      : Strictly read-only inquiry (all mutating operations blocked)
+  - `CODEBASE` : Codebase exploration & memory queries (strictly read-only)
 
-Usage: `/mode <agent|plan|ask|codebase|governance>`
+Usage: `/mode <agent|plan|ask|codebase>`
 ```
 
 ---
@@ -72,13 +69,9 @@ When an agent attempts a file write operation, the permission controller checks:
 graph TD
     AgentCall[Tool Execution: write_file / edit_file] --> CheckMode{Operational Mode}
     
-    CheckMode -->|PLAN| PlanCheck{Target in tasks/ or design/?}
-    PlanCheck -->|Yes| AllowWrite[Allow Write]
-    PlanCheck -->|No| BlockWrite[Block with Permission Error]
-    
-    CheckMode -->|GOVERNANCE| GovCheck{Target in ABB specs?}
-    GovCheck -->|Yes| AllowWrite
-    GovCheck -->|No (Source Code)| BlockWrite
+    CheckMode -->|PLAN| PlanCheck{Target inside ABB workspace?}
+    PlanCheck -->|Yes| AllowWrite[Allow Write to ABB Workspace]
+    PlanCheck -->|No (Source Code)| BlockWrite[Block with Permission Error]
     
     CheckMode -->|ASK / CODEBASE| BlockAll[Block Write: Strictly Read-Only]
     
@@ -90,7 +83,7 @@ graph TD
 If an agent in `PLAN` mode attempts to edit `src/main.py`:
 ```text
 ⚠️ Permission Denied: Write to 'src/main.py' is blocked in PLAN mode. 
-Writes in PLAN mode are restricted to tasks/ and design/ directories.
+Writes in PLAN mode are restricted to ABB workspace files.
 Switch to AGENT mode using `/mode agent` to perform code modifications.
 ```
 

@@ -624,7 +624,7 @@ class ReactBackendHost:
                 {
                     "value": "plan",
                     "label": "PLAN",
-                    "description": "Architecture & task planning (writes restricted to tasks/ and design/)",
+                    "description": "Architecture & task planning (full read/write in ABB; codebase is read-only)",
                     "active": curr_mode == TriMode.PLAN,
                 },
                 {
@@ -638,12 +638,6 @@ class ReactBackendHost:
                     "label": "CODEBASE",
                     "description": "Codebase exploration & memory queries (strictly read-only)",
                     "active": curr_mode == TriMode.CODEBASE,
-                },
-                {
-                    "value": "governance",
-                    "label": "GOVERNANCE",
-                    "description": "ABB meta-spec governance (writes restricted to STACK.md, agent.md, features/, references/, workflows/)",
-                    "active": curr_mode == TriMode.GOVERNANCE,
                 },
             ]
             await self._emit(

@@ -37,15 +37,6 @@ async def test_mode_slash_command_switches_all_five_modes(tmp_path: Path):
     assert "CODEBASE" in res.message
     assert engine.current_mode == TriMode.CODEBASE
 
-    # 5. governance (and abb alias)
-    res = await _mode_handler("governance", ctx)
-    assert "GOVERNANCE" in res.message
-    assert engine.current_mode == TriMode.GOVERNANCE
-
-    res_abb = await _mode_handler("abb", ctx)
-    assert "GOVERNANCE" in res_abb.message
-    assert engine.current_mode == TriMode.GOVERNANCE
-
 
 @pytest.mark.asyncio
 async def test_mode_slash_command_invalid_input(tmp_path: Path):

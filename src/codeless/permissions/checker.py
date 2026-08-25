@@ -139,7 +139,7 @@ class PermissionChecker:
         if is_read_only:
             return PermissionDecision(allowed=True, reason="read-only tools are allowed")
 
-        # Planning & task management tools always allowed in PLAN, GOVERNANCE, and AGENT modes
+        # Planning & task management tools always allowed in PLAN and AGENT modes
         if tool_name in {
             "todo_write",
             "ask_user_question",
@@ -147,7 +147,7 @@ class PermissionChecker:
             "skill",
         }:
             return PermissionDecision(
-                allowed=True, reason="Planning & governance tools are allowed in this mode"
+                allowed=True, reason="Planning tools are allowed in this mode"
             )
 
         # Check ABB ModeEngine write boundaries for file operations
@@ -164,7 +164,7 @@ class PermissionChecker:
                 if not mode_allowed:
                     return PermissionDecision(allowed=False, reason=mode_reason)
                 elif self._settings.mode == PermissionMode.PLAN:
-                    # In PLAN or GOVERNANCE mode, ModeEngine has validated this write is inside allowed boundary
+                    # In PLAN mode, ModeEngine has validated this write is inside allowed boundary
                     return PermissionDecision(allowed=True, reason=mode_reason)
             except Exception:
                 pass

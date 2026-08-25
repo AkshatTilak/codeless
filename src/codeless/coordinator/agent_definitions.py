@@ -134,12 +134,13 @@ class AgentDefinition(BaseModel):
     source: Literal["builtin", "user", "plugin"] = "builtin"
     modes: list[str] = Field(
         default_factory=list
-    )  # TriMode filters: plan, agent, ask, codebase, governance
+    )  # TriMode filters: plan, agent, ask, codebase
 
 
 # ---------------------------------------------------------------------------
 # System-prompt constants (translated from TS built-in agent files)
 # ---------------------------------------------------------------------------
+
 
 _SHARED_AGENT_PREFIX = (
     "You are an agent for Codeless. "
@@ -298,7 +299,7 @@ _BUILTIN_AGENTS: list[AgentDefinition] = [
         subagent_type="Explore",
         source="builtin",
         base_dir="built-in",
-        modes=["ask", "codebase", "agent", "plan", "governance"],
+        modes=["ask", "codebase", "agent", "plan"],
     ),
     AgentDefinition(
         name="Plan",
@@ -345,13 +346,13 @@ _BUILTIN_AGENTS: list[AgentDefinition] = [
         subagent_type="verification",
         source="builtin",
         base_dir="built-in",
-        modes=["agent", "plan", "governance"],
+        modes=["agent", "plan"],
     ),
     AgentDefinition(
         name="abb-governance",
         description=(
-            "ABB Governance specialist agent. Use this agent to explain, update, or extend "
-            "the ABB system meta-specifications (STACK.md, agent.md, features/, references/, "
+            "ABB Architecture & Governance specialist agent. Use this agent to explain, update, or extend "
+            "the ABB system specifications (STACK.md, agent.md, features/, references/, "
             "workflows/, skills/, conventions) without modifying project code."
         ),
         system_prompt=_ABB_GOVERNANCE_SYSTEM_PROMPT,
@@ -360,7 +361,7 @@ _BUILTIN_AGENTS: list[AgentDefinition] = [
         subagent_type="abb-governance",
         source="builtin",
         base_dir="built-in",
-        modes=["governance", "agent"],
+        modes=["plan", "agent"],
     ),
     AgentDefinition(
         name="task-planner",

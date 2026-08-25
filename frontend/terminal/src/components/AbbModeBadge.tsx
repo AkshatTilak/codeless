@@ -38,16 +38,6 @@ export function AbbModeBadge({
 		);
 	}
 
-	if (normalized.includes('governance') || normalized === 'abb') {
-		return (
-			<Box marginRight={1}>
-				<Text backgroundColor="yellow" color="black" bold>
-					{' 🏛️ GOVERNANCE '}
-				</Text>
-			</Box>
-		);
-	}
-
 	return (
 		<Box marginRight={1}>
 			<Text backgroundColor="green" color="black" bold>

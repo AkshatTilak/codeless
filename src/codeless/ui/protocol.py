@@ -346,7 +346,6 @@ _MODE_LABELS = {
     "plan": "PLAN",
     "ask": "ASK",
     "codebase": "CODEBASE",
-    "governance": "GOVERNANCE",
     "default": "AGENT",
     "full_auto": "AGENT",
     "PermissionMode.DEFAULT": "AGENT",

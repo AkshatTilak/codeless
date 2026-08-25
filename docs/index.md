@@ -37,7 +37,7 @@ graph TD
 
 ### 1. Core Engine & CLI
 - [**CLI Reference**](cli_reference.md): Complete guide to all `codeless` command-line commands, flags, effort options, and headless automation parameters.
-- [**Operational Modes & Permissions**](modes_and_permissions.md): Deep dive into the 5 operational modes (`PLAN`, `AGENT`, `ASK`, `CODEBASE`, `GOVERNANCE`), write boundaries, and execution gates.
+- [**Operational Modes & Permissions**](modes_and_permissions.md): Deep dive into the 4 operational modes (`PLAN`, `AGENT`, `ASK`, `CODEBASE`), write boundaries, and execution gates.
 - [**Interactive Slash Commands**](slash_commands.md): Quick reference for in-session slash commands (`/mode`, `/drift`, `/checkpoint`, `/tasks`, `/plan`, etc.).
 
 ### 2. Agent Buildable Base (ABB) Governance

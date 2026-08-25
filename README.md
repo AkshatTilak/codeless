@@ -40,7 +40,7 @@ It bridges declarative, modular repository governance with autonomous AI agent e
 
 - **Zero-Pollution Shadow Workspace Virtualization**: Isolates all agent governance files, task DAGs, logs, and sessions in user AppData storage (`~/.codeless/projects/<project_hash>/abb_workspace/`), keeping target repositories 100% pristine.
 - **Unified Prompt Composer**: Single prompt composition authority fusing harness mechanics and ABB persona (`agent.md` + router) with zero redundant guidance.
-- **Five-Mode Operational Matrix**: Atomic mode authority (`AGENT`, `PLAN`, `ASK`, `CODEBASE`, `GOVERNANCE`) enforcing tool provisioning and strict domain write boundaries.
+- **Four-Mode Operational Matrix**: Atomic mode authority (`PLAN`, `AGENT`, `ASK`, `CODEBASE`) enforcing tool provisioning and strict domain write boundaries.
 - **Tool Consolidation & Action Permissions**: Consolidated multi-action tools (`cron`, `task`, `worktree`, `mcp_resource`, `web`) reducing token overhead by ~60% with dynamic action-level `is_read_only` permission evaluation.
 - **Unified Web Crawl Engine**: Structured Crawl4AI-inspired crawling, Markdown extraction, readability distillation, and CSS selector scoping.
 - **Cold-Start Exploration & Template Choice**: Autonomous project context exploration on empty-history sessions and open-source template strategy ingestion.
@@ -64,12 +64,11 @@ graph TD
     Inspect --> Router
     Router --> Skills[skills/skills.md: Skill Selection & Acceleration]
 
-    Skills --> Mode{Five-Mode Matrix}
-    Mode -->|PLAN| Plan[workflows/planning/planning.md]
-    Mode -->|AGENT| Exec[workflows/execution/work_principle.md]
-    Mode -->|ASK| Know[references/references.md]
-    Mode -->|CODEBASE| Code[Source Code Implementation]
-    Mode -->|GOVERNANCE| Gov[Meta-Specification Authoring]
+    Skills --> Mode{Four-Mode Matrix}
+    Mode -->|PLAN| Plan[Architecture, Governance & Planning: tasks/, design/, features/, STACK.md]
+    Mode -->|AGENT| Exec[Autonomous Execution: workflows/execution/work_principle.md]
+    Mode -->|ASK| Know[Knowledge Queries: references/references.md]
+    Mode -->|CODEBASE| Code[Codebase Exploration & Analysis]
 
     Exec --> Tools[Consolidated Tools: cron / task / worktree / web / abb_task / abb_verify]
     Tools --> Shadow[(Shadow Workspace: ~/.codeless/projects/.../abb_workspace)]
@@ -103,17 +102,16 @@ graph LR
 
 ---
 
-## 🔒 Five-Mode Operational Matrix
+## 🔒 Four-Mode Operational Matrix
 
-Codeless provides 5 distinct operational modes. **Codeless sessions start in `[📐 PLAN]` mode by default** to review architecture, specs, and plans safely before code execution. The active mode is the single authority for persona prompt composition, tool allow-lists, and domain write boundaries:
+Codeless provides 4 distinct operational modes. **Codeless sessions start in `[📐 PLAN]` mode by default** to review architecture, specs, and plans safely before code execution. The active mode is the single authority for persona prompt composition, tool allow-lists, and domain write boundaries:
 
 | Mode | Visual Badge | Allowed Tool Schemas | Domain Write Boundary |
 | :--- | :--- | :--- | :--- |
-| **`PLAN` (Default)** | `[📐 PLAN]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `write_file`*, `edit_file`*, `cron` (read), `task` (read), `worktree` (read), `web`, `abb_task`, `abb_verify` | **Planning only** (`tasks/` and `design/`). Production code mutations and mutating shell commands (`bash`) are blocked. |
+| **`PLAN` (Default)** | `[📐 PLAN]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `write_file`*, `edit_file`*, `cron` (read), `task` (read), `worktree` (read), `web`, `abb_task`, `abb_verify`, `todo_write` | **Architecture, Governance & Planning** (`tasks/**`, `design/**`, `features/**`, `references/**`, `skills/**`, `workflows/**`, `STACK.md`, `CONVENTIONS.md`, `agent.md`, `TODO.md`). External application source code modifications and mutating shell commands (`bash`) are blocked. |
 | **`AGENT`** | `[⚡ AGENT]` | **All tools** (`bash`, `read_file`, `write_file`, `edit_file`, `cron`, `task`, `worktree`, `web`, `abb_task`, `abb_verify`, etc.) | **Unrestricted implementation & verification** across codebase and workspace (Two-Track verification gate active). |
 | **`ASK`** | `[💬 ASK]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `cron` (read), `task` (read), `worktree` (read), `web`, `abb_task`, `ask_user_question` | **Read-only inquiry**. All file mutations and shell executions are blocked. |
 | **`CODEBASE`** | `[🔍 CODEBASE]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `cron` (read), `task` (read), `worktree` (read), `web`, `abb_task`, `ask_user_question` | **Codebase exploration & memory queries**. Strictly read-only repository-wide. |
-| **`GOVERNANCE`** | `[🏛️ GOVERNANCE]` | `read_file`, `glob`, `grep`, `lsp`, `view_file`, `write_file`*, `edit_file`*, `cron` (read), `task` (read), `worktree` (read), `web`, `abb_task`, `abb_verify` | **Meta-spec maintenance** (`STACK.md`, `agent.md`, `features/`, `references/`, `workflows/`, `skills/`). Production code files are protected. |
 
 ---
 
@@ -195,7 +193,7 @@ Explore detailed documentation for each capability in the [`docs/`](docs/index.m
 
 | Slash Command | Description |
 | :--- | :--- |
-| **`/mode [mode]`** | Open operational mode selector or switch directly (`agent`, `plan`, `ask`, `codebase`, `governance`). |
+| **`/mode [mode]`** | Open operational mode selector or switch directly (`agent`, `plan`, `ask`, `codebase`). |
 | **`/plan <goal>`** | Run the architectural planner to decompose a feature into tasks. |
 | **`/task [task_id]`** | Display live topological DAG hierarchy and subtask status. |
 | **`/verify`** | Run Two-Track test verification against `STACK.md`. |

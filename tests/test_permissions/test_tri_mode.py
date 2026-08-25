@@ -43,10 +43,12 @@ def test_plan_mode_path_rules(tmp_path: Path):
     allowed, _ = engine.evaluate_write_permission("features/auth/spec.md", tmp_path)
     assert allowed
 
-    # Meta-specs belong to Governance mode, not Plan mode
-    allowed, reason = engine.evaluate_write_permission("STACK.md", tmp_path)
-    assert not allowed
-    assert "Plan Mode blocks meta-spec writes" in reason
+    # Meta-specs and workspace files allowed in merged Plan mode
+    allowed, _ = engine.evaluate_write_permission("STACK.md", tmp_path)
+    assert allowed
+
+    allowed, _ = engine.evaluate_write_permission("references/db/models.md", tmp_path)
+    assert allowed
 
     # Root project source files blocked in Plan mode
     allowed, reason = engine.evaluate_write_permission("src/codeless/main.py", tmp_path)
@@ -95,7 +97,7 @@ def test_persona_instructions_loading(tmp_path: Path):
 
     engine.set_mode(TriMode.PLAN)
     plan_persona = engine.get_persona_instructions(tmp_path)
-    assert "Architecture & Planning Mode" in plan_persona
+    assert "Planning Mode" in plan_persona
     assert "Base Agent Persona" in plan_persona
 
     engine.set_mode(TriMode.ASK)

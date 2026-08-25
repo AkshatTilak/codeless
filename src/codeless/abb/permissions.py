@@ -1,4 +1,4 @@
-"""Tri-Mode / 5-Mode Permission Controller and Persona Composition Engine for Codeless."""
+"""4-Mode Permission Controller and Persona Composition Engine for Codeless."""
 
 from __future__ import annotations
 
@@ -17,7 +17,6 @@ class TriMode(str, Enum):
     AGENT = "agent"
     ASK = "ask"
     CODEBASE = "codebase"
-    GOVERNANCE = "governance"
 
 
 class ModeEngine:
@@ -33,26 +32,22 @@ class ModeEngine:
     def set_mode(self, mode: TriMode | str) -> TriMode:
         """Switch operational mode."""
         if isinstance(mode, str):
-            clean = mode.lower().strip()
-            if clean in {"abb"}:
-                clean = "governance"
-            mode = TriMode(clean)
+            mode = TriMode(mode.lower().strip())
         self._current_mode = mode
         return self._current_mode
 
     def get_mode_description(self) -> str:
         descriptions = {
             TriMode.AGENT: "Full autonomous execution — code editing, testing, task completion.",
-            TriMode.PLAN: "Architecture & Task Planning — writes restricted to tasks/, design/, and features/ (LLD specs).",
+            TriMode.PLAN: "Architecture & Task Planning — full read/write in ABB workspace; external codebase is strictly read-only.",
             TriMode.ASK: "Read-only Q&A — all file modifications blocked.",
             TriMode.CODEBASE: "Codebase exploration & memory queries — all file modifications blocked.",
-            TriMode.GOVERNANCE: "ABB Meta-Spec Governance — writes restricted to STACK.md, agent.md, references/, workflows/, skills/, conventions.",
         }
         return descriptions.get(self._current_mode, "Unknown mode policy")
 
     def get_upstream_permission_mode(self) -> PermissionMode:
         """Map TriMode to upstream PermissionMode."""
-        if self._current_mode in {TriMode.PLAN, TriMode.ASK, TriMode.CODEBASE, TriMode.GOVERNANCE}:
+        if self._current_mode in {TriMode.PLAN, TriMode.ASK, TriMode.CODEBASE}:
             return PermissionMode.PLAN
         return PermissionMode.DEFAULT
 
@@ -80,7 +75,7 @@ class ModeEngine:
                 "web_fetch",
                 "web_crawl",
             }
-        elif self._current_mode in {TriMode.PLAN, TriMode.GOVERNANCE}:
+        elif self._current_mode == TriMode.PLAN:
             return {
                 "read_file",
                 "write_file",
@@ -169,38 +164,22 @@ class ModeEngine:
         # Planning & task checklist files (TODO.md, etc.)
         norm_name = Path(norm_path).name.lower()
         if norm_name in {"todo.md", "todos.md"}:
-            if self._current_mode in {TriMode.PLAN, TriMode.GOVERNANCE, TriMode.AGENT}:
+            if self._current_mode in {TriMode.PLAN, TriMode.AGENT}:
                 return True, "Permitted write to task planning file (TODO.md)."
 
-        # 2. PLAN Mode: Write allowed ONLY to tasks/, design/, and features/
+        # 2. PLAN Mode: Write allowed to all ABB workspace files; external codebase is strictly read-only
         if self._current_mode == TriMode.PLAN:
             if is_abb:
-                norm_lower = norm_path.lower()
-                plan_prefixes = ("tasks/", "tasks", "design/", "design", "features/", "features")
-                if any(norm_lower.startswith(p) or f"/{p}" in norm_lower for p in plan_prefixes):
-                    return (
-                        True,
-                        "Plan mode permitted write to architecture, design & task workspace.",
-                    )
                 return (
-                    False,
-                    f"Plan Mode blocks meta-spec writes to '{norm_path}'. Use Governance mode (`/mode governance`) for meta specs.",
+                    True,
+                    "Plan mode permitted write to ABB architecture, design & task workspace.",
                 )
             return (
                 False,
                 f"Plan Mode blocks project code modifications to '{norm_path}'. Switch to Agent mode (`/mode agent`) to execute changes.",
             )
 
-        # 3. GOVERNANCE Mode: Write allowed to all ABB workspace specifications & memory bank
-        if self._current_mode == TriMode.GOVERNANCE:
-            if is_abb:
-                return True, "Governance mode permitted write to ABB workspace specifications."
-            return (
-                False,
-                f"Governance Mode blocks project code modifications to '{norm_path}'. Switch to Agent mode (`/mode agent`) to execute changes.",
-            )
-
-        # 4. AGENT Mode: Write allowed everywhere
+        # 3. AGENT Mode: Write allowed everywhere
         if self._current_mode == TriMode.AGENT:
             return True, "Agent mode allows project code and task modifications."
 
@@ -239,13 +218,6 @@ class ModeEngine:
             parts = ["# Persona: Codebase Exploration & Comprehension", *core_parts]
             if refs_index.exists():
                 parts.append(refs_index.read_text(encoding="utf-8"))
-            return "\n\n".join(parts)
-
-        elif self._current_mode == TriMode.GOVERNANCE:
-            gov_md = abb_ws / "workflows" / "planning" / "governance.md"
-            parts = ["# Persona: ABB Meta-Specification Governance", *core_parts]
-            if gov_md.exists():
-                parts.append(gov_md.read_text(encoding="utf-8"))
             return "\n\n".join(parts)
 
         else:  # AGENT mode
