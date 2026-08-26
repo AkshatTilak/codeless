@@ -6,7 +6,7 @@ from enum import Enum
 from pathlib import Path
 
 from codeless.abb.shadow import resolve_abb_workspace
-from codeless.abb.virtualization import is_abb_path
+from codeless.abb.virtualization import find_project_root, is_abb_path
 from codeless.permissions.modes import PermissionMode
 
 
@@ -117,14 +117,16 @@ class ModeEngine:
     def evaluate_write_permission(
         self,
         target_path: str | Path,
-        cwd: Path,
+        cwd: Path | str | None = None,
     ) -> tuple[bool, str]:
         """
         Evaluate write/edit permission for target path given the active TriMode.
         Returns (allowed, reason).
         """
         norm_path = str(target_path).replace("\\", "/").strip()
-        is_abb = is_abb_path(norm_path)
+        cwd_p = Path(cwd).resolve() if cwd else Path.cwd().resolve()
+        proj_root = find_project_root(cwd_p)
+        is_abb = is_abb_path(target_path, project_root=proj_root)
 
         # 1. ASK & CODEBASE: Strictly read-only everywhere
         if self._current_mode in {TriMode.ASK, TriMode.CODEBASE}:

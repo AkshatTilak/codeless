@@ -19,7 +19,13 @@ ABB_TOP_LEVEL_FILES = frozenset(
         "user_preferences.md",
         "conventions.md",
         "coding_philosophy.md",
+        "changelog.md",
         "version",
+        "license",
+        "todo.md",
+        "todos.md",
+        "gemini.md",
+        "agents.md",
     }
 )
 
@@ -32,6 +38,8 @@ ABB_DOMAINS = frozenset(
         "tasks",
         "references",
         "skills",
+        "assets",
+        "rules",
     }
 )
 
@@ -39,29 +47,98 @@ ABB_DOMAINS = frozenset(
 def find_project_root(start_dir: str | Path) -> Path:
     """Locate the project repository root starting from start_dir."""
     current = Path(start_dir).resolve()
+    try:
+        home = Path.home().resolve()
+    except Exception:
+        home = None
+
     for parent in [current, *current.parents]:
-        if (parent / ".git").exists() or (parent / "pyproject.toml").exists():
+        if home is not None and parent == home:
+            continue
+        if (
+            (parent / ".git").exists()
+            or (parent / "pyproject.toml").exists()
+            or (parent / "package.json").exists()
+            or (parent / "Cargo.toml").exists()
+            or (parent / "go.mod").exists()
+            or (parent / ".codeless" / "abb_workspace").exists()
+        ):
             return parent
-    return current
+
+    # When no explicit repo marker exists, back out of any ABB domain/sub folders
+    abb_subfolders = ABB_DOMAINS | {
+        ".codeless",
+        "abb_workspace",
+        "sub",
+        "base",
+        "goal",
+        "temp",
+        "structure",
+        "logic",
+        "tests",
+        "tooling",
+        "db",
+        "deployment",
+        "system",
+        "ux",
+    }
+    candidate = current
+    while candidate.name.lower() in abb_subfolders and candidate.parent != candidate:
+        candidate = candidate.parent
+    return candidate
 
 
 def is_abb_path(candidate: str | Path, project_root: Path | None = None) -> bool:
     """Return True if the given candidate path corresponds to an ABB file or domain."""
+    if not candidate:
+        return False
     path_str = str(candidate).replace("\\", "/").strip()
     if not path_str:
         return False
 
-    # Check if candidate is an absolute path inside an active ABB workspace
+    # Check if candidate is an absolute path inside an active ABB workspace or repo
     p = Path(candidate)
     if p.is_absolute():
-        if ".codeless" in p.parts:
+        parts_lower = [part.lower() for part in p.parts]
+        if ".codeless" in parts_lower or "abb_workspace" in parts_lower:
             return True
+
+        # If the file itself is a top-level ABB file, it's always an ABB file
+        if p.name.lower() in ABB_TOP_LEVEL_FILES:
+            return True
+
+        # Try relative to provided project_root
         if project_root is not None:
             try:
-                rel = p.relative_to(project_root)
-                return is_abb_path(rel)
-            except ValueError:
+                rel = p.resolve().relative_to(Path(project_root).resolve())
+                return is_abb_path(rel, project_root=project_root)
+            except (ValueError, Exception):
                 pass
+
+        # Try relative to discovered project root
+        root = find_project_root(p.parent)
+        try:
+            rel = p.resolve().relative_to(root.resolve())
+            if str(rel) != str(p):
+                return is_abb_path(rel, project_root=root)
+        except (ValueError, Exception):
+            pass
+
+        # Check if any parent part is an ABB domain
+        for i, part in enumerate(parts_lower):
+            if part in ABB_DOMAINS:
+                domain_rel = Path(*p.parts[i:])
+                if is_abb_path(domain_rel):
+                    return True
+
+        # Try relative to active shadow workspace
+        try:
+            abb_ws = resolve_abb_workspace(root, auto_init=False)
+            p.resolve().relative_to(abb_ws.resolve())
+            return True
+        except (ValueError, Exception):
+            pass
+
         return False
 
     parts = [part.lower() for part in Path(path_str).parts if part not in {".", ""}]
@@ -73,7 +150,7 @@ def is_abb_path(candidate: str | Path, project_root: Path | None = None) -> bool
     if not non_wildcard_parts:
         return False
 
-    if ".codeless" in non_wildcard_parts:
+    if ".codeless" in non_wildcard_parts or "abb_workspace" in non_wildcard_parts:
         return True
 
     first_part = non_wildcard_parts[0]

@@ -8,7 +8,7 @@ version = "1.1.0"
 description = "Autonomous agent execution harness for Agent Buildable Base"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [
     { name = "Akshat Tilak" },
 ]
@@ -80,7 +80,7 @@ asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
@@ -90,5 +90,5 @@ ignore = ["E501"]
 known-first-party = ["codeless"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true

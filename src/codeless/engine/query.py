@@ -1086,7 +1086,7 @@ def _resolve_permission_file_path(
     raw_input: dict[str, object],
     parsed_input: object,
 ) -> str | None:
-    for key in ("file_path", "path", "root"):
+    for key in ("file_path", "path", "root", "output_path", "target_path", "dest"):
         value = raw_input.get(key)
         if isinstance(value, str) and value.strip():
             path = Path(value).expanduser()
@@ -1094,7 +1094,7 @@ def _resolve_permission_file_path(
                 path = cwd / path
             return str(path.resolve())
 
-    for attr in ("file_path", "path", "root"):
+    for attr in ("file_path", "path", "root", "output_path", "target_path", "dest"):
         value = getattr(parsed_input, attr, None)
         if isinstance(value, str) and value.strip():
             path = Path(value).expanduser()

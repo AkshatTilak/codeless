@@ -15,6 +15,8 @@ The format is based on Keep a Changelog, and this project currently tracks chang
   - `image`: Unified multimodal vision tool (`describe`, `generate`) merging image understanding and raster generation.
   - `abb`: Unified Agent Buildable Base tool (`list`, `show`, `ready`, `blocked_by`, `verify`) merging DAG inspection and Two-Track test verification.
 - **GOVERNANCE Mode Fully Merged into PLAN Mode**: Cleaned the operational architecture into 4 orthogonal modes (`AGENT`, `PLAN`, `ASK`, `CODEBASE`), removing all lingering `governance` aliases and tests.
+- **PLAN Mode ABB Write Authority & Path Virtualization Fix**: Resolved project-root discovery and absolute/relative path virtualization in `is_abb_path` and `evaluate_write_permission`, ensuring full authority to read, write, and update all ABB documents (`STACK.md`, `agent.md`, `tasks/*`, `features/*`, `design/*`, `workflows/*`, `references/*`, `skills/*`, `assets/*`, `CHANGELOG.md`, `TODO.md`) in `PLAN` mode while keeping project code strictly read-only.
+- **Python ≥3.12 CI Matrix Alignment**: Updated GitHub Actions workflows (`ci.yml`, `autopilot-*.yml`) and `pyproject.toml` to target Python 3.12 and 3.13, deprecating legacy 3.10 and 3.11 CI runners.
 - **Removed Deprecated Tools**: Completely purged `brief` tool and 30 obsolete tool source files.
 
 ## [1.0.0] - 2026-08-21

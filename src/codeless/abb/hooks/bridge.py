@@ -146,7 +146,9 @@ def pre_tool_use_abb_guard(
         return False, staging_reason
 
     # Check if target is a task file
-    if not is_abb_path(path_str) or ("tasks/" not in path_str and not path_str.startswith("tasks")):
+    if not is_abb_path(path_str, project_root=Path(cwd).resolve()) or (
+        "tasks/" not in path_str and not path_str.startswith("tasks")
+    ):
         return True, "OK"
 
     # Skip template files
@@ -222,7 +224,7 @@ def post_tool_use_abb_handler(
         return []
 
     path_str = str(raw_path).replace("\\", "/").strip()
-    if not is_abb_path(path_str):
+    if not is_abb_path(path_str, project_root=Path(cwd).resolve()):
         return []
 
     resolved = resolve_virtual_path(cwd, raw_path)
