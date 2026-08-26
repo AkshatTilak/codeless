@@ -4,12 +4,21 @@ import re
 from pathlib import Path
 
 from codeless.abb.hooks.frontmatter import parse_frontmatter
+from codeless.abb.shadow import resolve_abb_workspace
 
 
 def test_validate_all_abb_relative_links():
     """Verify that every relative markdown link in the active ABB workspace resolves to a real file."""
     repo_root = Path(__file__).resolve().parent.parent.parent
-    abb_ws = repo_root / ".codeless" / "abb_workspace"
+    local_ws = repo_root / ".codeless" / "abb_workspace"
+    template_ws = repo_root / "templates" / "agent_buildable_base"
+
+    if local_ws.exists() and any(local_ws.iterdir()):
+        abb_ws = local_ws
+    elif template_ws.exists() and any(template_ws.iterdir()):
+        abb_ws = template_ws
+    else:
+        abb_ws = resolve_abb_workspace(repo_root, auto_init=True)
 
     broken_links: list[str] = []
     scanned_files = 0
