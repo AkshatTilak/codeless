@@ -18,6 +18,15 @@ type InkTestStdout = PassThrough & {
 	moveCursor: () => boolean;
 };
 
+type InkTestStdin = PassThrough & {
+	isTTY: boolean;
+	setRawMode: (_mode: boolean) => void;
+	resume: () => InkTestStdin;
+	pause: () => InkTestStdin;
+	ref: () => InkTestStdin;
+	unref: () => InkTestStdin;
+};
+
 function createTestStdout(): InkTestStdout {
 	return Object.assign(new PassThrough(), {
 		isTTY: true,
@@ -26,6 +35,25 @@ function createTestStdout(): InkTestStdout {
 		cursorTo: () => true,
 		clearLine: () => true,
 		moveCursor: () => true,
+	});
+}
+
+function createTestStdin(): InkTestStdin {
+	return Object.assign(new PassThrough(), {
+		isTTY: true,
+		setRawMode: () => undefined,
+		resume() {
+			return this;
+		},
+		pause() {
+			return this;
+		},
+		ref() {
+			return this;
+		},
+		unref() {
+			return this;
+		},
 	});
 }
 
@@ -84,4 +112,47 @@ test('renders edit diff preview with stats and always shortcut', async () => {
 	assert.match(rendered, /\+new line/);
 	assert.match(rendered, /-old line/);
 	assert.match(rendered, /\[a\] Always/);
+});
+
+test('renders question modal with static waiting indicator and prompt text', async () => {
+	const stdin = createTestStdin();
+	const stdout = createTestStdout();
+	let output = '';
+
+	stdout.on('data', (chunk) => {
+		output += chunk.toString();
+	});
+
+	const instance = render(
+		<ModalHost
+			modal={{
+				kind: 'question',
+				question: 'Which test framework should we configure?',
+				tool_name: 'ask_question',
+			}}
+			modalInput=""
+			setModalInput={() => undefined}
+			onSubmit={() => undefined}
+		/>,
+		{
+			stdout: stdout as unknown as NodeJS.WriteStream,
+			stdin: stdin as unknown as NodeJS.ReadStream,
+			debug: true,
+			patchConsole: false,
+		},
+	);
+
+	const exitPromise = instance.waitUntilExit();
+	const stableOutput = await waitForOutputToStabilize(() => output);
+	instance.unmount();
+	await exitPromise;
+	instance.cleanup();
+	stdout.destroy();
+	stdin.destroy();
+
+	const rendered = stripAnsi(stableOutput);
+	assert.match(rendered, /Agent is waiting for your input\.\.\./);
+	assert.match(rendered, /Which test framework should we configure\?/);
+	assert.match(rendered, /Tool: ask_question/);
+	assert.match(rendered, /shift\+enter: newline \| enter: submit/);
 });

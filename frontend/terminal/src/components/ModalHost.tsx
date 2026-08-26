@@ -1,27 +1,8 @@
-import React, {useEffect, useState} from 'react';
+import React, {useState} from 'react';
 import {Box, Text, useInput} from 'ink';
 import TextInput from 'ink-text-input';
 
-const WAIT_FRAMES = [
-	'Agent is waiting for your input   ',
-	'Agent is waiting for your input.  ',
-	'Agent is waiting for your input.. ',
-	'Agent is waiting for your input...',
-];
 const MAX_DIFF_LINES = 40;
-
-function WaitingAnimation(): React.JSX.Element {
-	const [frame, setFrame] = useState(0);
-	useEffect(() => {
-		const timer = setInterval(() => setFrame((f) => (f + 1) % WAIT_FRAMES.length), 500);
-		return () => clearInterval(timer);
-	}, []);
-	return (
-		<Text color="magenta" dimColor>
-			{WAIT_FRAMES[frame]}
-		</Text>
-	);
-}
 
 function QuestionModal({
 	modal,
@@ -55,7 +36,9 @@ function QuestionModal({
 
 	return (
 		<Box flexDirection="column" marginTop={1} borderStyle="double" borderColor="magenta" paddingX={1}>
-			<WaitingAnimation />
+			<Text color="magenta" dimColor>
+				Agent is waiting for your input...
+			</Text>
 			<Box marginTop={1}>
 				<Text color="magenta" bold>{'\u2753 '}</Text>
 				<Text bold>{question}</Text>
