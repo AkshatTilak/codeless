@@ -34,9 +34,7 @@ def _validate_workspace_links(abb_ws: Path) -> tuple[int, int, list[str]]:
                 scanned_links += 1
                 target = (md_file.parent / link_str).resolve()
                 target_from_root = (abb_ws / link_str).resolve()
-                target_template = (
-                    abb_ws / "tasks" / "_templates" / Path(link_str).name
-                ).resolve()
+                target_template = (abb_ws / "tasks" / "_templates" / Path(link_str).name).resolve()
                 if (
                     not target.exists()
                     and not target_from_root.exists()
@@ -60,9 +58,7 @@ def _validate_workspace_links(abb_ws: Path) -> tuple[int, int, list[str]]:
             scanned_links += 1
             target = (md_file.parent / link_clean).resolve()
             target_from_root = (abb_ws / link_clean).resolve()
-            target_template = (
-                abb_ws / "tasks" / "_templates" / Path(link_clean).name
-            ).resolve()
+            target_template = (abb_ws / "tasks" / "_templates" / Path(link_clean).name).resolve()
             if (
                 not target.exists()
                 and not target_from_root.exists()
@@ -104,7 +100,8 @@ def test_validate_template_scaffold_relative_links():
 
     scanned_files, scanned_links, broken_links = _validate_workspace_links(template_ws)
     assert len(broken_links) == 0, (
-        f"Found {len(broken_links)} broken relative link(s) in template:\n" + "\n".join(broken_links)
+        f"Found {len(broken_links)} broken relative link(s) in template:\n"
+        + "\n".join(broken_links)
     )
     assert scanned_files > 20
     assert scanned_links > 30
