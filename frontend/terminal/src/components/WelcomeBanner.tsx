@@ -3,7 +3,7 @@ import {Box, Text} from 'ink';
 
 import {useTheme} from '../theme/ThemeContext.js';
 
-const VERSION = '0.1.0';
+const VERSION = process.env['CODELESS_VERSION'] || '1.2.0';
 
 // prettier-ignore
 const LOGO = [

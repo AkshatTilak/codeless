@@ -25,7 +25,7 @@ def test_is_abb_path():
     assert is_abb_path("USER_PREFERENCES.md")
     assert is_abb_path("CONVENTIONS.md")
     assert is_abb_path("CODING_PHILOSOPHY.md")
-    assert is_abb_path("VERSION")
+    assert is_abb_path("CHANGELOG.md")
 
     # Domain directories
     assert is_abb_path("tasks/goal/goal.md")
@@ -43,6 +43,10 @@ def test_is_abb_path():
     assert not is_abb_path("pyproject.toml")
     assert not is_abb_path("README.md")
     assert not is_abb_path("package.json")
+    assert not is_abb_path("VERSION")
+    assert not is_abb_path("LICENSE")
+    assert not is_abb_path("tasks/runner.py")
+    assert not is_abb_path("design/mock.ts")
 
 
 def test_resolve_virtual_path_with_dev_override(tmp_path):

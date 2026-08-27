@@ -39,19 +39,32 @@ class GlobTool(BaseTool):
         root, pattern = _resolve_glob_request(context.cwd, arguments.root, arguments.pattern)
         matches = await _glob(root, pattern, limit=arguments.limit)
 
-        # If searching root and shadow workspace exists, merge ABB shadow workspace matches
-        if not arguments.root:
-            abb_ws = resolve_abb_workspace(context.cwd, auto_init=True)
-            if abb_ws.exists() and abb_ws.resolve() != context.cwd.resolve():
-                abb_matches = await _glob(abb_ws, pattern, limit=arguments.limit)
-                if abb_matches:
-                    seen = set(matches)
-                    for m in abb_matches:
-                        if m not in seen:
-                            matches.append(m)
-                            seen.add(m)
-                    matches.sort()
-                    matches = matches[: arguments.limit]
+        abb_ws = resolve_abb_workspace(context.cwd, auto_init=True)
+        is_abb_root = (
+            abb_ws.exists()
+            and root.resolve() == abb_ws.resolve()
+            and abb_ws.resolve() != context.cwd.resolve()
+        )
+
+        if is_abb_root and matches:
+            matches = [f"[abb] {m}" for m in matches]
+
+        # If searching repo root and shadow/local ABB workspace exists elsewhere, merge ABB workspace matches
+        if (
+            not arguments.root
+            and not is_abb_root
+            and abb_ws.exists()
+            and abb_ws.resolve() != context.cwd.resolve()
+        ):
+            abb_matches = await _glob(abb_ws, pattern, limit=arguments.limit)
+            if abb_matches:
+                seen = set(matches)
+                for m in abb_matches:
+                    prefixed = f"[abb] {m}"
+                    if prefixed not in seen and m not in seen:
+                        matches.append(prefixed)
+                        seen.add(prefixed)
+                matches = matches[: arguments.limit]
 
         if not matches:
             return ToolResult(output="(no matches)")
@@ -74,7 +87,10 @@ def _resolve_glob_request(base: Path, root_arg: str | None, pattern: str) -> tup
 
     candidate = Path(pattern).expanduser()
     if not candidate.is_absolute():
-        if is_abb_path(candidate):
+        parts = [p for p in candidate.parts if p not in {"**", "*"}]
+        if parts and (base / parts[0]).exists():
+            return (base, pattern)
+        if is_abb_path(candidate, project_root=base):
             abb_ws = resolve_abb_workspace(base)
             return (abb_ws, pattern)
         return (base, pattern)

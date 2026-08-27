@@ -107,7 +107,7 @@ def _build_cold_start_guidance_section() -> str:
     """Build guidance for cold-start exploration and open-source template ingestion."""
     return (
         "# Cold-Start Context Exploration & Planning Protocol\n"
-        "- **Cold-Start Exploration**: If starting a session or turn without prior context, explore the project's ABB workspace (`tasks/tasks.md`, `tasks/goal/goal.md`, `CONVENTIONS.md`) before taking modifying actions.\n"
+        "- **Cold-Start Exploration**: If starting a session or turn without prior context, explore the project's ABB workspace using the `abb` tool (`abb list`, `abb show <task_id>`) or by querying `.codeless/abb_workspace/` (`tasks/tasks.md`, `tasks/goal/goal.md`, `CONVENTIONS.md`) before taking modifying actions.\n"
         "- **Open-Source Reference Ingestion**: When planning or architecting features, research open-source reference implementations and ask the user whether to build on a template or construct from scratch."
     )
 

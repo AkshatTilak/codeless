@@ -16,11 +16,11 @@ from urllib.parse import urlparse
 
 import typer
 
+from codeless import __version__
+
 warnings.filterwarnings(
     "ignore", message="urllib3 .* or chardet .* doesn't match a supported version!"
 )
-
-__version__ = "1.0.0"
 
 _PREVIEW_STOPWORDS = {
     "a",

@@ -151,13 +151,19 @@ def pre_tool_use_abb_guard(
     ):
         return True, "OK"
 
-    # Skip template files
-    if "_templates" in path_str:
-        return True, "OK"
-
     resolved = resolve_virtual_path(cwd, raw_path)
     abb_ws = resolve_abb_workspace(cwd, auto_init=True)
     tasks_dir = abb_ws / "tasks"
+
+    # Check if target is a task file inside the active ABB workspace
+    try:
+        resolved.relative_to(tasks_dir)
+    except ValueError:
+        return True, "OK"
+
+    # Skip template files
+    if "_templates" in path_str or "_templates" in str(resolved):
+        return True, "OK"
 
     # Get proposed content
     proposed_content: str = ""
@@ -223,18 +229,17 @@ def post_tool_use_abb_handler(
     if not raw_path:
         return []
 
-    path_str = str(raw_path).replace("\\", "/").strip()
-    if not is_abb_path(path_str, project_root=Path(cwd).resolve()):
-        return []
-
     resolved = resolve_virtual_path(cwd, raw_path)
     abb_ws = resolve_abb_workspace(cwd, auto_init=False)
     tasks_dir = abb_ws / "tasks"
 
     actions: list[str] = []
-    # If a subtask was written or edited, trigger roll-up
-    if "tasks/sub" in str(resolved).replace("\\", "/"):
+    # If a subtask was written or edited inside abb_ws/tasks/sub, trigger roll-up
+    try:
+        resolved.relative_to(tasks_dir / "sub")
         actions.extend(rollup_task_completion(resolved, tasks_dir))
+    except ValueError:
+        pass
 
     # DriftDetectionHook: check heuristic drift on write/edit
     if resolved.exists():

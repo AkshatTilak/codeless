@@ -109,9 +109,10 @@ class FileTool(BaseTool):
         numbered = [
             f"{arguments.offset + index + 1:>6}\t{line}" for index, line in enumerate(selected)
         ]
+        header = f"# File: {path}"
         if not numbered:
-            return ToolResult(output=f"(no content in selected range for {path})")
-        return ToolResult(output="\n".join(numbered))
+            return ToolResult(output=f"{header}\n(no content in selected range for {path})")
+        return ToolResult(output=f"{header}\n" + "\n".join(numbered))
 
     async def _execute_write(
         self, path: Path, arguments: FileToolInput, context: ToolExecutionContext

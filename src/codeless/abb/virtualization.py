@@ -20,8 +20,6 @@ ABB_TOP_LEVEL_FILES = frozenset(
         "conventions.md",
         "coding_philosophy.md",
         "changelog.md",
-        "version",
-        "license",
         "todo.md",
         "todos.md",
         "gemini.md",
@@ -103,20 +101,21 @@ def is_abb_path(candidate: str | Path, project_root: Path | None = None) -> bool
         if ".codeless" in parts_lower or "abb_workspace" in parts_lower:
             return True
 
-        # If the file itself is a top-level ABB file, it's always an ABB file
-        if p.name.lower() in ABB_TOP_LEVEL_FILES:
+        root = (
+            Path(project_root).resolve()
+            if project_root is not None
+            else find_project_root(p.parent)
+        )
+
+        # Check if inside active shadow/local ABB workspace
+        try:
+            abb_ws = resolve_abb_workspace(root, auto_init=False)
+            p.resolve().relative_to(abb_ws.resolve())
             return True
+        except (ValueError, Exception):
+            pass
 
-        # Try relative to provided project_root
-        if project_root is not None:
-            try:
-                rel = p.resolve().relative_to(Path(project_root).resolve())
-                return is_abb_path(rel, project_root=project_root)
-            except (ValueError, Exception):
-                pass
-
-        # Try relative to discovered project root
-        root = find_project_root(p.parent)
+        # Try relative to provided or discovered project root
         try:
             rel = p.resolve().relative_to(root.resolve())
             if str(rel) != str(p):
@@ -130,14 +129,6 @@ def is_abb_path(candidate: str | Path, project_root: Path | None = None) -> bool
                 domain_rel = Path(*p.parts[i:])
                 if is_abb_path(domain_rel):
                     return True
-
-        # Try relative to active shadow workspace
-        try:
-            abb_ws = resolve_abb_workspace(root, auto_init=False)
-            p.resolve().relative_to(abb_ws.resolve())
-            return True
-        except (ValueError, Exception):
-            pass
 
         return False
 
@@ -156,7 +147,13 @@ def is_abb_path(candidate: str | Path, project_root: Path | None = None) -> bool
     first_part = non_wildcard_parts[0]
     if first_part in ABB_TOP_LEVEL_FILES:
         return True
-    return first_part in ABB_DOMAINS
+    if first_part in ABB_DOMAINS:
+        # Only documentation and specification formats (.md, .yaml, .yml, .json, .toml, .txt) or directory paths are ABB
+        suffix = Path(path_str).suffix.lower()
+        if suffix and suffix not in {".md", ".yaml", ".yml", ".json", ".toml", ".txt"}:
+            return False
+        return True
+    return False
 
 
 def resolve_virtual_path(
@@ -169,7 +166,8 @@ def resolve_virtual_path(
     """
     Resolve a file path with shadow virtualization.
 
-    If candidate targets an ABB path, returns the path inside the active ABB workspace.
+    If candidate exists at the repository root, returns the repo root path (repo-root priority).
+    If candidate targets an ABB path and does not exist at repo root, returns the path inside the active ABB workspace.
     Otherwise returns the path resolved relative to cwd (codebase root).
     """
     cwd_path = Path(cwd).resolve()
@@ -188,10 +186,14 @@ def resolve_virtual_path(
         except ValueError:
             pass
 
-        # If it's inside proj_root, check if it points to an ABB path
+        # If it's inside proj_root:
         try:
             rel = resolved_cand.relative_to(proj_root.resolve())
-            if is_abb_path(rel):
+            # If the file exists directly on disk in proj_root, prefer repo root
+            if resolved_cand.exists():
+                return resolved_cand
+
+            if is_abb_path(rel, project_root=proj_root):
                 clean_rel_parts = [p.lower() for p in rel.parts if p not in {".", "", ".."}]
                 if (
                     len(clean_rel_parts) >= 2
@@ -214,7 +216,13 @@ def resolve_virtual_path(
         return cwd_path
 
     rel_path = Path(*clean_parts)
-    if is_abb_path(rel_path):
+    repo_target = (cwd_path / rel_path).resolve()
+
+    # Repo-root priority: if the file already exists at the repository root, return repo target
+    if repo_target.exists():
+        return repo_target
+
+    if is_abb_path(rel_path, project_root=proj_root):
         parts = list(rel_path.parts)
         if (
             len(parts) >= 2
@@ -226,7 +234,7 @@ def resolve_virtual_path(
             rel_path = Path(*parts[1:])
         return (abb_ws / rel_path).resolve()
 
-    return (cwd_path / rel_path).resolve()
+    return repo_target
 
 
 def unvirtualize_path(

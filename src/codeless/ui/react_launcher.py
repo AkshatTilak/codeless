@@ -146,9 +146,13 @@ async def launch_react_tui(
         if await install.wait() != 0:
             raise RuntimeError("Failed to install React terminal frontend dependencies")
 
+    from codeless import __version__
+
     env = os.environ.copy()
+    env["CODELESS_VERSION"] = __version__
     env["CODELESS_FRONTEND_CONFIG"] = json.dumps(
         {
+            "version": __version__,
             "backend_command": build_backend_command(
                 cwd=cwd or str(Path.cwd()),
                 model=model,

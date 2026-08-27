@@ -7,4 +7,4 @@ warnings.filterwarnings(
     "ignore", message="urllib3 .* or chardet .* doesn't match a supported version!"
 )
 
-__version__ = "1.0.0"
+__version__ = "1.2.0"

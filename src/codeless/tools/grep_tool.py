@@ -42,8 +42,14 @@ class GrepTool(BaseTool):
     async def execute(self, arguments: GrepToolInput, context: ToolExecutionContext) -> ToolResult:
         if arguments.root:
             root = resolve_virtual_path(context.cwd, arguments.root)
-        elif arguments.file_glob and is_abb_path(arguments.file_glob):
-            root = resolve_abb_workspace(context.cwd)
+        elif arguments.file_glob and is_abb_path(arguments.file_glob, project_root=context.cwd):
+            first_part = (
+                Path(arguments.file_glob).parts[0] if Path(arguments.file_glob).parts else ""
+            )
+            if first_part and (context.cwd / first_part).exists():
+                root = context.cwd
+            else:
+                root = resolve_abb_workspace(context.cwd)
         else:
             root = context.cwd
         if not root.exists():

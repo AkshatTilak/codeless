@@ -126,7 +126,25 @@ class ModeEngine:
         norm_path = str(target_path).replace("\\", "/").strip()
         cwd_p = Path(cwd).resolve() if cwd else Path.cwd().resolve()
         proj_root = find_project_root(cwd_p)
-        is_abb = is_abb_path(target_path, project_root=proj_root)
+
+        target_p = Path(target_path)
+        target_root = find_project_root(target_p.parent) if target_p.is_absolute() else proj_root
+
+        from codeless.abb.virtualization import resolve_virtual_path
+
+        resolved = resolve_virtual_path(target_root, target_path)
+        abb_ws = resolve_abb_workspace(target_root, auto_init=False)
+        is_inside_abb = False
+        if abb_ws.exists():
+            try:
+                resolved.resolve().relative_to(abb_ws.resolve())
+                is_inside_abb = True
+            except ValueError:
+                is_inside_abb = False
+
+        is_abb = is_inside_abb or (
+            not abb_ws.exists() and is_abb_path(target_path, project_root=target_root)
+        )
 
         # 1. ASK & CODEBASE: Strictly read-only everywhere
         if self._current_mode in {TriMode.ASK, TriMode.CODEBASE}:

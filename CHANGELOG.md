@@ -4,6 +4,19 @@ All notable changes to Codeless should be recorded in this file.
 
 The format is based on Keep a Changelog, and this project currently tracks changes in a lightweight, repository-oriented way.
 
+## [1.2.0] - 2026-08-27
+
+### Fixed
+- **ABB Virtualization Path-Confusion Bug Fix (Phase 2.6)**:
+  - **Repo-Root Priority**: `resolve_virtual_path()` now prioritizes files physically existing at the repository root before redirecting to `.codeless/abb_workspace/`. This eliminates phantom dual-workspace hallucinations.
+  - **Refined `is_abb_path()`**: Generic repository files (`VERSION`, `LICENSE`) and programming source code / binary assets (`.py`, `.ts`, `.tsx`, `.png`, etc.) in domain folders are no longer misclassified as ABB specifications.
+  - **Tool Output Disambiguation**:
+    - `glob`: Matches originating from the active ABB workspace are prefixed with `[abb]` to eliminate origin ambiguity for LLM agents.
+    - `file`: `_execute_read()` prepends `# File: <resolved_path>` header to explicitly communicate resolved file locations.
+    - `grep`: Search root resolution respects repository root folders before defaulting to ABB workspace.
+  - **PLAN-Mode Write Guard Hardening**: Writes to codebase files under directories named `tasks/`, `design/`, etc. are strictly blocked in `PLAN` mode, ensuring codebase immutability while permitting true ABB workspace specifications.
+  - **Cold-Start Protocol Guidance**: Updated `agent.md` and `context.py` prompt composer to guide agents to inspect `.codeless/abb_workspace/` using the `abb` tool rather than ambiguous relative paths.
+
 ## [1.1.0] - 2026-08-25
 
 ### Added

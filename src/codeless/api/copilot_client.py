@@ -16,6 +16,7 @@ from typing import AsyncIterator
 
 from openai import AsyncOpenAI
 
+from codeless import __version__ as _VERSION
 from codeless.api.client import (
     ApiMessageRequest,
     ApiStreamEvent,
@@ -32,8 +33,6 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Header constants
 # ---------------------------------------------------------------------------
-
-_VERSION = "0.1.0"  # Codeless version for User-Agent
 
 # Default model for Copilot requests when the configured model is not
 # available in the Copilot model catalog.
