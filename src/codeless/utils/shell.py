@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import logging
 import os
 import shutil
 import subprocess
@@ -12,6 +14,8 @@ from pathlib import Path
 from codeless.config import Settings, load_settings
 from codeless.platforms import PlatformName, get_platform
 from codeless.sandbox import wrap_command_for_sandbox
+
+_log = logging.getLogger(__name__)
 
 
 def resolve_shell_command(
@@ -128,12 +132,27 @@ def _wrap_command_with_script(
     return None
 
 
+# Cache for the Windows bash resolution. The discovery probe spawns real
+# processes and can take multiple seconds (especially when the WSL launcher
+# is on PATH), so it must run at most once per process instead of on every
+# bash tool call.
+# None = not resolved yet, "" = resolved but no usable bash found.
+_windows_bash_cache: str | None = None
+
+_BASH_PROBE_TIMEOUT_SECONDS = 5.0
+
+
 def _find_windows_bash() -> str | None:
     """Find a working bash binary on Windows, including Git Bash installations."""
-    bash = shutil.which("bash")
-    if bash and _bash_is_usable(bash):
-        return bash
+    global _windows_bash_cache
+    if _windows_bash_cache is not None:
+        return _windows_bash_cache or None
+    resolved = _find_windows_bash_uncached()
+    _windows_bash_cache = resolved or ""
+    return resolved
 
+
+def _find_windows_bash_uncached() -> str | None:
     git_path = shutil.which("git")
     candidate_paths: list[Path] = []
     if git_path:
@@ -160,24 +179,63 @@ def _find_windows_bash() -> str | None:
     candidate_paths.append(Path(program_files_x86) / "Git" / "bin" / "bash.exe")
     candidate_paths.append(Path(program_files_x86) / "Git" / "usr" / "bin" / "bash.exe")
 
+    # Prefer Git Bash candidates over ``shutil.which("bash")``: on Windows the
+    # first ``bash`` on PATH is typically the WSL launcher
+    # (C:\\Windows\\System32\\bash.exe). Probing it is slow (seconds), it runs
+    # commands inside the WSL filesystem rather than the repo, and when no
+    # distro is installed it misbehaves with a non-console stdin.
     for p in candidate_paths:
         if p.exists() and _bash_is_usable(str(p)):
             return str(p)
+
+    bash = shutil.which("bash")
+    if bash and _bash_is_usable(bash):
+        return bash
     return None
 
 
 def _bash_is_usable(bash_path: str) -> bool:
-    """Return True when a discovered bash executable can run commands."""
+    """Return True when a discovered bash executable can run commands.
+
+    This uses ``Popen`` + ``communicate(timeout=...)`` rather than
+    ``subprocess.run(timeout=...)`` on purpose: on Windows, when
+    ``subprocess.run`` hits the timeout it kills the child and then calls
+    ``communicate()`` again WITHOUT a timeout to reap output. MSYS2 / WSL
+    launcher binaries spawn helper processes that inherit the captured stdout
+    and stderr pipe handles, so EOF never arrives on those pipes and that
+    second ``communicate()`` blocks forever. Because this probe runs
+    synchronously inside the asyncio event loop, that freeze hangs the entire
+    session (the "Running bash..." stall).
+    """
     try:
-        result = subprocess.run(
+        process = subprocess.Popen(
             [bash_path, "-c", "exit 0"],
-            capture_output=True,
-            timeout=5,
-            check=False,
+            # Never inherit the session stdin: in the backend host stdin is a
+            # pipe owned by the frontend protocol, and the WSL/MSYS2 launcher
+            # can block on it.
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
-    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+    except (FileNotFoundError, OSError):
         return False
-    return result.returncode == 0
+    try:
+        process.communicate(timeout=_BASH_PROBE_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        try:
+            # Wait only on the direct child handle; never re-read the pipes,
+            # since grandchildren may keep them open indefinitely.
+            process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            pass
+        return False
+    finally:
+        for stream in (process.stdout, process.stderr):
+            if stream is not None:
+                with contextlib.suppress(Exception):
+                    stream.close()
+    return process.returncode == 0
 
 
 async def _cleanup_after_exit(process: asyncio.subprocess.Process, cleanup_path: Path) -> None:
