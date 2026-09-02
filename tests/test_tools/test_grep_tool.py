@@ -191,3 +191,88 @@ async def test_grep_tool_reports_missing_root_before_spawning_rg(monkeypatch, tm
     assert result.is_error is True
     assert "Search root does not exist" in result.output
     assert "call grep separately for each root" in result.output
+
+
+@pytest.mark.asyncio
+async def test_grep_tool_python_fallback_prunes_ignored_directories(monkeypatch, tmp_path: Path):
+    """Python fallback must skip heavy/ignored directories like node_modules and .git."""
+    tool = GrepTool()
+    monkeypatch.setattr("codeless.tools.grep_tool.shutil.which", lambda _: None)
+    monkeypatch.setattr("codeless.tools.grep_tool.find_ripgrep", lambda: None)
+
+    # Valid codebase file
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "app.py").write_text("target_token = 1\n", encoding="utf-8")
+
+    # Files inside directories that should be pruned
+    node_modules = tmp_path / "node_modules" / "some_pkg"
+    node_modules.mkdir(parents=True)
+    (node_modules / "index.js").write_text("target_token = 2\n", encoding="utf-8")
+
+    git_dir = tmp_path / ".git" / "hooks"
+    git_dir.mkdir(parents=True)
+    (git_dir / "hook.sh").write_text("target_token = 3\n", encoding="utf-8")
+
+    result = await tool.execute(
+        GrepToolInput(pattern="target_token"),
+        type("Ctx", (), {"cwd": tmp_path})(),
+    )
+
+    assert result.is_error is False
+    assert "app.py:1:target_token = 1" in result.output
+    assert "node_modules" not in result.output
+    assert ".git" not in result.output
+
+
+@pytest.mark.asyncio
+async def test_grep_tool_python_fallback_respects_timeout(monkeypatch, tmp_path: Path):
+    """Python fallback must not hang indefinitely if searching takes too long."""
+    tool = GrepTool()
+    monkeypatch.setattr("codeless.tools.grep_tool.shutil.which", lambda _: None)
+    monkeypatch.setattr("codeless.tools.grep_tool.find_ripgrep", lambda: None)
+
+    def slow_search(*args, **kwargs):
+        import time
+
+        time.sleep(2)
+        return "done"
+
+    monkeypatch.setattr("codeless.tools.grep_tool._python_grep_dir", slow_search)
+
+    result = await tool.execute(
+        GrepToolInput(pattern="foo", timeout_seconds=1),
+        type("Ctx", (), {"cwd": tmp_path})(),
+    )
+
+    assert result.is_error is True
+    assert "grep timed out after 1 seconds" in result.output
+
+
+@pytest.mark.asyncio
+async def test_grep_tool_passes_devnull_stdin_to_subprocess(monkeypatch, tmp_path: Path):
+    """Subprocess must receive stdin=DEVNULL to avoid hanging on inherited console stdin."""
+    tool = GrepTool()
+    monkeypatch.setattr("codeless.tools.grep_tool.shutil.which", lambda _: "/usr/bin/rg")
+    seen_kwargs = {}
+
+    class _QuickProcess:
+        stdout = _ValueErrorThenEofStdout()
+        returncode = 1
+
+    async def fake_create_subprocess_exec(*args, **kwargs):
+        seen_kwargs.update(kwargs)
+        return _QuickProcess()
+
+    monkeypatch.setattr(
+        "codeless.tools.grep_tool.asyncio.create_subprocess_exec",
+        fake_create_subprocess_exec,
+    )
+
+    await tool.execute(
+        GrepToolInput(pattern="foo"),
+        type("Ctx", (), {"cwd": tmp_path})(),
+    )
+
+    assert seen_kwargs.get("stdin") is asyncio.subprocess.DEVNULL
+

@@ -11,6 +11,7 @@ from pydantic import AliasChoices, BaseModel, Field
 from codeless.abb.shadow import resolve_abb_workspace
 from codeless.abb.virtualization import is_abb_path, resolve_virtual_path
 from codeless.tools.base import BaseTool, ToolExecutionContext, ToolResult
+from codeless.utils.rg import find_ripgrep
 
 
 class GlobToolInput(BaseModel):
@@ -142,7 +143,7 @@ async def _glob(root: Path, pattern: str, *, limit: int) -> list[str]:
     if not root.exists() or not root.is_dir():
         return []
 
-    rg = shutil.which("rg")
+    rg = shutil.which("rg") or find_ripgrep()
     # `Path.glob("**/*")` will traverse hidden and ignored paths (like `.venv/`)
     # and can be very slow on real workspaces. Prefer `rg --files`.
     if rg and ("**" in pattern or "/" in pattern):
@@ -159,6 +160,7 @@ async def _glob(root: Path, pattern: str, *, limit: int) -> list[str]:
             process = await session.exec_command(
                 cmd,
                 cwd=root,
+                stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -166,6 +168,7 @@ async def _glob(root: Path, pattern: str, *, limit: int) -> list[str]:
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 cwd=str(root),
+                stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -179,6 +182,8 @@ async def _glob(root: Path, pattern: str, *, limit: int) -> list[str]:
                 if not raw:
                     break
                 line = raw.decode("utf-8", errors="replace").strip()
+                if line.startswith("./") or line.startswith(".\\"):
+                    line = line[2:]
                 if line:
                     lines.append(line)
 

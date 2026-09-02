@@ -12,6 +12,7 @@ from typing import Any
 
 from codeless.abb.hooks.frontmatter import parse_frontmatter
 from codeless.abb.shadow import get_project_storage_dir
+from codeless.utils.shell import create_shell_subprocess
 
 
 @dataclass
@@ -120,9 +121,10 @@ async def run_command_async(
     cwd_path = Path(cwd).resolve()
 
     try:
-        proc = await asyncio.create_subprocess_shell(
+        proc = await create_shell_subprocess(
             command,
-            cwd=str(cwd_path),
+            cwd=cwd_path,
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

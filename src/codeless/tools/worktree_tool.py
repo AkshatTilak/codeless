@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Literal
@@ -10,6 +13,60 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from codeless.tools.base import BaseTool, ToolExecutionContext, ToolResult
+
+_GIT_TIMEOUT_SECONDS = 30.0
+
+
+def _resolve_git() -> str:
+    """Find a usable git executable, including common Windows install locations."""
+    which = shutil.which("git")
+    if which:
+        return which
+
+    local_app_data = os.environ.get("LOCALAPPDATA", "")
+    program_files = os.environ.get("ProgramFiles", "C:\\Program Files")
+    program_files_x86 = os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)")
+    candidates = [
+        Path(local_app_data) / "Programs" / "Git" / "cmd" / "git.exe",
+        Path(local_app_data) / "Programs" / "Git" / "bin" / "git.exe",
+        Path(program_files) / "Git" / "cmd" / "git.exe",
+        Path(program_files) / "Git" / "bin" / "git.exe",
+        Path(program_files_x86) / "Git" / "cmd" / "git.exe",
+    ]
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    return "git"
+
+
+def _run_git_safe(args: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
+    """Execute git safely with DEVNULL stdin and bounded timeout."""
+    git_bin = _resolve_git()
+    try:
+        return subprocess.run(
+            [git_bin, *args],
+            cwd=cwd,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_GIT_TIMEOUT_SECONDS,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": ""},
+        )
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(
+            args=[git_bin, *args],
+            returncode=-1,
+            stdout="",
+            stderr=f"git {' '.join(args)} timed out after {_GIT_TIMEOUT_SECONDS} seconds",
+        )
+    except OSError as exc:
+        return subprocess.CompletedProcess(
+            args=[git_bin, *args],
+            returncode=-1,
+            stdout="",
+            stderr=f"Failed to execute git: {exc}",
+        )
 
 
 class WorktreeToolInput(BaseModel):
@@ -49,6 +106,11 @@ class WorktreeTool(BaseTool):
     async def execute(
         self, arguments: WorktreeToolInput, context: ToolExecutionContext
     ) -> ToolResult:
+        return await asyncio.to_thread(self._execute_sync, arguments, context)
+
+    def _execute_sync(
+        self, arguments: WorktreeToolInput, context: ToolExecutionContext
+    ) -> ToolResult:
         action = arguments.action
 
         if action == "list":
@@ -66,13 +128,7 @@ class WorktreeTool(BaseTool):
         top_level = _git_output(cwd, "rev-parse", "--show-toplevel")
         if top_level is None:
             return ToolResult(output="worktree requires a git repository", is_error=True)
-        res = subprocess.run(
-            ["git", "worktree", "list"],
-            cwd=Path(top_level),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        res = _run_git_safe(["worktree", "list"], cwd=Path(top_level))
         if res.returncode != 0:
             return ToolResult(output=(res.stderr or res.stdout).strip(), is_error=True)
         return ToolResult(output=(res.stdout or "(no worktrees)").strip())
@@ -89,18 +145,12 @@ class WorktreeTool(BaseTool):
         repo_root = Path(top_level)
         worktree_path = _resolve_worktree_path(repo_root, arguments.branch, arguments.path)
         worktree_path.parent.mkdir(parents=True, exist_ok=True)
-        cmd = ["git", "worktree", "add"]
+        cmd = ["worktree", "add"]
         if arguments.create_branch:
             cmd.extend(["-b", arguments.branch, str(worktree_path), arguments.base_ref])
         else:
             cmd.extend([str(worktree_path), arguments.branch])
-        result = subprocess.run(
-            cmd,
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        result = _run_git_safe(cmd, cwd=repo_root)
         output = (result.stdout or result.stderr).strip() or f"Created worktree {worktree_path}"
         if result.returncode != 0:
             return ToolResult(output=output, is_error=True)
@@ -114,25 +164,16 @@ class WorktreeTool(BaseTool):
         path = Path(arguments.path).expanduser()
         if not path.is_absolute():
             path = (context.cwd / path).resolve()
-        result = subprocess.run(
-            ["git", "worktree", "remove", "--force", str(path)],
+        result = _run_git_safe(
+            ["worktree", "remove", "--force", str(path)],
             cwd=context.cwd,
-            capture_output=True,
-            text=True,
-            check=False,
         )
         output = (result.stdout or result.stderr).strip() or f"Removed worktree {path}"
         return ToolResult(output=output, is_error=result.returncode != 0)
 
 
 def _git_output(cwd: Path, *args: str) -> str | None:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = _run_git_safe(list(args), cwd=cwd)
     if result.returncode != 0:
         return None
     return (result.stdout or "").strip()

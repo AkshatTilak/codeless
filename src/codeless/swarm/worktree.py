@@ -90,11 +90,19 @@ async def _run_git(*args: str, cwd: Path) -> tuple[int, str, str]:
         "git",
         *args,
         cwd=str(cwd),
+        stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": ""},
     )
-    stdout_bytes, stderr_bytes = await proc.communicate()
+    try:
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=30.0)
+    except asyncio.TimeoutError:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        return (-1, "", "git command timed out after 30 seconds")
     return (
         proc.returncode or 0,
         stdout_bytes.decode(errors="replace").strip(),
