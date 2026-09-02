@@ -123,7 +123,38 @@ def test_resolve_shell_command_windows_uses_usable_bash(monkeypatch):
 
     command = resolve_shell_command("echo hi", platform_name="windows")
 
-    assert command == ["C:/Program Files/Git/bin/bash.exe", "-lc", "echo hi"]
+    # Must be -c (non-login), NOT -lc — login shell sources ~/.bash_profile
+    # which can hang when there is no controlling TTY (see bash_tool stdin=DEVNULL).
+    assert command == ["C:/Program Files/Git/bin/bash.exe", "-c", "echo hi"]
+
+
+
+def test_resolve_shell_command_windows_bash_uses_non_login_flag(monkeypatch):
+    """Windows Git Bash must be invoked with -c, not -lc.
+
+    The login flag (-l) causes bash to source /etc/profile and ~/.bash_profile.
+    On Windows / Git Bash those scripts frequently invoke conda init, nvm, or
+    winpty hooks that block without a controlling TTY.  Since the bash tool
+    always spawns with stdin=DEVNULL and no PTY, the login sourcing phase
+    hangs indefinitely until the 600-second timeout fires.
+
+    Using -c (non-login) skips profile sourcing; the Windows process $PATH is
+    inherited from the parent so tools like uv/git remain reachable.
+    """
+
+    def fake_which(name: str) -> str | None:
+        return "C:/Program Files/Git/bin/bash.exe" if name == "bash" else None
+
+    monkeypatch.setattr("codeless.utils.shell.shutil.which", fake_which)
+    monkeypatch.setattr("codeless.utils.shell._bash_is_usable", lambda _: True)
+
+    command = resolve_shell_command("echo hi", platform_name="windows")
+
+    assert "-lc" not in command, (
+        "Windows bash must NOT use -l (login) flag — it sources profile scripts "
+        "that hang without a TTY"
+    )
+    assert command == ["C:/Program Files/Git/bin/bash.exe", "-c", "echo hi"]
 
 
 def test_bash_is_usable_returns_true_for_zero_exit(monkeypatch):

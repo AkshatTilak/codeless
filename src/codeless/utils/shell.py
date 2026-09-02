@@ -25,7 +25,14 @@ def resolve_shell_command(
     if resolved_platform == "windows":
         bash = _find_windows_bash()
         if bash:
-            return [bash, "-lc", command]
+            # Use -c (non-login) instead of -lc to avoid sourcing
+            # /etc/profile and ~/.bash_profile on startup. On Windows / Git
+            # Bash those profile scripts often invoke conda, nvm, winpty or
+            # other hooks that require a controlling TTY. Since we spawn with
+            # stdin=DEVNULL and no terminal the login sourcing phase hangs
+            # indefinitely. The Windows process $PATH is inherited directly so
+            # tools like uv / git remain reachable without -l.
+            return [bash, "-c", command]
         powershell = shutil.which("pwsh") or shutil.which("powershell")
         if powershell:
             return [powershell, "-NoLogo", "-NoProfile", "-Command", command]
