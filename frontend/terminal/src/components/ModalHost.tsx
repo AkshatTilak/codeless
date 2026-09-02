@@ -6,27 +6,28 @@ const MAX_DIFF_LINES = 40;
 
 function QuestionModal({
 	modal,
-	modalInput,
-	setModalInput,
 	onSubmit,
 }: {
 	modal: Record<string, unknown>;
-	modalInput: string;
-	setModalInput: (value: string) => void;
 	onSubmit: (value: string) => void;
 }): React.JSX.Element {
+	// Own the input state locally so keystrokes only re-render this component,
+	// not the entire AppInner. Previously modalInput lived in AppInner, causing
+	// a full-app repaint on every character typed here (stutter bug).
+	const [localInput, setLocalInput] = useState('');
 	const [extraLines, setExtraLines] = useState<string[]>([]);
 
 	useInput((_chunk, key) => {
 		if (key.shift && key.return) {
-			setExtraLines((lines) => [...lines, modalInput]);
-			setModalInput('');
+			setExtraLines((lines) => [...lines, localInput]);
+			setLocalInput('');
 		}
 	});
 
 	const handleSubmit = (value: string): void => {
 		const allLines = [...extraLines, value];
 		setExtraLines([]);
+		setLocalInput('');
 		onSubmit(allLines.join('\n'));
 	};
 
@@ -62,7 +63,7 @@ function QuestionModal({
 			)}
 			<Box marginTop={1}>
 				<Text color="cyan">{'> '}</Text>
-				<TextInput value={modalInput} onChange={setModalInput} onSubmit={handleSubmit} />
+				<TextInput value={localInput} onChange={setLocalInput} onSubmit={handleSubmit} />
 			</Box>
 			<Text dimColor>{'  '}shift+enter: newline | enter: submit</Text>
 		</Box>
@@ -209,8 +210,6 @@ function ModalHostInner({
 		return (
 			<QuestionModal
 				modal={modal}
-				modalInput={modalInput}
-				setModalInput={setModalInput}
 				onSubmit={onSubmit}
 			/>
 		);

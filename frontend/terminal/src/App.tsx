@@ -66,7 +66,7 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 	const {exit} = useApp();
 	const {theme, setThemeName} = useTheme();
 	const [input, setInput] = useState('');
-	const [modalInput, setModalInput] = useState('');
+	const [modalInput, setModalInput] = useState('');	// used only by mcp_auth modal
 	const [history, setHistory] = useState<string[]>([]);
 	const [historyIndex, setHistoryIndex] = useState(-1);
 	const [imageAttachments, setImageAttachments] = useState<ImageAttachment[]>([]);
@@ -288,16 +288,7 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 
 		// --- Scripted raw return ---
 		if (rawReturnSubmit && key.return) {
-			if (session.modal?.kind === 'question') {
-				session.sendRequest({
-					type: 'question_response',
-					request_id: session.modal.request_id,
-					answer: modalInput,
-				});
-				session.setModal(null);
-				setModalInput('');
-				return;
-			}
+			// Note: question modal handles its own Enter via localInput — no action needed here.
 			if (!session.modal && !session.busy && input.trim()) {
 				onSubmit(input);
 				return;
@@ -457,13 +448,14 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 
 	const onSubmit = (value: string): void => {
 		if (session.modal?.kind === 'question') {
+			// QuestionModal owns its own input state and calls onSubmit with the
+			// already-assembled answer. Just forward it to the backend and clear modal.
 			session.sendRequest({
 				type: 'question_response',
 				request_id: session.modal.request_id,
 				answer: value,
 			});
 			session.setModal(null);
-			setModalInput('');
 			return;
 		}
 		if ((!value.trim() && imageAttachments.length === 0) || session.busy || !session.ready) {

@@ -341,14 +341,27 @@ export function useBackendSession(config: FrontendConfig, onExit: (code?: number
 					assistantBufferRef.current += pendingAssistantDeltaRef.current;
 					pendingAssistantDeltaRef.current = '';
 				}
-			} else {
-				flushAssistantDelta();
+			} else if (pendingAssistantDeltaRef.current) {
+				// Absorb any remaining pending delta into the buffer ref without
+				// triggering an intermediate render — we'll commit everything below.
+				assistantBufferRef.current += pendingAssistantDeltaRef.current;
+				pendingAssistantDeltaRef.current = '';
 			}
 			const text = event.message ?? assistantBufferRef.current;
+			// Clear buffer refs before the transition so no stale data lingers.
+			assistantBufferRef.current = '';
+			if (assistantFlushTimerRef.current) {
+				clearTimeout(assistantFlushTimerRef.current);
+				assistantFlushTimerRef.current = null;
+			}
+			// Single batched transition: append transcript item AND clear the
+			// streaming buffer in one Ink render pass, eliminating the triple
+			// repaint (flush delta → append item → clear buffer) that caused
+			// visible flicker when scrolling back to the latest message.
 			startTransition(() => {
 				setTranscript((items) => [...items, {role: 'assistant', text}]);
+				setAssistantBuffer('');
 			});
-			clearAssistantDelta();
 			// Do NOT reset busy here: tool calls may follow this event.
 			// busy is reset by line_complete (the true end-of-turn signal).
 			setBusyLabel(undefined);
