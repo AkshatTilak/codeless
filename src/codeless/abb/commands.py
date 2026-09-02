@@ -464,7 +464,7 @@ async def _mode_handler(args: str, context: CommandContext) -> CommandResult:
 
         settings = load_settings()
         settings.permission.mode = (
-            PermissionMode.DEFAULT if target == "agent" else PermissionMode.PLAN
+            PermissionMode.FULL_AUTO if target == "agent" else PermissionMode.PLAN
         )
         save_settings(settings)
         context.engine.set_permission_checker(PermissionChecker(settings.permission))

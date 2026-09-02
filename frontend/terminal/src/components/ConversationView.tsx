@@ -12,16 +12,42 @@ type GroupedItem = TranscriptItem | ToolPair;
 
 function groupToolPairs(items: TranscriptItem[]): GroupedItem[] {
 	const result: GroupedItem[] = [];
-	let i = 0;
-	while (i < items.length) {
+	// Pair tools with tool_results even when multiple tools are dispatched in parallel
+	// (e.g. tool1, tool2, tool_result1, tool_result2).
+	const pairedResultIndices = new Set<number>();
+
+	for (let i = 0; i < items.length; i++) {
 		const cur = items[i];
-		const next = items[i + 1];
-		if (cur.role === 'tool' && next?.role === 'tool_result') {
-			result.push([cur, next] as const);
-			i += 2;
+		if (cur.role === 'tool') {
+			// Find the first matching unpaired tool_result for this tool
+			let matchIdx = -1;
+			for (let j = i + 1; j < items.length; j++) {
+				if (
+					items[j].role === 'tool_result' &&
+					!pairedResultIndices.has(j) &&
+					(items[j].tool_name === cur.tool_name || !items[j].tool_name)
+				) {
+					matchIdx = j;
+					break;
+				}
+				// If another assistant or user message intervenes, stop searching
+				if (items[j].role === 'assistant' || items[j].role === 'user') {
+					break;
+				}
+			}
+
+			if (matchIdx !== -1) {
+				pairedResultIndices.add(matchIdx);
+				result.push([cur, items[matchIdx]] as const);
+			} else {
+				result.push(cur);
+			}
+		} else if (cur.role === 'tool_result') {
+			if (!pairedResultIndices.has(i)) {
+				result.push(cur);
+			}
 		} else {
 			result.push(cur);
-			i++;
 		}
 	}
 	return result;

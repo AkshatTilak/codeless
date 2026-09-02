@@ -1028,6 +1028,7 @@ class ReactBackendHost:
             return await future
         finally:
             self._question_requests.pop(request_id, None)
+            await self._emit(BackendEvent(type="modal_request", modal=None))
 
     async def _emit(self, event: BackendEvent) -> None:
         log.debug("emit event: type=%s tool=%s", event.type, getattr(event, "tool_name", None))

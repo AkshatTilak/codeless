@@ -128,7 +128,6 @@ def test_resolve_shell_command_windows_uses_usable_bash(monkeypatch):
     assert command == ["C:/Program Files/Git/bin/bash.exe", "-c", "echo hi"]
 
 
-
 def test_resolve_shell_command_windows_bash_uses_non_login_flag(monkeypatch):
     """Windows Git Bash must be invoked with -c, not -lc.
 

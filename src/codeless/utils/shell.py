@@ -170,7 +170,7 @@ def _bash_is_usable(bash_path: str) -> bool:
     """Return True when a discovered bash executable can run commands."""
     try:
         result = subprocess.run(
-            [bash_path, "-lc", "exit 0"],
+            [bash_path, "-c", "exit 0"],
             capture_output=True,
             timeout=5,
             check=False,
