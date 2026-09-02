@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from pathlib import Path
 from typing import Iterable
 
@@ -12,7 +13,7 @@ from codeless.sandbox import SandboxUnavailableError
 from codeless.tools.base import BaseTool, ToolExecutionContext, ToolResult
 from codeless.utils.shell import create_shell_subprocess
 
-_READ_REMAINING_OUTPUT_TIMEOUT_SECONDS = 2.0
+_FINISH_OUTPUT_GRACE_SECONDS = 2.0
 
 
 class BashToolInput(BaseModel):
@@ -68,12 +69,17 @@ class BashTool(BaseTool):
                 await _terminate_process(process, force=False)
             raise
 
+        # Drain stdout concurrently with process.wait(). If nothing reads the
+        # pipe while waiting, a command that writes more than the OS pipe
+        # buffer blocks on write and never exits, so wait() would stall until
+        # the timeout (previously up to 600s of apparent freeze).
+        output_buffer = bytearray()
+        drain_task = asyncio.create_task(_drain_stream(process.stdout, output_buffer))
         try:
             await asyncio.wait_for(process.wait(), timeout=arguments.timeout_seconds)
         except asyncio.TimeoutError:
-            output_buffer = await _drain_available_output(process.stdout)
             await _terminate_process(process, force=True)
-            output_buffer.extend(await _read_remaining_output(process))
+            await _finish_drain(drain_task)
             return ToolResult(
                 output=_format_timeout_output(
                     output_buffer,
@@ -84,10 +90,13 @@ class BashTool(BaseTool):
                 metadata={"returncode": process.returncode, "timed_out": True},
             )
         except asyncio.CancelledError:
+            drain_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await drain_task
             await _terminate_process(process, force=False)
             raise
 
-        output_buffer = await _read_remaining_output(process)
+        await _finish_drain(drain_task)
         text = _format_output(output_buffer)
         return ToolResult(
             output=text,
@@ -111,36 +120,39 @@ async def _terminate_process(process: asyncio.subprocess.Process, *, force: bool
         await process.wait()
 
 
-async def _read_remaining_output(process: asyncio.subprocess.Process) -> bytearray:
-    output_buffer = bytearray()
-    if process.stdout is not None:
-        try:
-            remaining = await asyncio.wait_for(
-                process.stdout.read(),
-                timeout=_READ_REMAINING_OUTPUT_TIMEOUT_SECONDS,
-            )
-        except asyncio.TimeoutError:
-            remaining = b""
-        output_buffer.extend(remaining)
-    return output_buffer
-
-
-async def _drain_available_output(
+async def _drain_stream(
     stream: asyncio.StreamReader | None,
-    *,
-    read_timeout: float = 0.05,
-) -> bytearray:
-    output_buffer = bytearray()
+    buffer: bytearray,
+) -> None:
+    """Continuously read a subprocess stream into ``buffer`` until EOF."""
     if stream is None:
-        return output_buffer
+        return
     while True:
-        try:
-            chunk = await asyncio.wait_for(stream.read(65536), timeout=read_timeout)
-        except asyncio.TimeoutError:
-            return output_buffer
+        chunk = await stream.read(65536)
         if not chunk:
-            return output_buffer
-        output_buffer.extend(chunk)
+            return
+        buffer.extend(chunk)
+
+
+async def _finish_drain(
+    drain_task: asyncio.Task[None],
+    *,
+    grace_seconds: float | None = None,
+) -> None:
+    """Give the drain task a short grace period to finish after process exit.
+
+    Grandchild processes can keep the stdout pipe open after the direct child
+    exits, so the drain may never see EOF; cancel it after the grace period
+    and keep whatever output was collected.
+    """
+    if grace_seconds is None:
+        grace_seconds = _FINISH_OUTPUT_GRACE_SECONDS
+    try:
+        await asyncio.wait_for(asyncio.shield(drain_task), timeout=grace_seconds)
+    except asyncio.TimeoutError:
+        drain_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await drain_task
 
 
 def _format_output(output_buffer: bytearray) -> str:

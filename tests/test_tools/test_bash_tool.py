@@ -210,7 +210,7 @@ async def test_bash_tool_timeout_does_not_hang_when_stdout_stays_open(monkeypatc
     )
     monkeypatch.setattr(
         bash_tool_module,
-        "_READ_REMAINING_OUTPUT_TIMEOUT_SECONDS",
+        "_FINISH_OUTPUT_GRACE_SECONDS",
         0.05,
         raising=False,
     )
