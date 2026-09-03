@@ -52,7 +52,9 @@ def _isolate_windows_candidate_dirs(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_find_ripgrep_uses_path_when_available(monkeypatch):
-    monkeypatch.setattr("codeless.utils.rg.shutil.which", lambda name: "/usr/bin/rg" if name == "rg" else None)
+    monkeypatch.setattr(
+        "codeless.utils.rg.shutil.which", lambda name: "/usr/bin/rg" if name == "rg" else None
+    )
     monkeypatch.setattr("codeless.utils.rg._rg_is_usable", lambda _: True)
 
     resolved = find_ripgrep(platform_name="linux")
@@ -77,7 +79,18 @@ def test_find_ripgrep_windows_finds_candidate_when_not_on_path(monkeypatch, tmp_
 
     # Simulate Antigravity IDE installation
     app_data = tmp_path / "AppData" / "Local"
-    ide_rg = app_data / "Programs" / "Antigravity IDE" / "resources" / "app" / "node_modules" / "@vscode" / "ripgrep" / "bin" / "rg.exe"
+    ide_rg = (
+        app_data
+        / "Programs"
+        / "Antigravity IDE"
+        / "resources"
+        / "app"
+        / "node_modules"
+        / "@vscode"
+        / "ripgrep"
+        / "bin"
+        / "rg.exe"
+    )
     ide_rg.parent.mkdir(parents=True)
     ide_rg.write_bytes(b"")
 

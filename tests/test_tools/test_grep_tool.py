@@ -275,4 +275,3 @@ async def test_grep_tool_passes_devnull_stdin_to_subprocess(monkeypatch, tmp_pat
     )
 
     assert seen_kwargs.get("stdin") is asyncio.subprocess.DEVNULL
-
