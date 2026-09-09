@@ -10,9 +10,13 @@ from codeless.abb.hooks.frontmatter import parse_frontmatter
 
 def index_tasks(tasks_dir: Path) -> dict[str, tuple[Path, dict[str, Any]]]:
     """
-    Index all task markdown files within tasks/ directory.
-    Returns mapping from task ID and relative path to (path, frontmatter).
+    Build lookup table of all tasks indexed by task_id and relative paths.
+    Supports version containers (tasks/v1/sub/*.md) and flat layout (tasks/sub/*.md).
+    Accepts either tasks/ directory or workspace root containing tasks/.
     """
+    if (tasks_dir / "tasks").is_dir() and tasks_dir.name != "tasks":
+        tasks_dir = tasks_dir / "tasks"
+
     index: dict[str, tuple[Path, dict[str, Any]]] = {}
     if not tasks_dir.exists() or not tasks_dir.is_dir():
         return index

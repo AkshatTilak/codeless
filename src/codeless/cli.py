@@ -1056,6 +1056,140 @@ def abb_migrate_cmd(
         raise typer.Exit(1)
 
 
+@abb_app.command("upgrade")
+def abb_upgrade_cmd(
+    project_root: Optional[str] = typer.Option(
+        None,
+        "--project-root",
+        "-p",
+        help="Target project root directory (defaults to current directory)",
+    ),
+    target_version: str = typer.Option(
+        "v1",
+        "--target-version",
+        "-v",
+        help="Target version folder name (default: v1)",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview upgrade plan without modifying files on disk",
+    ),
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Execute the upgrade and modify files",
+    ),
+    backup: bool = typer.Option(
+        True,
+        "--backup/--no-backup",
+        help="Create a safety backup in .codeless/backups/ before applying",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Output in JSON format",
+    ),
+) -> None:
+    """Upgrade legacy flat ABB workspace to versioned joint task layout (tasks/v1/) with numbered base tasks."""
+    from codeless.abb.shadow import resolve_abb_workspace
+    from codeless.abb.upgrade import apply_upgrade, format_plan_summary, plan_upgrade
+    from codeless.abb.virtualization import find_project_root
+
+    root = Path(project_root).resolve() if project_root else find_project_root(Path.cwd())
+    abb_ws = resolve_abb_workspace(root, auto_init=False)
+
+    if not abb_ws.exists():
+        print(f"Error: No ABB workspace found for project at '{root}'.", file=sys.stderr)
+        raise typer.Exit(1)
+
+    plan = plan_upgrade(abb_ws, target_version=target_version)
+
+    if json_output:
+        plan_dict = {
+            "workspace": str(plan.abb_ws),
+            "target_version": plan.target_version,
+            "has_changes": plan.has_changes,
+            "is_legacy_flat": plan.is_legacy_flat,
+            "is_already_versioned": plan.is_already_versioned,
+            "goals_count": len(plan.goals_to_move),
+            "base_tasks_count": len(plan.base_tasks_to_move),
+            "subtasks_count": len(plan.subtasks_to_move),
+            "template_syncs_count": len(plan.template_files_to_sync),
+            "notes": plan.notes,
+        }
+        if not apply or dry_run:
+            print(json.dumps(plan_dict, indent=2))
+            return
+
+    # If neither --apply nor --dry-run was explicitly passed, default to dry-run preview with guidance
+    if not apply or dry_run:
+        summary = format_plan_summary(plan)
+        print(summary)
+        if plan.has_changes:
+            print("\n[Dry-Run Mode] No files were modified. To execute this upgrade, re-run with '--apply':")
+            print(f'  codeless abb upgrade --project-root "{root}" --apply')
+        return
+
+    # Apply mode
+    print(f"Applying ABB workspace upgrade for project '{root.name}'...")
+    result = apply_upgrade(abb_ws, plan, create_backup=backup)
+    if not result.success:
+        print(f"Upgrade Error: {result.error}", file=sys.stderr)
+        if result.backup_dir:
+            print(f"Safety backup preserved at: {result.backup_dir}", file=sys.stderr)
+        raise typer.Exit(1)
+
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "success": True,
+                    "target_version": result.target_version,
+                    "backup_dir": str(result.backup_dir) if result.backup_dir else None,
+                    "moved_goals": result.moved_goals,
+                    "moved_base_tasks": result.moved_base_tasks,
+                    "moved_subtasks": result.moved_subtasks,
+                    "updated_files": result.updated_files,
+                    "healed_links": result.healed_links,
+                },
+                indent=2,
+            )
+        )
+        return
+
+    print("✓ ABB workspace upgrade completed successfully!")
+    if result.backup_dir:
+        print(f"  • Backup saved: {result.backup_dir}")
+    print(f"  • Target version: tasks/{result.target_version}/")
+    print(f"  • Goals moved: {result.moved_goals}")
+    print(f"  • Base tasks numbered & moved: {result.moved_base_tasks}")
+    print(f"  • Subtasks moved: {result.moved_subtasks}")
+    print(f"  • Files updated: {result.updated_files}")
+    if result.healed_links > 0:
+        print(f"  • Links auto-healed: {result.healed_links}")
+
+
+@abb_app.command("migrate-tasks", hidden=True)
+def abb_migrate_tasks_cmd(
+    project_root: Optional[str] = typer.Option(None, "--project-root", "-p"),
+    target_version: str = typer.Option("v1", "--target-version", "-v"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    apply: bool = typer.Option(False, "--apply"),
+    backup: bool = typer.Option(True, "--backup/--no-backup"),
+    json_output: bool = typer.Option(False, "--json"),
+) -> None:
+    """Alias for 'codeless abb upgrade'."""
+    abb_upgrade_cmd(
+        project_root=project_root,
+        target_version=target_version,
+        dry_run=dry_run,
+        apply=apply,
+        backup=backup,
+        json_output=json_output,
+    )
+
+
 # ---- mcp subcommands ----
 
 
