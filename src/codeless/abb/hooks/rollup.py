@@ -156,4 +156,3 @@ def rollup_task_completion(
                 continue
 
     return actions
-

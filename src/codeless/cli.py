@@ -1127,7 +1127,9 @@ def abb_upgrade_cmd(
         summary = format_plan_summary(plan)
         print(summary)
         if plan.has_changes:
-            print("\n[Dry-Run Mode] No files were modified. To execute this upgrade, re-run with '--apply':")
+            print(
+                "\n[Dry-Run Mode] No files were modified. To execute this upgrade, re-run with '--apply':"
+            )
             print(f'  codeless abb upgrade --project-root "{root}" --apply')
         return
 

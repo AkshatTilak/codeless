@@ -53,7 +53,6 @@ def index_tasks(tasks_dir: Path) -> dict[str, tuple[Path, dict[str, Any]]]:
     return index
 
 
-
 def check_dag_dependencies(
     target_task_id: str,
     target_depends_on: list[str],

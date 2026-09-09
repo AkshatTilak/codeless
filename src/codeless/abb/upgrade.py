@@ -15,11 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from codeless.abb.shadow import (
-    get_abb_template_dir,
-    get_project_storage_dir,
-    resolve_abb_workspace,
-)
+from codeless.abb.shadow import get_abb_template_dir
 from codeless.abb.virtualization import find_project_root
 
 
@@ -84,11 +80,7 @@ def detect_workspace_task_layout(abb_ws: Path) -> dict[str, Any]:
     version_folders = []
     for child in tasks_dir.iterdir():
         if child.is_dir() and child.name not in {"base", "sub", "goal", "_templates"}:
-            if (
-                (child / "base").exists()
-                or (child / "sub").exists()
-                or (child / "goal").exists()
-            ):
+            if (child / "base").exists() or (child / "sub").exists() or (child / "goal").exists():
                 version_folders.append(child.name)
 
     is_legacy_flat = len(flat_folders) > 0
@@ -241,9 +233,7 @@ def plan_upgrade(abb_ws: Path, target_version: str = "v1") -> UpgradePlan:
         tpl_subtemplates = template_src_dir / "tasks" / "_templates"
         if tpl_subtemplates.exists():
             for t_file in tpl_subtemplates.glob("*.md"):
-                plan.template_files_to_sync.append(
-                    (t_file, tasks_dir / "_templates" / t_file.name)
-                )
+                plan.template_files_to_sync.append((t_file, tasks_dir / "_templates" / t_file.name))
 
     # 5. Files with links that will need updating
     for p in abb_ws.rglob("*.md"):
@@ -350,13 +340,13 @@ def apply_upgrade(
             if is_in_versioned_tasks:
                 # Update ../../skills, ../../STACK.md, ../../agent.md, ../../design, ../../features, ../../references
                 content = re.sub(
-                    r'(?<=\s|\(|\"|\')\.\./\.\./(skills/|STACK\.md|agent\.md|features/|design/|references/|USER_PREFERENCES\.md|CHANGELOG\.md|CONVENTIONS\.md|CODING_PHILOSOPHY\.md)',
+                    r"(?<=\s|\(|\"|\')\.\./\.\./(skills/|STACK\.md|agent\.md|features/|design/|references/|USER_PREFERENCES\.md|CHANGELOG\.md|CONVENTIONS\.md|CODING_PHILOSOPHY\.md)",
                     r"../../../\1",
                     content,
                 )
                 # Repo root links: ../../../README.md -> ../../../../README.md
                 content = re.sub(
-                    r'(?<=\s|\(|\"|\')\.\./\.\./\.\./(README\.md|templates/)',
+                    r"(?<=\s|\(|\"|\')\.\./\.\./\.\./(README\.md|templates/)",
                     r"../../../../\1",
                     content,
                 )
@@ -384,11 +374,13 @@ def apply_upgrade(
                 # Rule B: Files outside tasks/ (features/, design/, references/, agent.md, etc.)
                 # Update links pointing into tasks/base/, tasks/sub/, tasks/goal/
                 for old_base, new_base in plan.base_task_rename_map.items():
-                    content = content.replace(f"tasks/base/{old_base}", f"tasks/{ver}/base/{new_base}")
+                    content = content.replace(
+                        f"tasks/base/{old_base}", f"tasks/{ver}/base/{new_base}"
+                    )
 
                 # General tasks/base, tasks/sub, tasks/goal references
                 content = re.sub(
-                    r'((?:\.\./)*)tasks/(base|sub|goal)/',
+                    r"((?:\.\./)*)tasks/(base|sub|goal)/",
                     rf"\1tasks/{ver}/\2/",
                     content,
                 )
@@ -439,7 +431,9 @@ def _heal_workspace_markdown_links(abb_ws: Path) -> int:
     """
     healed = 0
     link_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
-    fm_link_pattern = re.compile(r"^\s*-\s+([^\s#]+(?:\.md|\.json|\.yml|\.yaml|\.txt|\.py|\.ts)?)(?:#.*)?$")
+    fm_link_pattern = re.compile(
+        r"^\s*-\s+([^\s#]+(?:\.md|\.json|\.yml|\.yaml|\.txt|\.py|\.ts)?)(?:#.*)?$"
+    )
 
     for p in abb_ws.rglob("*.md"):
         try:
@@ -456,7 +450,12 @@ def _heal_workspace_markdown_links(abb_ws: Path) -> int:
                 nonlocal changed, healed
                 text, target = m.group(1), m.group(2)
                 # Skip external URLs or anchors
-                if target.startswith("http://") or target.startswith("https://") or target.startswith("#") or target.startswith("mailto:"):
+                if (
+                    target.startswith("http://")
+                    or target.startswith("https://")
+                    or target.startswith("#")
+                    or target.startswith("mailto:")
+                ):
                     return m.group(0)
 
                 clean_target = target.split("#")[0]
@@ -481,7 +480,11 @@ def _heal_workspace_markdown_links(abb_ws: Path) -> int:
             fm_m = fm_link_pattern.match(new_line)
             if fm_m:
                 target = fm_m.group(1)
-                if not (target.startswith("http://") or target.startswith("https://") or target.startswith("#")):
+                if not (
+                    target.startswith("http://")
+                    or target.startswith("https://")
+                    or target.startswith("#")
+                ):
                     clean_target = target.split("#")[0]
                     target_path = (p.parent / clean_target).resolve()
                     if not target_path.exists():
@@ -515,8 +518,11 @@ def _find_best_candidate(abb_ws: Path, target_str: str) -> Path | None:
         proj_root = find_project_root(abb_ws)
         if proj_root and proj_root != abb_ws:
             candidates = [
-                c for c in proj_root.rglob(target_name)
-                if ".git" not in c.parts and ".venv" not in c.parts and "node_modules" not in c.parts
+                c
+                for c in proj_root.rglob(target_name)
+                if ".git" not in c.parts
+                and ".venv" not in c.parts
+                and "node_modules" not in c.parts
             ]
 
     if not candidates:
@@ -576,5 +582,7 @@ def format_plan_summary(plan: UpgradePlan) -> str:
         lines.append(f"    - {dst.relative_to(plan.abb_ws)}")
 
     lines.append("")
-    lines.append(f"Link updates & healing will be applied across {len(plan.files_with_links_to_update)} markdown file(s).")
+    lines.append(
+        f"Link updates & healing will be applied across {len(plan.files_with_links_to_update)} markdown file(s)."
+    )
     return "\n".join(lines)

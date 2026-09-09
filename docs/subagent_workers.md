@@ -62,10 +62,10 @@ class WorkerContextPackage:
     subtask_id: str
     subtask_file: Path
     subtask_content: str
-    linked_files: dict[str, str]       # relative_path -> content
+    linked_files: dict[str, str]  # relative_path -> content
     reference_snippets: dict[str, str]
     assigned_skills: dict[str, str]
-    abb_location: str                  # 'local' | 'shadow'
+    abb_location: str  # 'local' | 'shadow'
 ```
 
 ---

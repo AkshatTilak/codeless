@@ -1,6 +1,7 @@
 """Tests for ABB workspace upgrade engine and CLI command."""
 
 from pathlib import Path
+
 from typer.testing import CliRunner
 
 from codeless.abb.hooks.dag_guard import index_tasks
@@ -53,11 +54,7 @@ def _create_mock_legacy_workspace(ws_path: Path) -> None:
     design_dir = ws_path / "design" / "system"
     design_dir.mkdir(parents=True, exist_ok=True)
     (design_dir / "arch.md").write_text(
-        "---\n"
-        "links:\n"
-        "  - ../../tasks/base/auth_service.md\n"
-        "---\n"
-        "# Architecture\n",
+        "---\nlinks:\n  - ../../tasks/base/auth_service.md\n---\n# Architecture\n",
         encoding="utf-8",
     )
 
@@ -221,7 +218,7 @@ def test_apply_upgrade_full_lifecycle(tmp_path: Path):
 
     # Verify link integrity across the entire upgraded workspace (ZERO broken links)
     scanned_files, scanned_links, broken_links = _validate_workspace_links(ws)
-    assert len(broken_links) == 0, f"Broken links found after upgrade:\n" + "\n".join(broken_links)
+    assert len(broken_links) == 0, "Broken links found after upgrade:\n" + "\n".join(broken_links)
 
     # Verify runtime DAG guard indexing on the upgraded workspace
     task_index = index_tasks(ws / "tasks")
@@ -264,4 +261,6 @@ def test_cli_upgrade_dry_run_and_apply(tmp_path: Path):
         ["abb", "upgrade", "--project-root", str(project_root)],
     )
     assert res_again.exit_code == 0
-    assert "already versioned" in res_again.output.lower() or "no changes" in res_again.output.lower()
+    assert (
+        "already versioned" in res_again.output.lower() or "no changes" in res_again.output.lower()
+    )

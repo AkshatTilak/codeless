@@ -207,7 +207,6 @@ def find_ready_subtasks(tasks_dir: Path) -> list[Path]:
     return ready_subtasks
 
 
-
 class SubagentCoordinator:
     """Orchestrates concurrent headless worker execution with strict concurrency bounds."""
 

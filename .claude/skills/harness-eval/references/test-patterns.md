@@ -5,6 +5,7 @@
 ```python
 import asyncio, sys, os
 from pathlib import Path
+
 sys.path.insert(0, "src")
 
 API_KEY = os.environ.get("ANTHROPIC_API_KEY", "your-key")
@@ -32,17 +33,23 @@ def make_anthropic_engine(system_prompt, cwd=None, extra_tools=None):
     reg = ToolRegistry()
     for t in [BashTool(), FileReadTool(), FileWriteTool(), FileEditTool(), GlobTool(), GrepTool()]:
         reg.register(t)
-    for t in (extra_tools or []):
+    for t in extra_tools or []:
         reg.register(t)
     checker = PermissionChecker(PermissionSettings(mode=PermissionMode.FULL_AUTO))
     return QueryEngine(
-        api_client=api, tool_registry=reg, permission_checker=checker,
-        cwd=Path(cwd or WORKSPACE), model=MODEL, system_prompt=system_prompt, max_tokens=4096,
+        api_client=api,
+        tool_registry=reg,
+        permission_checker=checker,
+        cwd=Path(cwd or WORKSPACE),
+        model=MODEL,
+        system_prompt=system_prompt,
+        max_tokens=4096,
     )
 
 
 def make_openai_engine(system_prompt, cwd=None, extra_tools=None):
     from codeless.api.openai_client import OpenAICompatibleClient
+
     # Same structure as above, but with:
     api = OpenAICompatibleClient(api_key=API_KEY, base_url=OPENAI_BASE)
     # ... rest identical
@@ -50,9 +57,12 @@ def make_openai_engine(system_prompt, cwd=None, extra_tools=None):
 
 def collect(events):
     from codeless.engine.stream_events import (
-        AssistantTextDelta, AssistantTurnComplete,
-        ToolExecutionStarted, ToolExecutionCompleted,
+        AssistantTextDelta,
+        AssistantTurnComplete,
+        ToolExecutionStarted,
+        ToolExecutionCompleted,
     )
+
     r = {"text": "", "tools": [], "turns": 0, "in_tok": 0, "out_tok": 0}
     for ev in events:
         if isinstance(ev, AssistantTextDelta):
@@ -88,10 +98,16 @@ async def test_hook_blocks():
     from codeless.hooks.executor import HookExecutor, HookExecutionContext
 
     hook_reg = HookRegistry()
-    hook_reg.register(HookEvent.PRE_TOOL_USE, CommandHookDefinition(
-        type="command", command="exit 1",
-        matcher="bash", block_on_failure=True, timeout_seconds=5,
-    ))
+    hook_reg.register(
+        HookEvent.PRE_TOOL_USE,
+        CommandHookDefinition(
+            type="command",
+            command="exit 1",
+            matcher="bash",
+            block_on_failure=True,
+            timeout_seconds=5,
+        ),
+    )
     # ... create engine with hook_executor, model tries bash, gets blocked, adapts to glob
 ```
 
@@ -100,13 +116,17 @@ async def test_hook_blocks():
 ```python
 async def test_skill_invocation():
     from codeless.tools.skill_tool import SkillTool
+
     engine = make_anthropic_engine(
         "Use the 'skill' tool to load instructions before working.",
         extra_tools=[SkillTool()],
     )
-    evs = [ev async for ev in engine.submit_message(
-        "Load the 'diagnose' skill, then investigate the codebase."
-    )]
+    evs = [
+        ev
+        async for ev in engine.submit_message(
+            "Load the 'diagnose' skill, then investigate the codebase."
+        )
+    ]
     r = collect(evs)
     assert "skill" in r["tools"]
 ```
@@ -140,7 +160,13 @@ async def test_session_resume():
 
     engine1 = make_anthropic_engine("Remember context.")
     [ev async for ev in engine1.submit_message("Project uses FastAPI + React.")]
-    save_session_snapshot(cwd=tmpdir, model=MODEL, system_prompt="...", messages=engine1.messages, usage=engine1.total_usage)
+    save_session_snapshot(
+        cwd=tmpdir,
+        model=MODEL,
+        system_prompt="...",
+        messages=engine1.messages,
+        usage=engine1.total_usage,
+    )
 
     loaded = load_session_snapshot(tmpdir)
     engine2 = make_anthropic_engine("Continue analysis.")

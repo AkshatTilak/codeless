@@ -260,7 +260,11 @@ async def _goal_handler(args: str, context: CommandContext) -> CommandResult:
     status = fm.get("status", "in_progress")
     ver_tag = f" [{ver}]" if ver else ""
     extra_vers = [v for v, _ in goal_files if v and v != ver]
-    other_msg = f"\nOther versions: {', '.join(extra_vers)} (view with `/goal <version>`)" if extra_vers else ""
+    other_msg = (
+        f"\nOther versions: {', '.join(extra_vers)} (view with `/goal <version>`)"
+        if extra_vers
+        else ""
+    )
 
     return CommandResult(
         message=f"🎯 SRS{ver_tag}: {title}\nID: {fm.get('id', 'goal_001')} | Version: {fm.get('version', '1.0.0')} | Status: [{status}]\nPath: {goal_file.name}{other_msg}\n\n{body[:800]}..."
@@ -340,7 +344,6 @@ async def _task_handler(args: str, context: CommandContext) -> CommandResult:
                             lines.append(f"{indent}   {s_badge} {sid}: {sfile.name}{dep_str}")
 
     return CommandResult(message="\n".join(lines))
-
 
 
 async def _verify_handler(args: str, context: CommandContext) -> CommandResult:

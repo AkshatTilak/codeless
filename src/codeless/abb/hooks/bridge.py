@@ -243,7 +243,6 @@ def post_tool_use_abb_handler(
     except ValueError:
         pass
 
-
     # DriftDetectionHook: check heuristic drift on write/edit
     if resolved.exists():
         try:

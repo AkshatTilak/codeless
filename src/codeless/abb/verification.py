@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from codeless.abb.hooks.frontmatter import parse_frontmatter
-from codeless.abb.shadow import get_project_storage_dir
+from codeless.abb.shadow import get_project_storage_dir, resolve_abb_workspace
 from codeless.utils.shell import create_shell_subprocess
 
 
@@ -513,4 +513,3 @@ def get_dag_snapshot(abb_ws: Path) -> dict[str, Any]:
     snapshot["subtasks"] = subtasks
 
     return snapshot
-
