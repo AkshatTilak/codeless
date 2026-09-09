@@ -198,7 +198,8 @@ def pre_tool_use_abb_guard(
         return False, f"ABB DAG Dependency Blocked: {dag_reason}"
 
     # 3. Two-Track Verification Gate (when transitioning a subtask to 'done')
-    if new_status == "done" and "tasks/sub" in str(resolved).replace("\\", "/"):
+    is_subtask = resolved.parent.name == "sub" or "/sub/" in str(resolved).replace("\\", "/")
+    if new_status == "done" and is_subtask:
         ver_passed, ver_reason, _ = verify_subtask_gate(task_id, cwd, abb_ws)
         if not ver_passed:
             return False, f"ABB Verification Gate Blocked: {ver_reason}"
@@ -234,12 +235,14 @@ def post_tool_use_abb_handler(
     tasks_dir = abb_ws / "tasks"
 
     actions: list[str] = []
-    # If a subtask was written or edited inside abb_ws/tasks/sub, trigger roll-up
+    # If a subtask was written or edited inside abb_ws/tasks/**/sub, trigger roll-up
     try:
-        resolved.relative_to(tasks_dir / "sub")
-        actions.extend(rollup_task_completion(resolved, tasks_dir))
+        resolved.relative_to(tasks_dir)
+        if resolved.parent.name == "sub" or "/sub/" in str(resolved).replace("\\", "/"):
+            actions.extend(rollup_task_completion(resolved, tasks_dir))
     except ValueError:
         pass
+
 
     # DriftDetectionHook: check heuristic drift on write/edit
     if resolved.exists():

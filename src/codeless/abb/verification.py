@@ -409,34 +409,108 @@ def record_verification_failure(
 
 def get_dag_snapshot(abb_ws: Path) -> dict[str, Any]:
     """Generate a structured topological DAG snapshot for session state and context compaction."""
+    # Resolve tasks_dir whether abb_ws is repo root or direct ABB workspace
     tasks_dir = abb_ws / "tasks"
+    if not tasks_dir.exists():
+        if (abb_ws / ".codeless" / "abb_workspace" / "tasks").exists():
+            tasks_dir = abb_ws / ".codeless" / "abb_workspace" / "tasks"
+        else:
+            try:
+                tasks_dir = resolve_abb_workspace(abb_ws, auto_init=False) / "tasks"
+            except Exception:
+                pass
+
     snapshot: dict[str, Any] = {
         "goal": None,
+        "goals": [],
         "base_tasks": [],
         "subtasks": [],
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
 
-    # Goal
-    goal_file = tasks_dir / "goal" / "goal.md"
-    if goal_file.exists():
-        fm, _ = parse_frontmatter(goal_file.read_text(encoding="utf-8"))
-        snapshot["goal"] = fm
+    if not tasks_dir.exists():
+        return snapshot
 
-    # Base tasks
-    base_dir = tasks_dir / "base"
-    if base_dir.exists():
-        for bfile in sorted(base_dir.glob("*.md")):
-            fm, _ = parse_frontmatter(bfile.read_text(encoding="utf-8"))
-            if fm:
-                snapshot["base_tasks"].append(fm)
+    # 1. Discover all goal files (versioned and flat)
+    goals: list[dict[str, Any]] = []
+    # Flat goal
+    if (tasks_dir / "goal").exists():
+        for gf in sorted((tasks_dir / "goal").glob("*.md")):
+            try:
+                fm, _ = parse_frontmatter(gf.read_text(encoding="utf-8"))
+                if fm:
+                    goals.append(fm)
+            except Exception:
+                pass
 
-    # Subtasks
-    sub_dir = tasks_dir / "sub"
-    if sub_dir.exists():
-        for sfile in sorted(sub_dir.glob("*.md")):
-            fm, _ = parse_frontmatter(sfile.read_text(encoding="utf-8"))
-            if fm:
-                snapshot["subtasks"].append(fm)
+    # Versioned goals: tasks/<version>/goal/*.md
+    for child in sorted(tasks_dir.iterdir()):
+        if child.is_dir() and child.name != "_templates" and (child / "goal").exists():
+            for gf in sorted((child / "goal").glob("*.md")):
+                try:
+                    fm, _ = parse_frontmatter(gf.read_text(encoding="utf-8"))
+                    if fm:
+                        fm.setdefault("_version_folder", child.name)
+                        goals.append(fm)
+                except Exception:
+                    pass
+
+    snapshot["goals"] = goals
+    # Active goal: prefer in_progress, else latest
+    active_goal = None
+    for g in goals:
+        if g.get("status") == "in_progress":
+            active_goal = g
+            break
+    if not active_goal and goals:
+        active_goal = goals[-1]
+    snapshot["goal"] = active_goal
+
+    # 2. Discover all base tasks (flat and versioned)
+    base_tasks: list[dict[str, Any]] = []
+    if (tasks_dir / "base").exists():
+        for bfile in sorted((tasks_dir / "base").glob("*.md")):
+            try:
+                fm, _ = parse_frontmatter(bfile.read_text(encoding="utf-8"))
+                if fm:
+                    base_tasks.append(fm)
+            except Exception:
+                pass
+
+    for child in sorted(tasks_dir.iterdir()):
+        if child.is_dir() and child.name != "_templates" and (child / "base").exists():
+            for bfile in sorted((child / "base").glob("*.md")):
+                try:
+                    fm, _ = parse_frontmatter(bfile.read_text(encoding="utf-8"))
+                    if fm:
+                        fm.setdefault("_version_folder", child.name)
+                        base_tasks.append(fm)
+                except Exception:
+                    pass
+    snapshot["base_tasks"] = base_tasks
+
+    # 3. Discover all subtasks (flat and versioned)
+    subtasks: list[dict[str, Any]] = []
+    if (tasks_dir / "sub").exists():
+        for sfile in sorted((tasks_dir / "sub").glob("*.md")):
+            try:
+                fm, _ = parse_frontmatter(sfile.read_text(encoding="utf-8"))
+                if fm:
+                    subtasks.append(fm)
+            except Exception:
+                pass
+
+    for child in sorted(tasks_dir.iterdir()):
+        if child.is_dir() and child.name != "_templates" and (child / "sub").exists():
+            for sfile in sorted((child / "sub").glob("*.md")):
+                try:
+                    fm, _ = parse_frontmatter(sfile.read_text(encoding="utf-8"))
+                    if fm:
+                        fm.setdefault("_version_folder", child.name)
+                        subtasks.append(fm)
+                except Exception:
+                    pass
+    snapshot["subtasks"] = subtasks
 
     return snapshot
+

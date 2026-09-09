@@ -165,39 +165,47 @@ def find_ready_subtasks(tasks_dir: Path) -> list[Path]:
     task_index = index_tasks(tasks_dir)
     ready_subtasks: list[Path] = []
 
-    sub_dir = tasks_dir / "sub"
-    if not sub_dir.exists():
+    sub_dirs: list[Path] = []
+    if (tasks_dir / "sub").exists():
+        sub_dirs.append(tasks_dir / "sub")
+    for child in sorted(tasks_dir.iterdir()):
+        if child.is_dir() and child.name != "_templates" and (child / "sub").exists():
+            sub_dirs.append(child / "sub")
+
+    if not sub_dirs:
         return []
 
-    for path in sorted(sub_dir.glob("*.md")):
-        if path.name.startswith("_") or path.is_dir():
-            continue
-        try:
-            fm, _ = parse_frontmatter(path.read_text(encoding="utf-8"))
-            status = str(fm.get("status", "pending")).strip().lower()
-            if status != "pending":
+    for s_dir in sub_dirs:
+        for path in sorted(s_dir.glob("*.md")):
+            if path.name.startswith("_") or path.is_dir():
+                continue
+            try:
+                fm, _ = parse_frontmatter(path.read_text(encoding="utf-8"))
+                status = str(fm.get("status", "pending")).strip().lower()
+                if status != "pending":
+                    continue
+
+                depends_on = fm.get("depends_on", [])
+                deps_satisfied = True
+                if isinstance(depends_on, list):
+                    for dep in depends_on:
+                        dep_str = str(dep).strip()
+                        entry = task_index.get(dep_str)
+                        if entry is None:
+                            deps_satisfied = False
+                            break
+                        _, dep_fm = entry
+                        if str(dep_fm.get("status", "pending")).strip().lower() != "done":
+                            deps_satisfied = False
+                            break
+
+                if deps_satisfied:
+                    ready_subtasks.append(path)
+            except Exception:
                 continue
 
-            depends_on = fm.get("depends_on", [])
-            deps_satisfied = True
-            if isinstance(depends_on, list):
-                for dep in depends_on:
-                    dep_str = str(dep).strip()
-                    entry = task_index.get(dep_str)
-                    if entry is None:
-                        deps_satisfied = False
-                        break
-                    _, dep_fm = entry
-                    if str(dep_fm.get("status", "pending")).strip().lower() != "done":
-                        deps_satisfied = False
-                        break
-
-            if deps_satisfied:
-                ready_subtasks.append(path)
-        except Exception:
-            continue
-
     return ready_subtasks
+
 
 
 class SubagentCoordinator:

@@ -208,11 +208,45 @@ async def _goal_handler(args: str, context: CommandContext) -> CommandResult:
     """Handle /goal: Display the SRS (system goal) and base task milestones."""
     cwd = Path(context.cwd).resolve()
     abb_ws = resolve_abb_workspace(cwd, auto_init=True)
-    goal_file = abb_ws / "tasks" / "goal" / "goal.md"
+    tasks_dir = abb_ws / "tasks"
 
-    if not goal_file.exists():
+    goal_files: list[tuple[str | None, Path]] = []
+    # Flat goal
+    flat_goal = tasks_dir / "goal" / "goal.md"
+    if flat_goal.exists():
+        goal_files.append((None, flat_goal))
+
+    # Versioned goals: tasks/<version>/goal/goal.md
+    if tasks_dir.exists():
+        for child in sorted(tasks_dir.iterdir()):
+            if child.is_dir() and child.name != "_templates":
+                v_goal = child / "goal" / "goal.md"
+                if v_goal.exists():
+                    goal_files.append((child.name, v_goal))
+
+    if not goal_files:
         return CommandResult(message="No goal.md (SRS) found in active ABB workspace.")
 
+    target_ver = args.strip().lower()
+    selected_goal: tuple[str | None, Path] | None = None
+
+    if target_ver:
+        for ver, gf in goal_files:
+            if ver and (ver.lower() == target_ver or target_ver in ver.lower()):
+                selected_goal = (ver, gf)
+                break
+
+    if not selected_goal:
+        # Pick latest in_progress or last goal
+        for ver, gf in goal_files:
+            fm, _ = parse_frontmatter(gf.read_text(encoding="utf-8"))
+            if fm.get("status") == "in_progress":
+                selected_goal = (ver, gf)
+                break
+        if not selected_goal:
+            selected_goal = goal_files[-1]
+
+    ver, goal_file = selected_goal
     content = goal_file.read_text(encoding="utf-8")
     fm, body = parse_frontmatter(content)
 
@@ -224,8 +258,12 @@ async def _goal_handler(args: str, context: CommandContext) -> CommandResult:
             break
 
     status = fm.get("status", "in_progress")
+    ver_tag = f" [{ver}]" if ver else ""
+    extra_vers = [v for v, _ in goal_files if v and v != ver]
+    other_msg = f"\nOther versions: {', '.join(extra_vers)} (view with `/goal <version>`)" if extra_vers else ""
+
     return CommandResult(
-        message=f"🎯 SRS: {title}\nID: {fm.get('id', 'goal_001')} | Version: {fm.get('version', '1.0.0')} | Status: [{status}]\n\n{body[:800]}..."
+        message=f"🎯 SRS{ver_tag}: {title}\nID: {fm.get('id', 'goal_001')} | Version: {fm.get('version', '1.0.0')} | Status: [{status}]\nPath: {goal_file.name}{other_msg}\n\n{body[:800]}..."
     )
 
 
@@ -253,36 +291,56 @@ async def _task_handler(args: str, context: CommandContext) -> CommandResult:
                 )
         return CommandResult(message=f"No task found matching '{query}'.")
 
-    # Full DAG Summary
-    base_dir = tasks_dir / "base"
-    sub_dir = tasks_dir / "sub"
+    # Full DAG Summary across version folders or flat layout
     lines = ["📊 ABB Task Hierarchy & DAG:"]
 
-    if base_dir.exists():
-        for bfile in sorted(base_dir.glob("*.md")):
-            bfm, _ = parse_frontmatter(bfile.read_text(encoding="utf-8"))
-            bid = bfm.get("id", bfile.name)
-            bstatus = bfm.get("status", "pending")
-            b_badge = "✅" if bstatus == "done" else ("⏳" if bstatus == "in_progress" else "⏸️")
-            lines.append(f"\n{b_badge} Base Task [{bstatus}]: {bid} ({bfile.name})")
+    # Detect version containers vs flat
+    version_containers: list[tuple[str | None, Path, Path]] = []
+    if (tasks_dir / "base").exists():
+        version_containers.append((None, tasks_dir / "base", tasks_dir / "sub"))
 
-            # Subtasks under this base
-            if sub_dir.exists():
-                for sfile in sorted(sub_dir.glob("*.md")):
-                    sfm, _ = parse_frontmatter(sfile.read_text(encoding="utf-8"))
-                    if sfm.get("parent") == bid:
-                        sid = sfm.get("id", sfile.name)
-                        sstatus = sfm.get("status", "pending")
-                        s_badge = (
-                            " [x]"
-                            if sstatus == "done"
-                            else (" [/]" if sstatus == "in_progress" else " [ ]")
-                        )
-                        deps = sfm.get("depends_on", [])
-                        dep_str = f" (depends: {', '.join(deps)})" if deps else ""
-                        lines.append(f"   {s_badge} {sid}: {sfile.name}{dep_str}")
+    if tasks_dir.exists():
+        for child in sorted(tasks_dir.iterdir()):
+            if child.is_dir() and child.name != "_templates":
+                b_dir = child / "base"
+                s_dir = child / "sub"
+                if b_dir.exists() or s_dir.exists():
+                    version_containers.append((child.name, b_dir, s_dir))
+
+    if not version_containers:
+        return CommandResult(message="No task directories found in ABB workspace.")
+
+    for ver_name, base_dir, sub_dir in version_containers:
+        if ver_name:
+            lines.append(f"\n📁 Version {ver_name}:")
+
+        if base_dir.exists():
+            for bfile in sorted(base_dir.glob("*.md")):
+                bfm, _ = parse_frontmatter(bfile.read_text(encoding="utf-8"))
+                bid = bfm.get("id", bfile.name)
+                bstatus = bfm.get("status", "pending")
+                b_badge = "✅" if bstatus == "done" else ("⏳" if bstatus == "in_progress" else "⏸️")
+                indent = "  " if ver_name else ""
+                lines.append(f"{indent}{b_badge} Base Task [{bstatus}]: {bid} ({bfile.name})")
+
+                # Subtasks under this base
+                if sub_dir.exists():
+                    for sfile in sorted(sub_dir.glob("*.md")):
+                        sfm, _ = parse_frontmatter(sfile.read_text(encoding="utf-8"))
+                        if sfm.get("parent") == bid:
+                            sid = sfm.get("id", sfile.name)
+                            sstatus = sfm.get("status", "pending")
+                            s_badge = (
+                                " [x]"
+                                if sstatus == "done"
+                                else (" [/]" if sstatus == "in_progress" else " [ ]")
+                            )
+                            deps = sfm.get("depends_on", [])
+                            dep_str = f" (depends: {', '.join(deps)})" if deps else ""
+                            lines.append(f"{indent}   {s_badge} {sid}: {sfile.name}{dep_str}")
 
     return CommandResult(message="\n".join(lines))
+
 
 
 async def _verify_handler(args: str, context: CommandContext) -> CommandResult:

@@ -30,17 +30,24 @@ def index_tasks(tasks_dir: Path) -> dict[str, tuple[Path, dict[str, Any]]]:
             if task_id:
                 index[str(task_id).strip()] = (md_file, fm)
 
-            # Also index by relative path (e.g. "sub/01_task.md")
+            # Also index by relative path (e.g. "v1/sub/01_task.md" and "sub/01_task.md")
             try:
-                rel = str(md_file.relative_to(tasks_dir)).replace("\\", "/")
+                rel_parts = md_file.relative_to(tasks_dir).parts
+                rel = "/".join(rel_parts)
                 index[rel] = (md_file, fm)
                 index[md_file.name] = (md_file, fm)
+                if len(rel_parts) > 1:
+                    # e.g., "sub/01_task.md" if inside "v1/sub/01_task.md"
+                    sub_rel = "/".join(rel_parts[1:])
+                    index.setdefault(sub_rel, (md_file, fm))
+                    fm["_version_folder"] = rel_parts[0]
             except ValueError:
                 pass
         except Exception:
             continue
 
     return index
+
 
 
 def check_dag_dependencies(
