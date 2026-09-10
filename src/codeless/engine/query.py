@@ -864,7 +864,7 @@ async def run_query(
         if len(tool_calls) == 1:
             # Single tool: sequential (stream events immediately)
             tc = tool_calls[0]
-            yield ToolExecutionStarted(tool_name=tc.name, tool_input=tc.input), None
+            yield ToolExecutionStarted(tool_name=tc.name, tool_input=tc.input, tool_use_id=tc.id), None
             try:
                 result = await _execute_tool_call(context, tc.name, tc.id, tc.input)
             except Exception as exc:
@@ -880,48 +880,27 @@ async def run_query(
                     output=result.content,
                     is_error=result.is_error,
                     metadata=result.result_metadata,
+                    tool_use_id=tc.id,
                 ),
                 None,
             )
             tool_results = [result]
         else:
-            # Multiple tools: execute concurrently, emit events after
-            for tc in tool_calls:
-                yield ToolExecutionStarted(tool_name=tc.name, tool_input=tc.input), None
+            # Multiple tools: partition into read-only (concurrent) vs mutating
+            # (sequential) execution groups to prevent filesystem races and
+            # lockfile collisions while preserving parallelism for reads.
+            tool_results = await _execute_tool_calls_partitioned(context, tool_calls)
 
-            async def _run(tc):
-                return await _execute_tool_call(context, tc.name, tc.id, tc.input)
-
-            # Use return_exceptions=True so a single failing tool does not abandon
-            # its siblings as cancelled coroutines and leave the conversation with
-            # un-replied tool_use blocks (Anthropic's API rejects the next request
-            # on the session if any tool_use is missing a matching tool_result).
-            raw_results = await asyncio.gather(
-                *[_run(tc) for tc in tool_calls], return_exceptions=True
-            )
-            tool_results = []
-            for tc, result in zip(tool_calls, raw_results):
-                if isinstance(result, BaseException):
-                    log.exception(
-                        "tool execution raised: name=%s id=%s",
-                        tc.name,
-                        tc.id,
-                        exc_info=result,
-                    )
-                    result = ToolResultBlock(
-                        tool_use_id=tc.id,
-                        content=f"Tool {tc.name} failed: {type(result).__name__}: {result}",
-                        is_error=True,
-                    )
-                tool_results.append(result)
-
+            # Emit started/completed events for each tool call in order
             for tc, result in zip(tool_calls, tool_results):
+                yield ToolExecutionStarted(tool_name=tc.name, tool_input=tc.input, tool_use_id=tc.id), None
                 yield (
                     ToolExecutionCompleted(
                         tool_name=tc.name,
                         output=result.content,
                         is_error=result.is_error,
                         metadata=result.result_metadata,
+                        tool_use_id=tc.id,
                     ),
                     None,
                 )
@@ -932,6 +911,91 @@ async def run_query(
         raise MaxTurnsExceeded(context.max_turns)
     raise RuntimeError("Query loop exited without a max_turns limit or final response")
 
+
+def _is_tool_call_read_only(
+    context: QueryContext, tool_name: str, tool_input: dict[str, object],
+) -> bool:
+    """Classify a tool call as read-only or mutating without executing it.
+
+    Returns True if the tool exists and reports itself as read-only for the
+    given arguments. Returns False (mutating) as a conservative default when
+    the tool is unknown or the input fails validation.
+    """
+    tool = context.tool_registry.get(tool_name)
+    if tool is None:
+        return False
+    try:
+        parsed = tool.input_model.model_validate(tool_input)
+        return tool.is_read_only(parsed)
+    except Exception:
+        return False
+
+
+async def _execute_tool_calls_partitioned(
+    context: QueryContext,
+    tool_calls: list[Any],
+) -> list[ToolResultBlock]:
+    """Execute batched tool calls with concurrency control.
+
+    Read-only tool calls run concurrently via ``asyncio.gather``.
+    Mutating tool calls execute strictly sequentially in emission order.
+    Mixed batches are split into contiguous groups that respect ordering.
+    """
+
+    async def _safe_execute(tc: Any) -> ToolResultBlock:
+        """Execute a single tool call, catching exceptions into error results."""
+        try:
+            return await _execute_tool_call(context, tc.name, tc.id, tc.input)
+        except Exception as exc:
+            log.exception("tool execution raised: name=%s id=%s", tc.name, tc.id)
+            return ToolResultBlock(
+                tool_use_id=tc.id,
+                content=f"Tool {tc.name} failed: {type(exc).__name__}: {exc}",
+                is_error=True,
+            )
+
+    # Classify each tool call up-front
+    is_readonly = [
+        _is_tool_call_read_only(context, tc.name, tc.input) for tc in tool_calls
+    ]
+
+    # Build result array preserving original order
+    results: list[ToolResultBlock | None] = [None] * len(tool_calls)
+
+    # Partition into contiguous groups of same-type calls
+    i = 0
+    while i < len(tool_calls):
+        if is_readonly[i]:
+            # Collect contiguous read-only calls
+            j = i
+            while j < len(tool_calls) and is_readonly[j]:
+                j += 1
+            # Execute concurrently
+            batch = tool_calls[i:j]
+            raw = await asyncio.gather(
+                *[_safe_execute(tc) for tc in batch],
+                return_exceptions=True,
+            )
+            for k, (tc, result) in enumerate(zip(batch, raw)):
+                if isinstance(result, BaseException):
+                    log.exception(
+                        "tool execution raised: name=%s id=%s",
+                        tc.name, tc.id, exc_info=result,
+                    )
+                    result = ToolResultBlock(
+                        tool_use_id=tc.id,
+                        content=f"Tool {tc.name} failed: {type(result).__name__}: {result}",
+                        is_error=True,
+                    )
+                results[i + k] = result
+            i = j
+        else:
+            # Execute single mutating call sequentially
+            results[i] = await _safe_execute(tool_calls[i])
+            i += 1
+
+    # All slots should be filled; assert for safety
+    return [r for r in results if r is not None]
 
 async def _execute_tool_call(
     context: QueryContext,

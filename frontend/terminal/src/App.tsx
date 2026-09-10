@@ -1,4 +1,4 @@
-import React, {useDeferredValue, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {Box, Text, useApp, useInput} from 'ink';
 
 import {readClipboardImage, type ImageAttachment} from './clipboardImage.js';
@@ -77,15 +77,10 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 	const [selectModal, setSelectModal] = useState<SelectModalState>(null);
 	const [selectIndex, setSelectIndex] = useState(0);
 	const session = useBackendSession(config, () => exit());
-	const deferredTranscript = useDeferredValue(session.transcript);
-	const deferredAssistantBuffer = useDeferredValue(session.assistantBuffer);
-	const deferredStatus = useDeferredValue(session.status);
-	const deferredTasks = useDeferredValue(session.tasks);
-	const deferredTodoMarkdown = useDeferredValue(session.todoMarkdown);
-	const deferredSwarmTeammates = useDeferredValue(session.swarmTeammates);
-	const deferredSwarmNotifications = useDeferredValue(session.swarmNotifications);
-	const deferredAbbDag = useDeferredValue(session.abbDag);
-	const deferredAbbWorkflow = useDeferredValue(session.abbWorkflow);
+	// Pass session state directly — useDeferredValue in Ink/Node causes two
+	// immediate synchronous full-tree repaints per update (no GPU scheduler),
+	// which is the primary source of terminal strobing.
+	const {transcript, assistantBuffer, status, tasks, todoMarkdown, swarmTeammates, swarmNotifications, abbDag, abbWorkflow} = session;
 	const clipboardStatusTimerRef = useRef<NodeJS.Timeout | null>(null);
 
 	useEffect(() => {
@@ -138,8 +133,8 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 
 	// Current tool name for spinner
 	const currentToolName = useMemo(() => {
-		for (let i = deferredTranscript.length - 1; i >= 0; i--) {
-			const item = deferredTranscript[i];
+		for (let i = transcript.length - 1; i >= 0; i--) {
+			const item = transcript[i];
 			if (item.role === 'tool') {
 				return item.tool_name ?? 'tool';
 			}
@@ -148,7 +143,7 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 			}
 		}
 		return undefined;
-	}, [deferredTranscript]);
+	}, [transcript]);
 
 	// Command hints
 	const commandHints = useMemo(() => {
@@ -502,23 +497,23 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 	return (
 		<Box flexDirection="column" paddingX={1} height="100%">
 			{/* Active ABB Workflow Banner */}
-			{session.ready && deferredAbbWorkflow ? (
-				<AbbWorkflowBanner workflow={deferredAbbWorkflow} />
+			{session.ready && abbWorkflow ? (
+				<AbbWorkflowBanner workflow={abbWorkflow} />
 			) : null}
 
 			{/* Conversation area */}
 			<Box flexDirection="column" flexGrow={1}>
 				<ConversationView
-					items={deferredTranscript}
-					assistantBuffer={deferredAssistantBuffer}
+					items={transcript}
+					assistantBuffer={assistantBuffer}
 					showWelcome={session.ready && outputStyle !== 'codex'}
 					outputStyle={outputStyle}
 				/>
 			</Box>
 
 			{/* ABB DAG Hierarchy Panel */}
-			{session.ready && deferredAbbDag ? (
-				<AbbDagPanel dag={deferredAbbDag} />
+			{session.ready && abbDag ? (
+				<AbbDagPanel dag={abbDag} />
 			) : null}
 
 			{/* Backend modal (permission confirm, question, mcp auth) */}
@@ -546,18 +541,18 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 			) : null}
 
 			{/* Todo panel */}
-			{session.ready && deferredTodoMarkdown ? (
-				<TodoPanel markdown={deferredTodoMarkdown} />
+			{session.ready && todoMarkdown ? (
+				<TodoPanel markdown={todoMarkdown} />
 			) : null}
 
 			{/* Swarm panel */}
-			{session.ready && (deferredSwarmTeammates.length > 0 || deferredSwarmNotifications.length > 0) ? (
-				<SwarmPanel teammates={deferredSwarmTeammates} notifications={deferredSwarmNotifications} />
+			{session.ready && (swarmTeammates.length > 0 || swarmNotifications.length > 0) ? (
+				<SwarmPanel teammates={swarmTeammates} notifications={swarmNotifications} />
 			) : null}
 
 			{/* Status bar (only after backend is ready) */}
 			{session.ready ? (
-				<StatusBar status={deferredStatus} tasks={deferredTasks} activeToolName={session.busy ? currentToolName : undefined} />
+				<StatusBar status={status} tasks={tasks} activeToolName={session.busy ? currentToolName : undefined} />
 			) : null}
 
 			{/* Input — show loading indicator until backend is ready */}

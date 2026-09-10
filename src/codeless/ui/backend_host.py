@@ -330,6 +330,11 @@ class ReactBackendHost:
                 await self._emit_abb_state()
                 return
             if isinstance(event, ToolExecutionStarted):
+                # Key by (name, id) to avoid bleed when multiple same-name
+                # tools run concurrently (e.g. two file-read calls at once).
+                _input_key = (event.tool_name, event.tool_use_id or "")
+                self._last_tool_inputs[_input_key] = event.tool_input or {}
+                # Also keep legacy name-only key for backward compat
                 self._last_tool_inputs[event.tool_name] = event.tool_input or {}
                 await self._emit(
                     BackendEvent(
@@ -340,6 +345,7 @@ class ReactBackendHost:
                             role="tool",
                             text=f"{event.tool_name} {json.dumps(event.tool_input, ensure_ascii=True)}",
                             tool_name=event.tool_name,
+                            tool_use_id=event.tool_use_id,
                             tool_input=event.tool_input,
                         ),
                     )
@@ -356,6 +362,7 @@ class ReactBackendHost:
                             role="tool_result",
                             text=event.output,
                             tool_name=event.tool_name,
+                            tool_use_id=event.tool_use_id,
                             is_error=event.is_error,
                         ),
                     )

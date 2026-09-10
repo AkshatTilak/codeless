@@ -25,7 +25,7 @@ export function Spinner({label}: {label?: string}): React.JSX.Element {
 	useEffect(() => {
 		const timer = setInterval(() => {
 			setFrame((f) => (f + 1) % frames.length);
-		}, 100);
+		}, 200);
 		return () => clearInterval(timer);
 	}, [frames.length]);
 

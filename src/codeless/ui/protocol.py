@@ -63,6 +63,7 @@ class TranscriptItem(BaseModel):
     role: Literal["system", "user", "assistant", "tool", "tool_result", "log"]
     text: str
     tool_name: str | None = None
+    tool_use_id: str | None = None
     tool_input: dict[str, Any] | None = None
     is_error: bool | None = None
 

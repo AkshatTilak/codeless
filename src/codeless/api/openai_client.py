@@ -9,6 +9,7 @@ import os
 import re
 from typing import Any, AsyncIterator
 from urllib.parse import urlsplit, urlunsplit
+from uuid import uuid4
 
 from openai import AsyncOpenAI
 
@@ -389,9 +390,20 @@ class OpenAICompatibleClient:
                 if delta.tool_calls:
                     for tc_delta in delta.tool_calls:
                         idx = tc_delta.index
+                        # Some providers (Gemini, Ollama, vLLM) send index=None.
+                        # Fall back to a sequential counter so distinct tool
+                        # calls never collide on the same dict key.
+                        if idx is None:
+                            if collected_tool_calls:
+                                idx = max(collected_tool_calls.keys()) + 1
+                            else:
+                                idx = 0
                         if idx not in collected_tool_calls:
+                            # Generate a fallback UUID when the provider omits
+                            # tc_delta.id (common with Gemini/Ollama).
+                            fallback_id = tc_delta.id or f"call_{uuid4().hex[:12]}"
                             collected_tool_calls[idx] = {
-                                "id": tc_delta.id or "",
+                                "id": fallback_id,
                                 "name": "",
                                 "arguments": "",
                             }
@@ -400,7 +412,9 @@ class OpenAICompatibleClient:
                             entry["id"] = tc_delta.id
                         if tc_delta.function:
                             if tc_delta.function.name:
-                                entry["name"] = tc_delta.function.name
+                                # Append rather than overwrite: some providers
+                                # split function names across multiple chunks.
+                                entry["name"] += tc_delta.function.name
                             if tc_delta.function.arguments:
                                 entry["arguments"] += tc_delta.function.arguments
 
