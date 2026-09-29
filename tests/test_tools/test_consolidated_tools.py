@@ -218,3 +218,73 @@ async def test_web_tool_crawl4ai_runner(monkeypatch: pytest.MonkeyPatch):
     assert res is not None
     assert "Engine: crawl4ai" in res
     assert "Extracted via Crawl4AI" in res
+
+
+def test_web_tool_ddg_parsing_and_tables():
+    """Test DuckDuckGo Lite/HTML parsing and HTML table conversion."""
+    from codeless.tools.web_tool import (
+        ReadUrlContentTool,
+        SearchWebTool,
+        _extract_structured_html,
+        _parse_search_results,
+    )
+
+    # 1. Test DDG Lite table format parsing
+    lite_html = """
+    <table>
+      <tr>
+        <td valign="top">1.&nbsp;</td>
+        <td><a rel="nofollow" href="https://fastapi.tiangolo.com/" class='result-link'>FastAPI - FastAPI</a></td>
+      </tr>
+      <tr>
+        <td>&nbsp;</td>
+        <td class='result-snippet'>FastAPI is a modern, fast web framework for building APIs with Python.</td>
+      </tr>
+      <tr>
+        <td valign="top">2.&nbsp;</td>
+        <td><a rel="nofollow" href="https://pypi.org/project/fastapi/" class='result-link'>fastapi · PyPI</a></td>
+      </tr>
+      <tr>
+        <td>&nbsp;</td>
+        <td class='result-snippet'>Package index entry for FastAPI.</td>
+      </tr>
+    </table>
+    """
+    results = _parse_search_results(lite_html, limit=5)
+    assert len(results) == 2
+    assert results[0]["title"] == "FastAPI - FastAPI"
+    assert results[0]["url"] == "https://fastapi.tiangolo.com/"
+    assert "fast web framework" in results[0]["snippet"]
+
+    # 2. Test HTML Table extraction
+    table_doc = """
+    <html><body>
+    <table>
+      <tr><th>Name</th><th>Version</th></tr>
+      <tr><td>Codeless</td><td>1.0.0</td></tr>
+      <tr><td>FastAPI</td><td>0.115.0</td></tr>
+    </table>
+    </body></html>
+    """
+    extracted = _extract_structured_html(table_doc, base_url="https://example.com", output_format="markdown")
+    assert "| Name | Version |" in extracted["content"]
+    assert "| Codeless | 1.0.0 |" in extracted["content"]
+
+    # 3. Test alias normalization in WebToolInput
+    input_search = WebToolInput.model_validate({"q": "test query"})
+    assert input_search.action == "search"
+    assert input_search.query == "test query"
+
+    input_crawl = WebToolInput.model_validate({"Url": "https://example.com/docs"})
+    assert input_crawl.action == "crawl"
+    assert input_crawl.url == "https://example.com/docs"
+
+    # 4. Test Standalone SearchWebTool and ReadUrlContentTool adapters
+    search_adapter = SearchWebTool()
+    assert search_adapter.name == "search_web"
+    assert search_adapter.is_read_only(WebToolInput(query="hello")) is True
+
+    crawl_adapter = ReadUrlContentTool()
+    assert crawl_adapter.name == "read_url_content"
+    assert crawl_adapter.is_read_only(WebToolInput(url="https://example.com")) is True
+

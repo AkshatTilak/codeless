@@ -131,8 +131,10 @@ async def ensure_http_url_allowed(
 async def fetch_public_http_response(
     url: str,
     *,
+    method: str = "GET",
     headers: dict[str, str] | None = None,
     params: dict[str, str] | None = None,
+    data: dict[str, Any] | None = None,
     timeout: float = 15.0,
     max_redirects: int = 5,
     proxy: str | None = None,
@@ -140,6 +142,7 @@ async def fetch_public_http_response(
     """Fetch one HTTP resource while validating every redirect hop."""
     current_url = url
     current_params = params
+    current_data = data
 
     web_settings = _load_configured_web_settings()
     resolved_proxy = proxy if proxy is not None else web_settings.proxy
@@ -167,9 +170,13 @@ async def fetch_public_http_response(
                 mode=mode,
                 synthetic_cidrs=synthetic_cidrs,
             )
-            response = await client.get(
+            req_method = method if redirect_count == 0 else "GET"
+            req_data = current_data if redirect_count == 0 and method.upper() == "POST" else None
+            response = await client.request(
+                req_method,
                 current_url,
                 params=current_params,
+                data=req_data,
                 headers=headers,
             )
             if not response.has_redirect_location:
@@ -183,6 +190,7 @@ async def fetch_public_http_response(
 
             current_url = urljoin(str(response.url), location)
             current_params = None
+            current_data = None
 
     raise NetworkGuardError("request failed before receiving a response")
 

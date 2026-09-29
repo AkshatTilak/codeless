@@ -33,16 +33,35 @@ function QuestionModal({
 
 	const toolName = modal.tool_name ? String(modal.tool_name) : null;
 	const reason = modal.reason ? String(modal.reason) : null;
-	const question = String(modal.question ?? 'Question');
+	const fullQuestion = String(modal.question ?? 'Question');
+
+	// Window/cap question text so that huge question descriptions never overflow terminal viewport height
+	const terminalRows = process.stdout.rows || 24;
+	const maxQuestionLines = Math.max(6, Math.min(18, Math.floor(terminalRows * 0.45)));
+	const rawQuestionLines = fullQuestion.split('\n');
+	const isTruncated = rawQuestionLines.length > maxQuestionLines;
+	const visibleQuestionLines = isTruncated
+		? rawQuestionLines.slice(0, maxQuestionLines)
+		: rawQuestionLines;
 
 	return (
 		<Box flexDirection="column" marginTop={1} borderStyle="double" borderColor="magenta" paddingX={1}>
 			<Text color="magenta" dimColor>
 				Agent is waiting for your input...
 			</Text>
-			<Box marginTop={1}>
-				<Text color="magenta" bold>{'\u2753 '}</Text>
-				<Text bold>{question}</Text>
+			<Box marginTop={1} flexDirection="column">
+				<Box>
+					<Text color="magenta" bold>{'\u2753 '}</Text>
+					<Text bold>{visibleQuestionLines[0] ?? ''}</Text>
+				</Box>
+				{visibleQuestionLines.slice(1).map((line, idx) => (
+					<Text key={idx}>{line}</Text>
+				))}
+				{isTruncated && (
+					<Text dimColor italic>
+						... ({rawQuestionLines.length - maxQuestionLines} more lines hidden)
+					</Text>
+				)}
 			</Box>
 			{toolName ? (
 				<Text dimColor>

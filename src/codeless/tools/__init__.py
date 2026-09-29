@@ -19,7 +19,7 @@ from codeless.tools.skill_tool import SkillTool
 from codeless.tools.task_tool import TaskTool
 from codeless.tools.todo_write_tool import TodoWriteTool
 from codeless.tools.tool_search_tool import ToolSearchTool
-from codeless.tools.web_tool import WebTool
+from codeless.tools.web_tool import ReadUrlContentTool, SearchWebTool, WebTool
 from codeless.tools.worktree_tool import WorktreeTool
 
 
@@ -49,6 +49,11 @@ def create_default_tool_registry(mcp_manager=None) -> ToolRegistry:
     )
     for tool in canonical_tools:
         registry.register(tool)
+
+    web_tool = registry.get("web")
+    if isinstance(web_tool, WebTool):
+        registry.register(SearchWebTool(web_tool), is_alias=True)
+        registry.register(ReadUrlContentTool(web_tool), is_alias=True)
 
     if mcp_manager is not None:
         for tool_info in mcp_manager.list_tools():

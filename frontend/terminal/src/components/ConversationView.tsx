@@ -71,12 +71,13 @@ function groupToolPairs(items: TranscriptItem[]): GroupedItem[] {
 function estimateItemLines(item: TranscriptItem | ToolPair, cols: number): number {
 	if (Array.isArray(item)) {
 		// Tool pair: header + summary + result lines
-		const [toolItem, resultItem] = item as [TranscriptItem, TranscriptItem];
+		const [toolItem, resultItem] = item as unknown as [TranscriptItem, TranscriptItem];
 		const toolLines = Math.max(1, Math.ceil((toolItem.text?.length ?? 20) / cols));
 		const resultLines = Math.max(1, Math.ceil((resultItem.text?.length ?? 20) / cols));
 		return toolLines + resultLines + 2; // +2 for borders/spacing
 	}
-	const text = item.text ?? '';
+	const singleItem = item as TranscriptItem;
+	const text = singleItem.text ?? '';
 	const lines = text.split('\n').length;
 	// Account for line wrapping
 	let wrappedLines = 0;
@@ -91,23 +92,25 @@ function ConversationViewInner({
 	assistantBuffer,
 	showWelcome,
 	outputStyle,
+	hasModal = false,
 }: {
 	items: TranscriptItem[];
 	assistantBuffer: string;
 	showWelcome: boolean;
 	outputStyle: string;
+	hasModal?: boolean;
 }): React.JSX.Element {
 	const {theme} = useTheme();
 	const isCodexStyle = outputStyle === 'codex';
 
 	// Dynamic viewport windowing: only render items that fit within the
-	// terminal's physical row count.  This prevents Ink's ANSI cursor-up
+	// terminal's physical row count. This prevents Ink's ANSI cursor-up
 	// escape from clipping at row 1 and triggering continuous screen rewrites.
 	const terminalRows = process.stdout.rows || 24;
 	const terminalCols = process.stdout.columns || 80;
-	// Reserve lines for header, status bar, prompt input, and keyboard hints
-	const reservedLines = 6;
-	const lineBudget = Math.max(8, terminalRows - reservedLines);
+	// When a modal is active, reserve more lines to strictly prevent viewport overflow
+	const reservedLines = hasModal ? Math.max(14, Math.floor(terminalRows * 0.65)) : 6;
+	const lineBudget = Math.max(2, terminalRows - reservedLines);
 
 	// Walk items from newest to oldest, accumulating estimated line counts
 	let usedLines = 0;

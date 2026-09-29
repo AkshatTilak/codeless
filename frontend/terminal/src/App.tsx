@@ -508,6 +508,7 @@ function AppInner({config}: {config: FrontendConfig}): React.JSX.Element {
 					assistantBuffer={assistantBuffer}
 					showWelcome={session.ready && outputStyle !== 'codex'}
 					outputStyle={outputStyle}
+					hasModal={Boolean(session.modal || selectModal)}
 				/>
 			</Box>
 
